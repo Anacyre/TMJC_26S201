@@ -60,7 +60,7 @@ watch(
   (v) => {
     if (v === 'home' || v === 'tasks') {
       bounceHome.value = true
-      setTimeout(() => (bounceHome.value = false), 280)
+      setTimeout(() => (bounceHome.value = false), 160)
     }
   },
   { immediate: true }
@@ -68,11 +68,11 @@ watch(
 
 function go(key) {
   if (key === props.active) return
-  if (key === 'home') return uni.navigateTo({ url: '/pages/index/index', animationType: 'fade-in', animationDuration: 200 })
-  if (key === 'tasks') return uni.navigateTo({ url: '/pages/tasks/index', animationType: 'slide-in-right', animationDuration: 220 })
-  if (key === 'community') return uni.navigateTo({ url: '/pages/community/index', animationType: 'slide-in-right', animationDuration: 220 })
-  if (key === 'study') return uni.navigateTo({ url: '/pages/study/index', animationType: 'slide-in-right', animationDuration: 220 })
-  if (key === 'other') return uni.navigateTo({ url: '/pages/other/other', animationType: 'slide-in-right', animationDuration: 220 })
+  if (key === 'home') return uni.navigateTo({ url: '/pages/index/index', animationType: 'fade-in', animationDuration: 150 })
+  if (key === 'tasks') return uni.navigateTo({ url: '/pages/tasks/index', animationType: 'slide-in-right', animationDuration: 160 })
+  if (key === 'community') return uni.navigateTo({ url: '/pages/community/index', animationType: 'slide-in-right', animationDuration: 160 })
+  if (key === 'study') return uni.navigateTo({ url: '/pages/study/index', animationType: 'slide-in-right', animationDuration: 160 })
+  if (key === 'other') return uni.navigateTo({ url: '/pages/other/other', animationType: 'slide-in-right', animationDuration: 160 })
 }
 </script>
 
@@ -81,11 +81,11 @@ function go(key) {
 .bg { position:absolute; inset:0; border-radius: 34rpx; background: rgba(255,255,255,.68); border:1rpx solid rgba(255,255,255,.55); box-shadow: 0 30rpx 80rpx rgba(12,20,40,.12); backdrop-filter: blur(16px); transition: background 240ms ease, border-color 240ms ease;}
 .t-dark .bg { background: rgba(26,29,33,.78); border-color: rgba(255,255,255,.06); box-shadow: 0 34rpx 100rpx rgba(0,0,0,.55);}
 .indicatorTrack { position: absolute; inset: 10rpx 12rpx 14rpx 12rpx; }
-.indicator { width: 20%; height: 78rpx; border-radius: 20rpx; background: rgba(46,99,255,.12); border: 1rpx solid rgba(46,99,255,.15); transition: transform 380ms cubic-bezier(.2,.7,.1,1), border-radius 380ms ease, opacity 220ms ease;}
-.t-dark .indicator { background: rgba(46,99,255,.16); border-color: rgba(46,99,255,.2);}
+.indicator { width: 20%; height: 78rpx; border-radius: 20rpx; background: rgba(46,99,255,.12); border: none; transition: transform 160ms cubic-bezier(0.34,1.2,0.64,1), opacity 150ms ease;}
+.t-dark .indicator { background: rgba(46,99,255,.16); }
 .row { position:relative; height:100%; display:grid; grid-template-columns:repeat(5,1fr); align-items:center; justify-content:stretch; padding:0 10rpx 4rpx;}
-.item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4rpx; min-height:0; opacity:.68; transition: opacity 260ms ease, transform 260ms cubic-bezier(.2,.7,.1,1);}
-.item:active { transform: scale(.98);}
+.item { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4rpx; min-height:0; opacity:.68; transition: opacity 150ms ease, transform 150ms cubic-bezier(0.34,1.2,0.64,1);}
+.item:active { transform: scale(0.97);}
 .item.active { opacity:1; transform: translateY(-1rpx);}
 .iconWrap{width:100%;height:40rpx;display:flex;align-items:center;justify-content:center;transition:transform 260ms cubic-bezier(.2,.7,.1,1)}
 .item.active .iconWrap{transform:scale(1.06)}
@@ -121,8 +121,8 @@ function go(key) {
 
 .homeIconWrap{width:38rpx;height:38rpx;border-radius:14rpx;background:rgba(46,99,255,.12);transition:background .22s ease;display:flex;align-items:center;justify-content:center;}
 .homeItem.active .homeIconWrap{background:rgba(46,99,255,.22)}
-.homeItem.bounce .homeIconWrap { animation: homeBounce 280ms ease;}
-@keyframes homeBounce { 0% { transform: scale(1);} 45% { transform: scale(1.06);} 100% { transform: scale(1);} }
+.homeItem.bounce .homeIconWrap { animation: homeBounce 150ms cubic-bezier(0.34,1.2,0.64,1);}
+@keyframes homeBounce { 0% { transform: scale(1);} 50% { transform: scale(1.03);} 100% { transform: scale(1);} }
 .homeGlyph { position: relative; width: 20rpx; height: 20rpx; }
 .homeRoof { position: absolute; top: 0; left: 50%; width: 16rpx; height: 10rpx; margin-left: -8rpx; border-top: 2rpx solid rgba(46,99,255,.95); border-left: 2rpx solid rgba(46,99,255,.95); border-right: 2rpx solid rgba(46,99,255,.95); border-top-left-radius: 6rpx; border-top-right-radius: 6rpx; }
 .homeBase { position: absolute; bottom: 0; left: 2rpx; right: 2rpx; height: 8rpx; border: 2rpx solid rgba(46,99,255,.95); border-top: none; border-bottom-left-radius: 4rpx; border-bottom-right-radius: 4rpx; }

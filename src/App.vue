@@ -1,15 +1,21 @@
 <script>
 import { useTheme } from '@/composables/useTheme'
+import { useFocusTheme } from '@/composables/useFocusTheme'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { USE_MOCK, resetMockBackend } from '@/lib/mockBackend'
+import ToastHost from '@/components/ToastHost.vue'
+import FocusAmbient from '@/components/FocusAmbient.vue'
 
 export default {
+  components: { ToastHost, FocusAmbient },
   onLaunch: function () {
     useTheme()
+    useFocusTheme()
     bootstrapData()
   },
   onShow: function () {
     useTheme()
+    useFocusTheme()
     bootstrapData()
   },
   onHide: function () {},
@@ -37,7 +43,6 @@ if (typeof window !== 'undefined') {
     }
   }
 
-  // Expose quick reset for live demos in browser console.
   window.__preview = {
     mock: USE_MOCK,
     reset() {
@@ -49,26 +54,33 @@ if (typeof window !== 'undefined') {
 }
 </script>
 
+<template>
+  <FocusAmbient />
+  <ToastHost />
+</template>
+
 <style>
+@import './styles/design-system.css';
+
 /* Global mobile layout hygiene (H5 + App) */
 page {
   width: 100%;
   min-height: 100%;
   overflow-x: hidden;
-  background: #f4f6fa;
+  background: var(--surface-base);
   color-scheme: light;
-  transition: background-color 280ms ease;
+  transition: background-color var(--motion-slow) var(--ease-soft);
 }
 
 html[data-theme='dark'] page,
 html[data-theme='dark'] body {
-  background: #0f1216;
+  background: var(--surface-base);
   color-scheme: dark;
 }
 
 html[data-theme='light'] page,
 html[data-theme='light'] body {
-  background: #f4f6fa;
+  background: var(--surface-base);
   color-scheme: light;
 }
 
@@ -79,12 +91,8 @@ body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  background: #f4f6fa;
-  transition: background-color 280ms ease;
-}
-
-html[data-theme='dark'] body {
-  background: #0f1216;
+  background: var(--surface-base);
+  transition: background-color var(--motion-slow) var(--ease-soft);
 }
 
 view,
@@ -98,19 +106,18 @@ button {
   -webkit-tap-highlight-color: transparent;
 }
 
-/* prevent subtle horizontal drift on some H5 shells */
 .page {
   width: 100%;
   max-width: 100%;
-  transition: background-color 280ms ease, color 280ms ease;
+  transition: background-color var(--motion-slow) var(--ease-soft),
+    color var(--motion-slow) var(--ease-soft);
 }
 
-/* Universal theme-aware text default so transitioning pages never flash */
 .t-light {
-  color: rgba(16, 24, 40, 0.92);
+  color: var(--text-primary);
 }
 .t-dark {
-  color: rgba(245, 247, 255, 0.92);
+  color: var(--text-primary);
 }
 
 .preview-pill {

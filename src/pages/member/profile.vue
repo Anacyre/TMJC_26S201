@@ -161,6 +161,7 @@ import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { getQuickLoginAlias, setQuickLoginAlias } from '@/composables/useMemberStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { getMemberById } = useCommunityStore()
@@ -226,7 +227,7 @@ function saveProfile() {
 function saveAlias() {
   setQuickLoginAlias(currentUser.value.id, aliasDraft.value.trim())
   aliasOpen.value = false
-  uni.showToast({ title: 'Alias saved', icon: 'none' })
+  toast.saved()
 }
 
 function barHeight(minutes) {

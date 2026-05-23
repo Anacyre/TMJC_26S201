@@ -10,8 +10,7 @@
           <view class="needle" />
         </view>
         <view class="focusBody">
-          <text class="focusTitle">Focus space</text>
-          <text class="focusSub">A calm timer, white noise, weekly insight.</text>
+          <text class="focusTitle">Focus</text>
         </view>
         <view class="focusStat">
           <text class="focusStatNum">{{ focusHoursLabel }}</text>
@@ -22,11 +21,13 @@
       <view class="sectionHead">
         <text class="sectionTitle">Subjects</text>
       </view>
-      <view v-if="!subjectsView.length" class="emptyWrap">
+      <view v-if="loading" class="emptyWrap">
+        <SkeletonList variant="resources" :count="4" />
+      </view>
+      <view v-else-if="!subjectsView.length" class="emptyWrap">
         <EmptyState
           variant="resources"
           title="No subjects yet"
-          subtitle="Subjects appear here as resources are added."
         />
       </view>
       <view v-else class="grid">
@@ -44,7 +45,6 @@
         <EmptyState
           variant="resources"
           title="No resources uploaded"
-          subtitle="Upload notes, slides, or reference packs from any subject page."
         />
       </view>
       <view v-else>
@@ -66,12 +66,13 @@ import BottomNav from '@/components/BottomNav.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 
 const { themeClass } = useTheme()
-const { subjects, latestResources } = useStudyStore()
+const { subjects, latestResources, loading } = useStudyStore()
 const { totalHoursLabel } = useFocusStore()
 const focusHoursLabel = computed(() => totalHoursLabel.value || '0m')
 

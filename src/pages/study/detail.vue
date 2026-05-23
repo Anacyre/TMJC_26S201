@@ -44,6 +44,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { getResourceById, toggleResourceLike, downloadResource } = useStudyStore()
@@ -68,13 +69,13 @@ function shortTimeLabel(iso) {
 function onLike() {
   if (!resource.value?.id) return
   toggleResourceLike(resource.value.id)
-  uni.showToast({ title: likedState.value ? 'Unliked' : 'Liked', icon: 'none' })
+  toast.updated()
 }
 
 async function onDownload() {
   if (!resource.value?.id) return
   await downloadResource(resource.value.id)
-  uni.showToast({ title: 'Download queued (preview)', icon: 'none' })
+  toast.show('Download queued')
 }
 
 onLoad((q) => {

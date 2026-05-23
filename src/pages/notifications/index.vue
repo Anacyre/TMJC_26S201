@@ -40,6 +40,11 @@
     </view>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :scroll-into-view="scrollInto">
+      <view v-if="loading" class="listPad">
+        <SkeletonList variant="notifications" :count="5" />
+      </view>
+
+      <template v-else>
       <view v-if="pinnedList.length" class="pinSection">
         <text class="pinLabel">Important</text>
         <NoticeCard
@@ -72,10 +77,10 @@
       <view v-if="!pinnedList.length && !restList.length" class="emptyWrap">
         <EmptyState
           variant="notifications"
-          title="No notices match"
-          subtitle="Try a different filter, or wait — class updates land here as they happen."
+          title="No notices yet"
         />
       </view>
+      </template>
       <view class="gap" />
     </scroll-view>
 
@@ -90,7 +95,6 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="sheetTitle">New notification</text>
-        <text class="sheetSub">Posted to the class feed.</text>
 
         <view class="field">
           <text class="fieldLabel">Type</text>
@@ -154,6 +158,8 @@ import AppHeader from '@/components/AppHeader.vue'
 import NoticeCard from '@/components/NoticeCard.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
+import { toast } from '@/composables/useToast'
 import TagSelect from '@/components/TagSelect.vue'
 import DateField from '@/components/DateField.vue'
 import { useTheme } from '@/composables/useTheme'
@@ -166,6 +172,7 @@ const { themeClass } = useTheme()
 const {
   visibleNotifications,
   pinnedNotifications,
+  loading,
   markRead,
   toggleImportant,
   setInPlanner,
@@ -248,7 +255,7 @@ function onOpenCard(n) {
 
 function onPlanner(n) {
   if (n.inPlanner) {
-    uni.showToast({ title: 'Already in planner', icon: 'none' })
+    toast.show('Already added')
     return
   }
   addTaskFromNotice({
@@ -260,7 +267,7 @@ function onPlanner(n) {
     noticeTitle: n.title,
   })
   setInPlanner(n.id, true)
-  uni.showToast({ title: 'Added to Tasks', icon: 'none' })
+  toast.added()
 }
 
 function onImportant(n) {
@@ -302,11 +309,11 @@ function formatDeadline(value) {
 async function publish() {
   if (publishing.value) return
   if (!draft.value.title.trim()) {
-    uni.showToast({ title: 'Title is required', icon: 'none' })
+    toast.show('Title required')
     return
   }
   if (!draft.value.type) {
-    uni.showToast({ title: 'Pick a notice type', icon: 'none' })
+    toast.show('Pick a type')
     return
   }
   publishing.value = true
@@ -322,9 +329,9 @@ async function publish() {
     })
     showCreate.value = false
     draft.value = emptyDraft()
-    uni.showToast({ title: 'Published', icon: 'none' })
+    toast.published()
   } catch (err) {
-    uni.showToast({ title: 'Could not publish', icon: 'none' })
+    toast.show('Could not publish')
   } finally {
     publishing.value = false
   }

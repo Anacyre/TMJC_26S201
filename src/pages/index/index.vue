@@ -53,7 +53,6 @@
             <EmptyState
               variant="notifications"
               title="No notices yet"
-              subtitle="Class updates from admins will appear here."
             />
           </view>
           <view v-else class="noticeGrid">
@@ -89,9 +88,8 @@
           <view v-if="!todayTasks.length" class="emptyCard">
             <EmptyState
               variant="tasks"
-              title="A clear day"
-              subtitle="No tasks scheduled for today."
-              action-label="Plan a task"
+              title="No tasks today"
+              action-label="Add task"
               @action="openPlanner"
             />
           </view>
@@ -130,7 +128,6 @@
             <EmptyState
               variant="posts"
               title="No posts yet"
-              subtitle="Start a discussion in any community to see it here."
               action-label="Explore"
               @action="exploreCommunity"
             />

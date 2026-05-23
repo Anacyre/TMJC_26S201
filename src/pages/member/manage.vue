@@ -103,6 +103,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { adminAddMember, adminSetRole } from '@/lib/mockBackend'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { members, fetchMembers } = useCommunityStore()
@@ -135,7 +136,7 @@ function openAdd() {
 
 async function commitAdd() {
   if (!draft.value.name.trim()) {
-    uni.showToast({ title: 'Account name is required', icon: 'none' })
+    toast.show('Name required')
     return
   }
   await adminAddMember({
@@ -145,20 +146,20 @@ async function commitAdd() {
   })
   await fetchMembers()
   addOpen.value = false
-  uni.showToast({ title: 'Account created', icon: 'none' })
+  toast.added()
 }
 
 async function promote(m) {
   await adminSetRole(m.id, 'admin')
   await fetchMembers()
-  uni.showToast({ title: 'Promoted to admin', icon: 'none' })
+  toast.updated()
 }
 
 async function stepDown() {
   await adminSetRole(currentUser.value.id, 'member')
   currentUser.value.role = 'member'
   await fetchMembers()
-  uni.showToast({ title: 'You stepped down from admin', icon: 'none' })
+  toast.updated()
 }
 </script>
 

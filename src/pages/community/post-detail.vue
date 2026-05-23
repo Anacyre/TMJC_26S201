@@ -40,6 +40,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { getPostById, getComments, addComment, fetchComments, togglePostLike } = useCommunityStore()
@@ -66,13 +67,13 @@ function shortTimeLabel(iso) {
 function onToggleLike() {
   if (!post.value?.id) return
   togglePostLike(post.value.id)
-  uni.showToast({ title: post.value.liked ? 'Unliked' : 'Liked', icon: 'none' })
+  toast.updated()
 }
 
 function send() {
   if (!reply.value.trim()) return
   addComment(id.value, reply.value)
-  uni.showToast({ title: 'Comment posted', icon: 'none' })
+  toast.added()
   reply.value = ''
 }
 onLoad((q) => {

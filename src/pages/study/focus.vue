@@ -7,7 +7,6 @@
       <view class="safe">
 
         <view class="hero">
-          <text class="kicker">Focus space</text>
           <text class="hint">{{ statusLabel }}</text>
 
           <view class="ringStack">
@@ -157,6 +156,7 @@ import BottomNav from '@/components/BottomNav.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useFocusStore, WHITE_NOISE_OPTIONS } from '@/composables/useFocusStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const {
@@ -300,7 +300,7 @@ function completeSession() {
     subject: 'Focus',
     soundId: prefs.value.soundId,
   })
-  uni.showToast({ title: `Focused ${minutes} min`, icon: 'none' })
+  toast.saved()
   remaining.value = totalSeconds.value
 }
 

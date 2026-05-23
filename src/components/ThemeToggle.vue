@@ -26,7 +26,7 @@ const animating = ref(false)
 function handleTap() {
   animating.value = true
   toggleTheme()
-  setTimeout(() => (animating.value = false), 320)
+  setTimeout(() => (animating.value = false), 180)
 }
 </script>
 
@@ -41,7 +41,7 @@ function handleTap() {
   background: rgba(255, 255, 255, 0.62);
   border: 1rpx solid rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(14px);
-  transition: background 220ms ease, border-color 220ms ease, transform 200ms ease;
+  transition: background 150ms ease, border-color 150ms ease, transform 120ms cubic-bezier(0.34,1.2,0.64,1);
   position: relative;
   overflow: hidden;
 }
@@ -52,7 +52,7 @@ function handleTap() {
 }
 
 .themeBtn.pressed {
-  transform: scale(0.94);
+  transform: scale(0.97);
 }
 
 .glyphWrap {
@@ -62,7 +62,7 @@ function handleTap() {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 320ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 180ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 .glyphWrap.flip {

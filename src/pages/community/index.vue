@@ -11,7 +11,6 @@
         </view>
         <view class="noticeBody">
           <text class="noticeTitle">Notices</text>
-          <text class="noticeSub">Homework · events · VIA</text>
         </view>
         <text class="noticeChev">›</text>
       </view>
@@ -30,12 +29,14 @@
     </view>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <view v-if="tab === 'communities'" class="list">
+      <SkeletonList v-if="loading && tab === 'communities'" variant="cards" :count="3" />
+      <SkeletonList v-else-if="loading && tab === 'members'" variant="members" :count="4" />
+
+      <view v-else-if="tab === 'communities'" class="list">
         <view v-if="!communities.length" class="emptyWrap">
           <EmptyState
             variant="posts"
             title="No spaces yet"
-            :subtitle="isAdmin ? 'Create the first community for your class.' : 'Communities will appear here when an admin creates one.'"
           />
         </view>
         <view v-for="c in communities" :key="c.id" class="card" role="button" @tap="openFeed(c.id)">
@@ -55,7 +56,6 @@
           <EmptyState
             variant="members"
             title="No members yet"
-            subtitle="Members of your class will show up here as they join."
           />
         </view>
         <view v-for="m in visibleMembers" :key="m.id" class="mCard" role="button" @tap="openMember(m.id)">
@@ -99,6 +99,8 @@ import BottomNav from '@/components/BottomNav.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
+import { toast } from '@/composables/useToast'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useMemberStore } from '@/composables/useMemberStore'
@@ -106,7 +108,7 @@ import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 
 const { themeClass } = useTheme()
-const { communities, addCommunity } = useCommunityStore()
+const { communities, loading, addCommunity } = useCommunityStore()
 const { visibleMembers } = useMemberStore()
 const { currentUser } = useUserStore()
 const { publicFocusHoursLabel } = useFocusStore()
@@ -139,7 +141,7 @@ function openManage() {
 }
 function createCommunity() {
   if (!draft.value.name.trim()) {
-    uni.showToast({ title: 'Name required', icon: 'none' })
+    toast.show('Name required')
     return
   }
   addCommunity({

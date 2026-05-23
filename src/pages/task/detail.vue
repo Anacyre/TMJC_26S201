@@ -77,6 +77,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const id = ref('')
@@ -120,12 +121,12 @@ function openNotice(nid) {
 function completeTask() {
   const wasDone = task.value.done
   toggleTaskDone(task.value.id)
-  uni.showToast({ title: wasDone ? 'Task reopened' : 'Completed', icon: 'none' })
+  toast.updated()
 }
 
 function saveTask(payload) {
   updateTask(task.value.id, payload)
-  uni.showToast({ title: 'Task updated', icon: 'none' })
+  toast.saved()
 }
 
 onLoad((query) => {

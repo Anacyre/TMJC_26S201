@@ -4,8 +4,7 @@
     <AppHeader :title="subject.name" nav-mode="back" :show-avatar="false" />
     <view v-if="subjectNoticeSlug" class="noticeStrip" role="button" @tap="openSubjectNotices">
       <view class="noticeStripMain">
-        <text class="noticeStripLabel">Subject notices</text>
-        <text class="noticeStripSub">Filtered for this subject</text>
+        <text class="noticeStripLabel">Notices</text>
       </view>
       <text class="noticeStripChev">›</text>
     </view>
@@ -14,7 +13,6 @@
         <EmptyState
           variant="resources"
           title="No resources yet"
-          subtitle="Notes, slides and reference packs for this subject will land here."
         />
       </view>
       <view v-else>

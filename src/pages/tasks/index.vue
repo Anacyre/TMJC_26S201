@@ -18,11 +18,12 @@
           </view>
         </view>
 
-        <view v-if="!filtered.length" class="emptyWrap">
+        <SkeletonList v-if="loading" variant="tasks" :count="4" />
+
+        <view v-else-if="!filtered.length" class="emptyWrap">
           <EmptyState
             variant="tasks"
             :title="emptyTitle"
-            :subtitle="emptySubtitle"
             :action-label="tab !== 'completed' ? 'New task' : ''"
             @action="openCreate"
           />
@@ -91,7 +92,7 @@
         </view>
 
         <view v-if="tab === 'completed' && filtered.length" class="swipeHint">
-          <text class="swipeHintText">Swipe a card left to delete</text>
+          <text class="swipeHintText">Swipe to delete</text>
         </view>
 
         <view class="spacer" />
@@ -119,11 +120,13 @@ import TaskEditorSheet from '@/components/TaskEditorSheet.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SwipeRow from '@/components/SwipeRow.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { tasks, toggleTaskDone, addTask, deleteTask } = useTasksStore()
+const { tasks, loading, toggleTaskDone, addTask, deleteTask } = useTasksStore()
 
 const tab = ref('today')
 const pressedKey = ref('')
@@ -137,15 +140,9 @@ const filtered = computed(() => {
 })
 
 const emptyTitle = computed(() => {
-  if (tab.value === 'completed') return 'Nothing finished yet'
+  if (tab.value === 'completed') return 'No tasks yet'
   if (tab.value === 'upcoming') return 'No upcoming tasks'
-  return 'A clear day ahead'
-})
-
-const emptySubtitle = computed(() => {
-  if (tab.value === 'completed') return 'Tick off a task and it will land here.'
-  if (tab.value === 'upcoming') return 'Add a task with a future date and it will show up here.'
-  return 'Capture what matters today, one task at a time.'
+  return 'No tasks today'
 })
 
 function toggleDone(t) {
@@ -162,12 +159,12 @@ function openCreate() {
 
 function createTask(payload) {
   addTask(payload)
-  uni.showToast({ title: 'Task created', icon: 'none' })
+  toast.added()
 }
 
 function deleteTaskRow(id) {
   deleteTask(id)
-  uni.showToast({ title: 'Task removed', icon: 'none' })
+  toast.deleted()
 }
 </script>
 
@@ -180,9 +177,9 @@ function deleteTaskRow(id) {
 .safe { padding: 0 28rpx 200rpx; }
 
 .tabs { display: flex; gap: 8rpx; padding: 8rpx 0 18rpx; }
-.tab { padding: 12rpx 18rpx; border-radius: 999rpx; background: transparent; border: 1rpx solid transparent; opacity: 0.62; transition: transform 180ms ease, opacity 180ms ease, background 220ms ease, border-color 220ms ease; }
-.tab.on { opacity: 1; background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.18); }
-.tab:active { transform: scale(0.98); }
+.tab { padding: 12rpx 18rpx; border-radius: 999rpx; background: transparent; opacity: 0.62; transition: transform 150ms cubic-bezier(0.34,1.2,0.64,1), opacity 150ms ease, background 150ms ease; }
+.tab.on { opacity: 1; background: rgba(46, 99, 255, 0.12); }
+.tab:active { transform: scale(0.97); }
 .tabText { font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.7); }
 .t-dark .tabText { color: rgba(245, 247, 255, 0.66); }
 .tab.on .tabText { color: rgba(46, 99, 255, 0.96); font-weight: 740; }
@@ -194,8 +191,8 @@ function deleteTaskRow(id) {
 .swipeHintText { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
 .t-dark .swipeHintText { color: rgba(245, 247, 255, 0.5); }
 
-.card { width: 100%; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); box-shadow: 0 14rpx 40rpx rgba(12, 20, 40, 0.06); transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease; }
-.t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.32); }
+.card { width: 100%; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: none; box-shadow: 0 14rpx 40rpx rgba(12, 20, 40, 0.06); transition: transform 150ms cubic-bezier(0.34,1.2,0.64,1), box-shadow 150ms ease; }
+.t-dark .card { background: rgba(255, 255, 255, 0.04); box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.32); }
 .tap:active { transform: scale(0.99); }
 .pressed { transform: scale(0.99); }
 

@@ -10,17 +10,19 @@
     </view>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <view v-if="!visiblePostsView.length" class="emptyWrap">
+      <SkeletonList v-if="loading" variant="feed" :count="3" />
+
+      <view v-else-if="!visiblePostsView.length" class="emptyWrap">
         <EmptyState
           variant="posts"
           title="No posts yet"
-          subtitle="Be the first to start a thread in this space."
           action-label="Create post"
           @action="showCreate = true"
         />
       </view>
 
       <view
+        v-else
         v-for="p in visiblePostsView"
         :key="p.id"
         class="card tap"
@@ -58,7 +60,6 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="sheetTitle">New post</text>
-        <text class="sheetSub">Posted to {{ community.name }}.</text>
         <textarea class="input area" v-model="draft.text" placeholder="Share something useful…" placeholder-class="ph" />
         <input class="input" v-model="draft.image" placeholder="Image URL (optional)" placeholder-class="ph" />
         <view class="anonRow" role="button" @tap="draft.anonymous = !draft.anonymous">
@@ -81,12 +82,14 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { getCommunityById, hotPosts, newPosts, topPosts, addPost } = useCommunityStore()
+const { getCommunityById, hotPosts, newPosts, topPosts, addPost, loading } = useCommunityStore()
 const { currentUser } = useUserStore()
 const id = ref('c1')
 const filter = ref('hot')
@@ -129,7 +132,7 @@ function openPost(postId) {
 
 function createPost() {
   if (!draft.value.text.trim()) {
-    uni.showToast({ title: 'Write something first', icon: 'none' })
+    toast.show('Write something')
     return
   }
   addPost({
@@ -141,7 +144,7 @@ function createPost() {
   })
   showCreate.value = false
   draft.value = { text: '', image: '', anonymous: false }
-  uni.showToast({ title: 'Posted', icon: 'none' })
+  toast.published()
 }
 
 onLoad((q) => { id.value = q?.id || 'c1' })

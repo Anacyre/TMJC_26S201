@@ -4,11 +4,6 @@
     <AppHeader title="More" nav-mode="back" :show-avatar="false" />
 
     <view class="safe">
-      <view class="hero">
-        <text class="kicker">Quiet corner</text>
-        <text class="title">A calm place for settings and archives.</text>
-      </view>
-
       <view class="grid">
         <view
           v-for="x in entries"
@@ -22,7 +17,6 @@
             <component :is="x.glyph" />
           </view>
           <text class="tileName">{{ x.title }}</text>
-          <text class="tileSub">{{ x.sub }}</text>
         </view>
       </view>
     </view>
@@ -39,6 +33,7 @@ import BottomNav from '@/components/BottomNav.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 
@@ -64,18 +59,18 @@ const glyphs = {
 }
 
 const entries = ref([
-  { key: 'saved', title: 'Saved', sub: 'Bookmarks', glyph: glyphs.saved },
-  { key: 'hidden', title: 'Hidden', sub: 'Restore notices', glyph: glyphs.hidden },
-  { key: 'calendar', title: 'Calendar', sub: 'Month overview', glyph: glyphs.calendar },
-  { key: 'appearance', title: 'Appearance', sub: 'Theme & style', glyph: glyphs.appearance },
-  { key: 'memories', title: 'Memories', sub: 'Class moments', glyph: glyphs.memories },
-  { key: 'about', title: 'About', sub: 'Build info', glyph: glyphs.about },
+  { key: 'saved', title: 'Saved', glyph: glyphs.saved },
+  { key: 'hidden', title: 'Hidden', glyph: glyphs.hidden },
+  { key: 'calendar', title: 'Calendar', glyph: glyphs.calendar },
+  { key: 'appearance', title: 'Appearance', glyph: glyphs.appearance },
+  { key: 'memories', title: 'Memories', glyph: glyphs.memories },
+  { key: 'about', title: 'About', glyph: glyphs.about },
 ])
 
 function openEntry(x) {
   if (x.key === 'memories') return uni.navigateTo({ url: '/pages/other/events-memories', animationType: 'slide-in-right', animationDuration: 220 })
   if (x.key === 'hidden') return uni.navigateTo({ url: '/pages/notifications/hidden', animationType: 'slide-in-right', animationDuration: 220 })
-  uni.showToast({ title: `${x.title} (demo)`, icon: 'none' })
+  toast.show(`${x.title}`)
 }
 
 onLoad(() => {})

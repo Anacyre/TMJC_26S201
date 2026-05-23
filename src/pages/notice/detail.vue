@@ -41,6 +41,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useTasksStore } from '@/composables/useTasksStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { getNotificationById, markRead, toggleImportant, toggleHidden, setInPlanner } = useNotificationStore()
@@ -62,10 +63,6 @@ const fallback = {
 const notice = computed(() => getNotificationById(id.value) || fallback)
 const timeLabel = computed(() => shortTimeLabel(notice.value.createdAt))
 
-function toast(title) {
-  uni.showToast({ title, icon: 'none' })
-}
-
 function shortTimeLabel(iso) {
   if (!iso) return 'just now'
   const diff = Date.now() - new Date(iso).getTime()
@@ -82,26 +79,25 @@ function shortTimeLabel(iso) {
 function markAsRead() {
   if (!notice.value?.id) return
   markRead(notice.value.id)
-  toast('Marked as read')
 }
 
 function togglePinned() {
   if (!notice.value?.id) return
   toggleImportant(notice.value.id)
-  toast(notice.value.important ? 'Unpinned' : 'Pinned')
+  toast.updated()
 }
 
 function hideNotice() {
   if (!notice.value?.id) return
   toggleHidden(notice.value.id)
-  toast('Moved to hidden notices')
+  toast.hidden()
   setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
 }
 
 function addToPlanner() {
   if (!notice.value?.id) return
   if (notice.value.inPlanner) {
-    toast('Already in planner')
+    toast.show('Already added')
     return
   }
   addTaskFromNotice({
@@ -113,7 +109,7 @@ function addToPlanner() {
     noticeTitle: notice.value.title,
   })
   setInPlanner(notice.value.id, true)
-  toast('Added to planner')
+  toast.added()
 }
 
 onLoad((query) => {

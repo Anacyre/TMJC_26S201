@@ -1,5 +1,5 @@
 <template>
-  <view class="empty" :class="themeClass">
+  <view class="empty empty-enter" :class="themeClass">
     <view class="art" :class="'art-' + variant">
       <view class="halo" />
       <view class="shape" />
@@ -217,9 +217,9 @@ const { themeClass } = useTheme()
   border-radius: 999rpx;
   background: rgba(46, 99, 255, 0.12);
   border: 1rpx solid rgba(46, 99, 255, 0.22);
-  transition: transform 180ms ease;
+  transition: transform var(--motion-base, 150ms) cubic-bezier(0.34, 1.2, 0.64, 1);
 }
-.cta:active { transform: scale(0.96); }
+.cta:active { transform: scale(0.97); }
 .ctaText {
   font-size: 21rpx;
   font-weight: 720;

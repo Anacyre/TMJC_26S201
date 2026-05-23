@@ -138,10 +138,10 @@ function onActionTap() {
   transform: translateX(0);
 }
 .surface.snap {
-  transition: transform 280ms cubic-bezier(0.2, 0.7, 0.1, 1);
+  transition: transform 160ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .surface.vanish {
-  transition: transform 260ms cubic-bezier(0.4, 0, 0.2, 1), opacity 220ms ease;
+  transition: transform 150ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 150ms ease;
   transform: translateX(-110%);
   opacity: 0;
 }

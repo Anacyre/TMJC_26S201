@@ -4,13 +4,10 @@
     <AppHeader title="Hidden notices" nav-mode="back" :show-avatar="false" />
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <text class="hint">Lower priority archive. Restore anytime.</text>
-
       <view v-if="!list.length" class="empty">
         <EmptyState
           variant="notifications"
           title="Nothing hidden"
-          subtitle="Anything you hide from the feed will be tucked away here."
         />
       </view>
 
@@ -42,6 +39,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
+import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { hiddenNotifications, unhide, removeNotification } = useNotificationStore()
@@ -50,12 +48,12 @@ const list = computed(() => hiddenNotifications.value)
 
 function restore(id) {
   unhide(id)
-  uni.showToast({ title: 'Restored', icon: 'none' })
+  toast.updated()
 }
 
 function remove(id) {
   removeNotification(id)
-  uni.showToast({ title: 'Removed', icon: 'none' })
+  toast.removed()
 }
 </script>
 

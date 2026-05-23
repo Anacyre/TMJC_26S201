@@ -1,0 +1,188 @@
+/**
+ * Class OS — Global Design System
+ * Minimal · Calm · Product-grade
+ */
+
+:root {
+  /* ── 8pt spacing grid ── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+
+  /* ── Radius hierarchy ── */
+  --radius-chip: 999px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+  --radius-modal: 28px;
+
+  /* ── Typography ── */
+  --text-xs: 11px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --weight-medium: 560;
+  --weight-semibold: 680;
+  --weight-bold: 740;
+
+  /* ── Motion (haptic-style) ── */
+  --motion-fast: 120ms;
+  --motion-base: 150ms;
+  --motion-slow: 180ms;
+  --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
+  --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --ease-soft: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --press-scale: 0.97;
+
+  /* ── Surface hierarchy (light) ── */
+  --surface-base: #f4f6fa;
+  --surface-raised: rgba(255, 255, 255, 0.72);
+  --surface-overlay: rgba(255, 255, 255, 0.82);
+  --surface-muted: rgba(16, 24, 40, 0.04);
+  --text-primary: rgba(16, 24, 40, 0.92);
+  --text-secondary: rgba(16, 24, 40, 0.58);
+  --text-tertiary: rgba(16, 24, 40, 0.42);
+  --divider: rgba(16, 24, 40, 0.06);
+  --accent: rgba(46, 99, 255, 0.92);
+  --accent-soft: rgba(46, 99, 255, 0.12);
+
+  /* ── Focus accent overlay (neutral baseline) ── */
+  --focus-hue: 220;
+  --focus-warmth: 0;
+  --focus-glow: 0;
+  --focus-depth: 0;
+}
+
+html[data-theme='dark'] {
+  --surface-base: #0f1216;
+  --surface-raised: rgba(26, 29, 33, 0.78);
+  --surface-overlay: rgba(30, 33, 38, 0.88);
+  --surface-muted: rgba(255, 255, 255, 0.04);
+  --text-primary: rgba(245, 247, 255, 0.92);
+  --text-secondary: rgba(245, 247, 255, 0.58);
+  --text-tertiary: rgba(245, 247, 255, 0.42);
+  --divider: rgba(255, 255, 255, 0.05);
+  --accent: rgba(120, 160, 255, 0.96);
+  --accent-soft: rgba(46, 99, 255, 0.16);
+}
+
+/* ── Motion utilities ── */
+.motion-press {
+  transition: transform var(--motion-base) var(--ease-spring),
+    opacity var(--motion-base) var(--ease-out);
+}
+.motion-press:active {
+  transform: scale(var(--press-scale));
+}
+.motion-fade {
+  transition: opacity var(--motion-base) var(--ease-out);
+}
+.motion-surface {
+  transition: background-color var(--motion-slow) var(--ease-soft),
+    border-color var(--motion-slow) var(--ease-soft),
+    box-shadow var(--motion-slow) var(--ease-soft);
+}
+
+/* ── Tap target (cards, rows) ── */
+.tap {
+  transition: transform var(--motion-base) var(--ease-spring),
+    opacity var(--motion-base) var(--ease-out);
+}
+.tap:active,
+.tap.pressed {
+  transform: scale(0.985);
+  opacity: 0.92;
+}
+
+/* ── Divider ── */
+.divider-h {
+  height: 1px;
+  background: var(--divider);
+  border: none;
+}
+.divider-v {
+  width: 1px;
+  background: var(--divider);
+  border: none;
+}
+
+/* ── De-boxed surface (no heavy border) ── */
+.surface-raised {
+  background: var(--surface-raised);
+  backdrop-filter: blur(16px);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 32px rgba(12, 20, 40, 0.06);
+}
+html[data-theme='dark'] .surface-raised {
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.32);
+}
+
+/* ── Soft skeleton shimmer ── */
+@keyframes ds-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  animation: ds-shimmer 1.8s var(--ease-soft) infinite;
+}
+:root {
+  --skeleton-base: rgba(16, 24, 40, 0.04);
+  --skeleton-highlight: rgba(16, 24, 40, 0.08);
+}
+html[data-theme='dark'] {
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-highlight: rgba(255, 255, 255, 0.08);
+}
+
+/* ── Empty state entrance ── */
+@keyframes ds-empty-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.empty-enter {
+  animation: ds-empty-in var(--motion-slow) var(--ease-spring) both;
+}
+
+/* ── Toast entrance ── */
+@keyframes ds-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes ds-toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}

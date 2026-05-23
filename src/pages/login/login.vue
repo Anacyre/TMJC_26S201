@@ -134,6 +134,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { login, register, forgotPassword } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { resolveAliasToEmail } from '@/composables/useMemberStore'
+import { toast } from '@/composables/useToast'
 
 const THEME_KEY = 'ui_theme'
 const MODE_KEY = 'auth_mode'
@@ -157,7 +158,7 @@ function useDemoAccount() {
   mode.value = 'login'
   account.value = 'test@class.com'
   password.value = 'preview'
-  uni.showToast({ title: 'Demo credentials filled · tap Login', icon: 'none' })
+  toast.show('Demo filled')
 }
 
 function loadPersisted() {
@@ -189,14 +190,11 @@ function toggleMode() {
 
 async function onForgot() {
   if (!account.value.trim()) {
-    uni.showToast({ title: 'Please enter your email first', icon: 'none' })
+    toast.show('Enter email first')
     return
   }
   const { error } = await forgotPassword(account.value.trim())
-  uni.showToast({
-    title: error ? error.message : 'Reset email sent',
-    icon: 'none',
-  })
+  toast.show(error ? error.message : 'Reset sent')
 }
 
 const ADMIN_DOMAIN = '@class.com'
@@ -229,7 +227,7 @@ async function onPrimary() {
   if (loading.value) return
   const msg = validate()
   if (msg) {
-    uni.showToast({ title: msg, icon: 'none' })
+    toast.show(msg)
     return
   }
 
@@ -240,23 +238,19 @@ async function onPrimary() {
       const resolvedEmail = raw.includes('@') ? raw : (resolveAliasToEmail(raw) || raw)
       const { error } = await login(resolvedEmail, password.value)
       if (error) {
-        uni.showToast({ title: error.message || 'Login failed', icon: 'none' })
+        toast.show(error.message || 'Login failed')
         return
       }
-      const role = detectRole(resolvedEmail)
-      uni.showToast({
-        title: role === 'admin' ? 'Logged in as Admin' : 'Logged in',
-        icon: 'none',
-      })
+      toast.show('Logged in')
       await bootstrapData({ force: true })
       setTimeout(() => uni.navigateTo({ url: '/pages/index/index' }), 250)
     } else {
       const { error } = await register(account.value.trim(), password.value, displayName.value.trim())
       if (error) {
-        uni.showToast({ title: error.message || 'Registration failed', icon: 'none' })
+        toast.show(error.message || 'Registration failed')
         return
       }
-      uni.showToast({ title: 'Account created — please log in', icon: 'none' })
+      toast.show('Account created')
       setTimeout(() => {
         mode.value = 'login'
         persist()

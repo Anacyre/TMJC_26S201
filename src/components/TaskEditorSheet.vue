@@ -127,6 +127,7 @@ import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { toast } from '@/composables/useToast'
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -261,11 +262,11 @@ function buildReminderString() {
 
 function submit() {
   if (!form.title.trim()) {
-    uni.showToast({ title: 'Title is required', icon: 'none' })
+    toast.show('Title required')
     return
   }
   if (form.reminderOn && !form.reminderDate) {
-    uni.showToast({ title: 'Pick a reminder date', icon: 'none' })
+    toast.show('Pick reminder date')
     return
   }
   saving.value = true
