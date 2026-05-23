@@ -1,0 +1,122 @@
+{
+	"pages": [
+		{
+			"path": "pages/login/login",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "26S201 Class OS"
+			}
+		},
+		{
+			"path": "pages/index/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Dashboard"
+			}
+		},
+		{
+			"path": "pages/tasks/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Tasks"
+			}
+		},
+		{
+			"path": "pages/notice/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Notice"
+			}
+		},
+		{
+			"path": "pages/task/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Task"
+			}
+		},
+		{
+			"path": "pages/other/other",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Other"
+			}
+		},
+		{
+			"path": "pages/community/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Community"
+			}
+		},
+		{
+			"path": "pages/community/feed",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Community Feed"
+			}
+		},
+		{
+			"path": "pages/community/post-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Post Detail"
+			}
+		},
+		{
+			"path": "pages/member/profile",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Member Profile"
+			}
+		},
+		{
+			"path": "pages/study/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Study"
+			}
+		},
+		{
+			"path": "pages/study/feed",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Resource Feed"
+			}
+		},
+		{
+			"path": "pages/study/detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Resource Detail"
+			}
+		},
+		{
+			"path": "pages/notifications/index",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Notifications"
+			}
+		},
+		{
+			"path": "pages/notifications/hidden",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Hidden notices"
+			}
+		},
+		{
+			"path": "pages/other/events-memories",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Events & Memories"
+			}
+		}
+	],
+	"globalStyle": {
+		"navigationBarTextStyle": "black",
+		"navigationBarTitleText": "uni-app",
+		"navigationBarBackgroundColor": "#F8F8F8",
+		"backgroundColor": "#F8F8F8"
+	}
+}

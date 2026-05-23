@@ -1,0 +1,1587 @@
+你是一个专业的移动端 UI/UX 设计师，同时也是资深前端工程师。请帮我设计并直接生成一个完整的单文件 HTML 登录页面原型（不要拆分文件）。
+
+
+
+目标：
+
+为一个「班级学生平台 / Class Operating System」设计移动端 Login Page。整体风格必须极简、现代、干净，偏 Apple / Notion / Linear 风格，强调留白、层级感和轻量化，而不是传统校园网站风格。软件语言为英语
+
+
+
+页面用途：
+
+这是整个网站的登录入口。网站本身包含：Tasks、Community、Study、Notifications 等功能，因此登录页应该体现“高效、简洁、现代”的气质。
+
+
+
+——————————
+
+【页面要求】
+
+——————————
+
+
+
+请直接生成：
+
+
+
+完整 HTML
+
+
+
+内嵌 CSS
+
+
+
+内嵌 JS
+
+不要省略。
+
+
+
+打开网页后，必须直接是「移动端预览效果」，而不是 PC 网站。
+
+
+
+请模拟：
+
+
+
+iPhone 风格尺寸
+
+
+
+居中显示手机界面
+
+
+
+页面一屏内完整展示（方便截图）
+
+
+
+——————————
+
+【设计风格要求】
+
+——————————
+
+
+
+整体设计必须：
+
+
+
+极简主义（Minimalist UI）
+
+
+
+高级感（Premium）
+
+
+
+柔和阴影
+
+
+
+大量留白
+
+
+
+圆角卡片
+
+
+
+轻微毛玻璃（glassmorphism 可适量）
+
+
+
+微交互动画
+
+
+
+现代字体层级
+
+
+
+深浅色搭配克制
+
+
+
+不要复杂渐变
+
+
+
+不要花哨颜色
+
+
+
+不要校园风插画
+
+
+
+不要过度拟物
+
+
+
+参考风格：
+
+
+
+Apple
+
+
+
+Notion
+
+
+
+Linear
+
+
+
+iOS Settings
+
+
+
+Todoist
+
+
+
+Arc Browser
+
+
+
+推荐配色：
+
+
+
+白 / 浅灰 / 黑
+
+
+
+或深灰 + 柔和蓝色点缀
+
+
+
+——————————
+
+【页面结构】
+
+——————————
+
+
+
+页面包含：
+
+
+
+顶部 Logo 区域 (班名26S201的logo)
+
+
+
+简洁 Logo（可用图形代替）
+
+
+
+网站名称：26S201 Class OS
+
+
+
+
+
+
+
+Login Card（主体）
+
+包含：
+
+
+
+User name / Email 输入框
+
+
+
+Password 输入框
+
+
+
+Login 按钮
+
+
+
+输入框要求：
+
+
+
+iOS 风格
+
+
+
+聚焦时有柔和高亮动画
+
+
+
+Placeholder 精致简洁
+
+
+
+按钮要求：
+
+
+
+有 hover / tap 动画
+
+
+
+有轻微缩放反馈
+
+
+
+高级感强
+
+
+
+辅助区域
+
+
+
+“Forgot password?”（仅展示）
+
+
+
+“Create account” 文字按钮
+
+
+
+可加入 Remember me 开关
+
+
+
+页面底部
+
+
+
+极简版权文字
+
+
+
+小型状态提示
+
+
+
+——————————
+
+【交互要求】
+
+——————————
+
+
+
+必须有可点击交互：
+
+
+
+点击输入框有动画
+
+
+
+点击按钮有反馈
+
+
+
+Create account 可切换一个简易注册状态（无需后端）
+
+
+
+支持 Light/Dark Mode Toggle（非常重要）
+
+
+
+深浅模式切换要有平滑动画
+
+
+
+——————————
+
+【原型说明要求】
+
+——————————
+
+
+
+在手机预览右侧，增加一个「设计说明面板」。
+
+
+
+说明内容包括：
+
+
+
+设计风格说明
+
+
+
+色彩逻辑
+
+
+
+为什么采用极简布局
+
+
+
+为什么适合学生任务平台
+
+
+
+交互设计思路
+
+
+
+要求：
+
+
+
+不占太大空间
+
+
+
+与手机预览并排
+
+
+
+一屏内展示完整
+
+
+
+风格统一
+
+
+
+——————————
+
+【技术要求】
+
+——————————
+
+
+
+所有内容写在一个 HTML 文件中
+
+
+
+使用纯 HTML + CSS + JS
+
+
+
+不使用 React
+
+
+
+不依赖外部框架
+
+
+
+可直接双击打开运行
+
+
+
+必须响应式
+
+
+
+动画流畅
+
+
+
+UI 精致
+
+
+
+注意细节（间距、字体层级、阴影、边框）
+
+
+
+请直接输出完整 HTML，不要解释。
+
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>26S201 Class OS — Login</title>
+  <style>
+    :root{
+      --bg: #f6f7f9;
+      --bg2:#ffffff;
+      --panel:#ffffffcc;
+      --card:#ffffffd6;
+      --stroke:#e7e9ee;
+      --stroke2:#d9dce3;
+      --text:#0b0d12;
+      --muted:#5b6473;
+      --muted2:#7b8495;
+      --shadow: 0 18px 60px rgba(10, 12, 16, .10);
+      --shadow2: 0 10px 30px rgba(10, 12, 16, .10);
+      --softGlow: 0 0 0 6px rgba(54, 106, 255, .10);
+      --accent:#2f6bff;
+      --accent2:#1d4fff;
+      --ok:#16a34a;
+      --warn:#f59e0b;
+      --danger:#ef4444;
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --radius-sm: 12px;
+      --ease: cubic-bezier(.2,.8,.2,1);
+      --ease2: cubic-bezier(.22, 1, .36, 1);
+      --phoneW: 390px;
+      --phoneH: 844px;
+      --font: ui-sans-serif, system-ui, -apple-system, "SF Pro Display", "SF Pro Text", Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+    [data-theme="dark"]{
+      --bg: #0a0c10;
+      --bg2:#0f1218;
+      --panel:#0f1218cc;
+      --card:#101420d6;
+      --stroke:#1c2230;
+      --stroke2:#2a3246;
+      --text:#f3f5f8;
+      --muted:#a6b0c2;
+      --muted2:#7f8aa1;
+      --shadow: 0 18px 70px rgba(0, 0, 0, .55);
+      --shadow2: 0 12px 34px rgba(0, 0, 0, .50);
+      --softGlow: 0 0 0 6px rgba(90, 141, 255, .18);
+      --accent:#6aa6ff;
+      --accent2:#3f7dff;
+    }
+    *{ box-sizing: border-box; }
+    html, body{ height: 100%; }
+    body{
+      margin: 0;
+      font-family: var(--font);
+      color: var(--text);
+      background:
+        radial-gradient(1200px 900px at 20% 18%, rgba(47,107,255,.12), transparent 55%),
+        radial-gradient(900px 700px at 80% 30%, rgba(10,12,16,.08), transparent 60%),
+        linear-gradient(180deg, var(--bg), var(--bg2));
+      transition: background 420ms var(--ease), color 420ms var(--ease);
+      overflow: hidden;
+    }
+    /* layout */
+    .stage{
+      height: 100%;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+    }
+    .wrap{
+      width: min(1120px, 100%);
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 18px;
+      align-items: center;
+    }
+    @media (max-width: 980px){
+      body{ overflow: auto; }
+      .stage{ align-items: start; }
+      .wrap{
+        grid-template-columns: 1fr;
+        max-width: 720px;
+      }
+      .notes{ order: 2; }
+      .phoneArea{ order: 1; }
+    }
+    /* phone preview */
+    .phoneArea{
+      display: grid;
+      place-items: center;
+      padding: 6px;
+    }
+    .phoneShell{
+      width: var(--phoneW);
+      height: var(--phoneH);
+      border-radius: 44px;
+      background:
+        linear-gradient(180deg, rgba(255,255,255,.55), rgba(255,255,255,.15));
+      box-shadow: var(--shadow);
+      border: 1px solid rgba(255,255,255,.22);
+      padding: 12px;
+      position: relative;
+      transform: translateZ(0);
+      transition: background 420ms var(--ease), box-shadow 420ms var(--ease), border-color 420ms var(--ease);
+    }
+    [data-theme="dark"] .phoneShell{
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.03));
+      border-color: rgba(255,255,255,.08);
+    }
+    .phoneBezel{
+      width: 100%;
+      height: 100%;
+      border-radius: 36px;
+      background: linear-gradient(180deg, rgba(10,12,16,.90), rgba(10,12,16,.70));
+      padding: 10px;
+      position: relative;
+      overflow: hidden;
+    }
+    .phoneNotch{
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 150px;
+      height: 30px;
+      border-radius: 18px;
+      background: rgba(0,0,0,.55);
+      border: 1px solid rgba(255,255,255,.06);
+      z-index: 5;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      display: grid;
+      place-items: center;
+    }
+    .notchDot{
+      width: 48px;
+      height: 6px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.10);
+    }
+    .screen{
+      width: 100%;
+      height: 100%;
+      border-radius: 28px;
+      background:
+        radial-gradient(900px 680px at 25% 20%, rgba(47,107,255,.25), transparent 55%),
+        radial-gradient(800px 640px at 80% 35%, rgba(255,255,255,.10), transparent 60%),
+        linear-gradient(180deg, rgba(246,247,249,.92), rgba(255,255,255,.92));
+      position: relative;
+      overflow: hidden;
+      padding: 18px;
+      transition: background 420ms var(--ease);
+    }
+    [data-theme="dark"] .screen{
+      background:
+        radial-gradient(900px 680px at 25% 20%, rgba(106,166,255,.18), transparent 55%),
+        radial-gradient(900px 720px at 80% 25%, rgba(255,255,255,.06), transparent 62%),
+        linear-gradient(180deg, rgba(12,14,18,.92), rgba(16,20,30,.92));
+    }
+    /* status bar */
+    .statusbar{
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 10px 10px;
+      font-size: 12px;
+      letter-spacing: .2px;
+      color: var(--muted);
+      transition: color 420ms var(--ease);
+      user-select: none;
+    }
+    .sb-left{
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-variant-numeric: tabular-nums;
+    }
+    .sb-right{
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .pill{
+      height: 18px;
+      padding: 0 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(231,233,238,.9);
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      box-shadow: 0 10px 22px rgba(10, 12, 16, .06);
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), transform 220ms var(--ease);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+    }
+    [data-theme="dark"] .pill{
+      background: rgba(16,20,32,.55);
+      border-color: rgba(42,50,70,.8);
+      box-shadow: 0 12px 26px rgba(0,0,0,.35);
+    }
+    .sb-icon{
+      width: 10px;
+      height: 10px;
+      border-radius: 3px;
+      background: rgba(47,107,255,.25);
+      border: 1px solid rgba(47,107,255,.25);
+    }
+    [data-theme="dark"] .sb-icon{
+      background: rgba(106,166,255,.18);
+      border-color: rgba(106,166,255,.22);
+    }
+    /* content */
+    .content{
+      height: calc(100% - 44px);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 14px;
+      padding: 8px 4px 6px;
+    }
+    .brand{
+      display: grid;
+      grid-template-columns: 44px 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 10px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.50);
+      border: 1px solid rgba(231,233,238,.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      box-shadow: 0 10px 26px rgba(10, 12, 16, .06);
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), box-shadow 420ms var(--ease);
+    }
+    [data-theme="dark"] .brand{
+      background: rgba(16,20,32,.50);
+      border-color: rgba(42,50,70,.70);
+      box-shadow: 0 16px 38px rgba(0,0,0,.38);
+    }
+    .logo{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      background:
+        linear-gradient(180deg, rgba(47,107,255,.18), rgba(47,107,255,.08));
+      border: 1px solid rgba(47,107,255,.22);
+      display: grid;
+      place-items: center;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 14px 24px rgba(47,107,255,.10);
+      transition: transform 220ms var(--ease), box-shadow 420ms var(--ease);
+    }
+    .logo::before{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.8), transparent 45%);
+      transform: rotate(18deg);
+      opacity:.55;
+    }
+    .logoMark{
+      position: relative;
+      z-index: 1;
+      width: 22px;
+      height: 22px;
+      border-radius: 10px;
+      background: rgba(47,107,255,.92);
+      box-shadow: 0 12px 24px rgba(47,107,255,.20);
+    }
+    [data-theme="dark"] .logoMark{
+      background: rgba(106,166,255,.92);
+      box-shadow: 0 16px 30px rgba(106,166,255,.20);
+    }
+    .brandTitle{
+      display:flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .brandTitle .name{
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: -.2px;
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .brandTitle .tag{
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.1;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      transition: color 420ms var(--ease);
+    }
+    /* theme toggle */
+    .themeToggle{
+      width: 54px;
+      height: 34px;
+      border-radius: 999px;
+      border: 1px solid rgba(231,233,238,.9);
+      background: rgba(255,255,255,.62);
+      box-shadow: 0 12px 26px rgba(10, 12, 16, .06);
+      position: relative;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+      transition: transform 160ms var(--ease), background 420ms var(--ease), border-color 420ms var(--ease), box-shadow 420ms var(--ease);
+      display:flex;
+      align-items:center;
+      padding: 3px;
+      gap: 6px;
+    }
+    .themeToggle:active{ transform: scale(.98); }
+    [data-theme="dark"] .themeToggle{
+      border-color: rgba(42,50,70,.85);
+      background: rgba(16,20,32,.62);
+      box-shadow: 0 18px 40px rgba(0,0,0,.35);
+    }
+    .knob{
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.92);
+      border: 1px solid rgba(217,220,227,.9);
+      box-shadow: 0 12px 18px rgba(10, 12, 16, .12);
+      transform: translateX(0);
+      transition: transform 360ms var(--ease2), background 420ms var(--ease), border-color 420ms var(--ease);
+      position: relative;
+      overflow: hidden;
+    }
+    .knob::after{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background: radial-gradient(circle at 35% 35%, rgba(255,255,255,.9), transparent 48%);
+      opacity:.7;
+    }
+    [data-theme="dark"] .knob{
+      transform: translateX(20px);
+      background: rgba(20,26,40,.92);
+      border-color: rgba(42,50,70,.9);
+      box-shadow: 0 14px 22px rgba(0,0,0,.45);
+    }
+    .toggleGlyph{
+      position:absolute;
+      left: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 12px;
+      color: var(--muted2);
+      transition: opacity 240ms var(--ease);
+      user-select: none;
+      pointer-events: none;
+    }
+    .toggleGlyph.right{
+      left: auto;
+      right: 8px;
+      opacity: .55;
+    }
+    [data-theme="dark"] .toggleGlyph.left{ opacity: .45; }
+    [data-theme="dark"] .toggleGlyph.right{ opacity: .95; }
+    /* card */
+    .card{
+      align-self: center;
+      border-radius: var(--radius-xl);
+      background: var(--card);
+      border: 1px solid rgba(231,233,238,.85);
+      box-shadow: var(--shadow2);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 18px 16px;
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), box-shadow 420ms var(--ease), transform 420ms var(--ease);
+      position: relative;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .card{
+      border-color: rgba(42,50,70,.75);
+    }
+    .cardHeader{
+      display:flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 4px 2px 10px;
+    }
+    .hgroup{
+      display:flex;
+      flex-direction: column;
+      gap: 4px;
+      min-width: 0;
+    }
+    .title{
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -.35px;
+      line-height: 1.15;
+    }
+    .subtitle{
+      font-size: 12.5px;
+      color: var(--muted);
+      line-height: 1.25;
+      transition: color 420ms var(--ease);
+    }
+    .modeChip{
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      height: 26px;
+      padding: 0 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(231,233,238,.9);
+      background: rgba(255,255,255,.55);
+      color: var(--muted);
+      font-size: 12px;
+      user-select: none;
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), color 420ms var(--ease), transform 220ms var(--ease);
+    }
+    [data-theme="dark"] .modeChip{
+      background: rgba(16,20,32,.52);
+      border-color: rgba(42,50,70,.8);
+      color: var(--muted);
+    }
+    .form{
+      display: grid;
+      gap: 12px;
+      margin-top: 6px;
+    }
+    .field{
+      border-radius: 16px;
+      padding: 12px 12px;
+      background: rgba(255,255,255,.60);
+      border: 1px solid rgba(231,233,238,.95);
+      box-shadow: 0 1px 0 rgba(10,12,16,.02);
+      transition: transform 220ms var(--ease), border-color 220ms var(--ease), box-shadow 220ms var(--ease), background 420ms var(--ease);
+      position: relative;
+    }
+    [data-theme="dark"] .field{
+      background: rgba(16,20,32,.58);
+      border-color: rgba(42,50,70,.88);
+      box-shadow: 0 1px 0 rgba(255,255,255,.02);
+    }
+    .field:focus-within{
+      border-color: rgba(47,107,255,.45);
+      box-shadow: 0 0 0 1px rgba(47,107,255,.14), var(--softGlow);
+      transform: translateY(-1px);
+    }
+    [data-theme="dark"] .field:focus-within{
+      border-color: rgba(106,166,255,.45);
+      box-shadow: 0 0 0 1px rgba(106,166,255,.14), var(--softGlow);
+    }
+    label{
+      display:block;
+      font-size: 11.5px;
+      color: var(--muted2);
+      margin-bottom: 6px;
+      letter-spacing: .2px;
+      transition: color 420ms var(--ease);
+    }
+    input{
+      width: 100%;
+      border: 0;
+      outline: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 14.5px;
+      letter-spacing: -.1px;
+      padding: 0;
+      caret-color: var(--accent2);
+    }
+    input::placeholder{
+      color: rgba(123,132,149,.85);
+    }
+    [data-theme="dark"] input::placeholder{
+      color: rgba(127,138,161,.75);
+    }
+    .row{
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-top: 2px;
+    }
+    /* remember switch */
+    .remember{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      color: var(--muted);
+      font-size: 12.5px;
+      transition: color 420ms var(--ease);
+      user-select: none;
+    }
+    .switch{
+      width: 44px;
+      height: 26px;
+      border-radius: 999px;
+      border: 1px solid rgba(231,233,238,.9);
+      background: rgba(255,255,255,.62);
+      display:flex;
+      align-items:center;
+      padding: 3px;
+      cursor: pointer;
+      transition: background 220ms var(--ease), border-color 220ms var(--ease), transform 160ms var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .switch:active{ transform: scale(.98); }
+    .switch .dot{
+      width: 20px;
+      height: 20px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.95);
+      border: 1px solid rgba(217,220,227,.95);
+      box-shadow: 0 10px 18px rgba(10,12,16,.12);
+      transform: translateX(0);
+      transition: transform 260ms var(--ease2), background 220ms var(--ease), border-color 220ms var(--ease);
+    }
+    [data-theme="dark"] .switch{
+      background: rgba(16,20,32,.62);
+      border-color: rgba(42,50,70,.9);
+    }
+    [data-theme="dark"] .switch .dot{
+      background: rgba(20,26,40,.95);
+      border-color: rgba(42,50,70,.95);
+      box-shadow: 0 14px 22px rgba(0,0,0,.45);
+    }
+    .switch.on{
+      background: rgba(47,107,255,.18);
+      border-color: rgba(47,107,255,.30);
+    }
+    [data-theme="dark"] .switch.on{
+      background: rgba(106,166,255,.16);
+      border-color: rgba(106,166,255,.28);
+    }
+    .switch.on .dot{
+      transform: translateX(18px);
+      background: rgba(47,107,255,.95);
+      border-color: rgba(47,107,255,.25);
+      box-shadow: 0 14px 24px rgba(47,107,255,.22);
+    }
+    [data-theme="dark"] .switch.on .dot{
+      background: rgba(106,166,255,.95);
+      border-color: rgba(106,166,255,.30);
+      box-shadow: 0 18px 30px rgba(106,166,255,.22);
+    }
+    /* buttons */
+    .primary{
+      height: 46px;
+      width: 100%;
+      border-radius: 16px;
+      border: 1px solid rgba(47,107,255,.30);
+      background: linear-gradient(180deg, rgba(47,107,255,.95), rgba(29,79,255,.92));
+      color: #fff;
+      font-weight: 650;
+      letter-spacing: -.2px;
+      cursor: pointer;
+      box-shadow: 0 16px 28px rgba(47,107,255,.20);
+      transition: transform 160ms var(--ease), box-shadow 220ms var(--ease), filter 220ms var(--ease);
+      -webkit-tap-highlight-color: transparent;
+      position: relative;
+      overflow: hidden;
+    }
+    [data-theme="dark"] .primary{
+      box-shadow: 0 18px 36px rgba(63,125,255,.20);
+    }
+    .primary::before{
+      content:"";
+      position:absolute;
+      inset: -60%;
+      background: radial-gradient(circle at 30% 35%, rgba(255,255,255,.55), transparent 55%);
+      transform: translateX(-22%);
+      opacity: .65;
+      transition: transform 600ms var(--ease2), opacity 600ms var(--ease);
+    }
+    .primary:hover{
+      filter: brightness(1.02);
+      box-shadow: 0 18px 34px rgba(47,107,255,.24);
+    }
+    .primary:hover::before{ transform: translateX(8%); opacity: .72; }
+    .primary:active{ transform: scale(.985); }
+    .helperRow{
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 2px 0;
+    }
+    .link{
+      border: 0;
+      background: transparent;
+      color: var(--muted);
+      font-size: 12.5px;
+      cursor: pointer;
+      padding: 6px 6px;
+      border-radius: 10px;
+      transition: background 220ms var(--ease), color 220ms var(--ease), transform 160ms var(--ease);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .link:hover{ background: rgba(47,107,255,.08); color: var(--text); }
+    .link:active{ transform: scale(.98); }
+    [data-theme="dark"] .link:hover{ background: rgba(106,166,255,.10); }
+    .divider{
+      display:flex;
+      align-items:center;
+      gap: 10px;
+      margin: 6px 0 0;
+      color: var(--muted2);
+      font-size: 11.5px;
+      user-select: none;
+    }
+    .divider::before, .divider::after{
+      content:"";
+      height: 1px;
+      flex: 1;
+      background: rgba(231,233,238,.95);
+      transition: background 420ms var(--ease);
+    }
+    [data-theme="dark"] .divider::before, [data-theme="dark"] .divider::after{
+      background: rgba(42,50,70,.85);
+    }
+    .secondaryRow{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 2px;
+    }
+    .ghost{
+      height: 40px;
+      border-radius: 14px;
+      border: 1px solid rgba(231,233,238,.95);
+      background: rgba(255,255,255,.55);
+      color: var(--text);
+      font-weight: 620;
+      letter-spacing: -.15px;
+      cursor: pointer;
+      transition: transform 160ms var(--ease), background 220ms var(--ease), border-color 220ms var(--ease);
+      -webkit-tap-highlight-color: transparent;
+      padding: 0 12px;
+      width: 100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      gap: 8px;
+    }
+    [data-theme="dark"] .ghost{
+      background: rgba(16,20,32,.55);
+      border-color: rgba(42,50,70,.88);
+    }
+    .ghost:hover{ background: rgba(47,107,255,.07); border-color: rgba(47,107,255,.18); }
+    [data-theme="dark"] .ghost:hover{ background: rgba(106,166,255,.10); border-color: rgba(106,166,255,.20); }
+    .ghost:active{ transform: scale(.985); }
+    /* footer inside screen */
+    .foot{
+      display:flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 8px 4px;
+      color: var(--muted2);
+      font-size: 11.5px;
+      transition: color 420ms var(--ease);
+      user-select: none;
+    }
+    .foot .mono{
+      font-family: var(--mono);
+      font-size: 11px;
+      letter-spacing: .2px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      background: rgba(255,255,255,.52);
+      border: 1px solid rgba(231,233,238,.9);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), transform 220ms var(--ease);
+    }
+    [data-theme="dark"] .foot .mono{
+      background: rgba(16,20,32,.52);
+      border-color: rgba(42,50,70,.8);
+    }
+    /* state transitions */
+    .swap{
+      position: relative;
+      min-height: 270px;
+    }
+    .panel{
+      position: absolute;
+      inset: 0;
+      display: grid;
+      align-content: start;
+      gap: 12px;
+      opacity: 0;
+      transform: translateY(10px);
+      pointer-events: none;
+      transition: opacity 260ms var(--ease), transform 260ms var(--ease);
+    }
+    .panel.active{
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    /* right notes panel */
+    .notes{
+      border-radius: 26px;
+      background: var(--panel);
+      border: 1px solid rgba(231,233,238,.85);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 16px 16px 14px;
+      max-height: calc(var(--phoneH) + 24px);
+      overflow: auto;
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), box-shadow 420ms var(--ease);
+    }
+    [data-theme="dark"] .notes{
+      border-color: rgba(42,50,70,.75);
+    }
+    .notes h2{
+      margin: 0 0 10px;
+      font-size: 14px;
+      letter-spacing: -.25px;
+    }
+    .notes p{
+      margin: 0;
+      color: var(--muted);
+      font-size: 12.8px;
+      line-height: 1.55;
+      transition: color 420ms var(--ease);
+    }
+    .notes .block{
+      padding: 12px 12px;
+      border-radius: 18px;
+      background: rgba(255,255,255,.55);
+      border: 1px solid rgba(231,233,238,.90);
+      margin-bottom: 10px;
+      transition: background 420ms var(--ease), border-color 420ms var(--ease), transform 220ms var(--ease);
+    }
+    .notes .block:hover{ transform: translateY(-1px); }
+    [data-theme="dark"] .notes .block{
+      background: rgba(16,20,32,.55);
+      border-color: rgba(42,50,70,.86);
+    }
+    .kpi{
+      display:grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .kpi .mini{
+      padding: 10px 10px;
+      border-radius: 16px;
+      border: 1px solid rgba(231,233,238,.90);
+      background: rgba(255,255,255,.52);
+      transition: background 420ms var(--ease), border-color 420ms var(--ease);
+    }
+    [data-theme="dark"] .kpi .mini{
+      background: rgba(16,20,32,.52);
+      border-color: rgba(42,50,70,.82);
+    }
+    .kpi .mini .t{
+      font-size: 11px;
+      color: var(--muted2);
+      margin-bottom: 6px;
+      transition: color 420ms var(--ease);
+    }
+    .kpi .mini .v{
+      font-size: 13px;
+      font-weight: 680;
+      letter-spacing: -.2px;
+    }
+    .hint{
+      margin-top: 10px;
+      display:flex;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--muted2);
+      font-size: 11.5px;
+      transition: color 420ms var(--ease);
+    }
+    .kbd{
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 10px;
+      border: 1px solid rgba(231,233,238,.95);
+      background: rgba(255,255,255,.55);
+      transition: background 420ms var(--ease), border-color 420ms var(--ease);
+      user-select: none;
+    }
+    [data-theme="dark"] .kbd{
+      background: rgba(16,20,32,.55);
+      border-color: rgba(42,50,70,.86);
+    }
+    /* toast */
+    .toast{
+      position:absolute;
+      left: 50%;
+      bottom: 86px;
+      transform: translateX(-50%) translateY(14px);
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 260ms var(--ease), transform 260ms var(--ease);
+      z-index: 10;
+      width: calc(100% - 48px);
+      max-width: 330px;
+    }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    .toastInner{
+      border-radius: 16px;
+      background: rgba(255,255,255,.72);
+      border: 1px solid rgba(231,233,238,.92);
+      box-shadow: 0 22px 60px rgba(10,12,16,.18);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      padding: 10px 12px;
+      display:flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      color: var(--text);
+      transition: background 420ms var(--ease), border-color 420ms var(--ease);
+    }
+    [data-theme="dark"] .toastInner{
+      background: rgba(16,20,32,.72);
+      border-color: rgba(42,50,70,.85);
+      box-shadow: 0 26px 70px rgba(0,0,0,.55);
+    }
+    .toastMsg{
+      font-size: 12.5px;
+      color: var(--muted);
+      transition: color 420ms var(--ease);
+    }
+    .dotOk{
+      width: 10px;
+      height: 10px;
+      border-radius: 999px;
+      background: rgba(22,163,74,.9);
+      box-shadow: 0 10px 18px rgba(22,163,74,.18);
+      flex: 0 0 auto;
+    }
+    .dotWarn{ background: rgba(245,158,11,.95); box-shadow: 0 10px 18px rgba(245,158,11,.18); }
+    .dotDanger{ background: rgba(239,68,68,.95); box-shadow: 0 10px 18px rgba(239,68,68,.18); }
+    /* ensure phone + notes fit one screen on desktop */
+    .fit{
+      --scale: 1;
+      transform: scale(var(--scale));
+      transform-origin: center;
+      transition: transform 420ms var(--ease);
+    }
+  </style>
+</head>
+<body data-theme="light">
+  <div class="stage">
+    <div class="wrap">
+      <div class="phoneArea">
+        <div class="fit" id="fit">
+          <div class="phoneShell" aria-label="iPhone preview">
+            <div class="phoneBezel">
+              <div class="phoneNotch" aria-hidden="true"><div class="notchDot"></div></div>
+              <div class="screen" role="application" aria-label="26S201 Class OS Login">
+                <div class="statusbar" aria-hidden="true">
+                  <div class="sb-left">
+                    <span id="timeText">9:41</span>
+                    <span class="pill"><span class="sb-icon"></span><span>Focus</span></span>
+                  </div>
+                  <div class="sb-right">
+                    <span class="pill"><span>5G</span></span>
+                    <span class="pill"><span>100%</span></span>
+                  </div>
+                </div>
+                <div class="content">
+                  <div class="brand">
+                    <div class="logo" id="logo" title="26S201">
+                      <div class="logoMark" aria-hidden="true"></div>
+                    </div>
+                    <div class="brandTitle">
+                      <div class="name">26S201 Class OS</div>
+                      <div class="tag">Tasks · Community · Study · Notifications</div>
+                    </div>
+                    <button class="themeToggle" id="themeToggle" aria-label="Toggle light/dark mode" type="button">
+                      <span class="toggleGlyph left" aria-hidden="true">☀</span>
+                      <span class="toggleGlyph right" aria-hidden="true">☾</span>
+                      <span class="knob" aria-hidden="true"></span>
+                    </button>
+                  </div>
+                  <div class="card">
+                    <div class="cardHeader">
+                      <div class="hgroup">
+                        <div class="title" id="cardTitle">Welcome back</div>
+                        <div class="subtitle" id="cardSubtitle">Sign in to keep your day organized.</div>
+                      </div>
+                      <div class="modeChip" id="modeChip" aria-hidden="true">Login</div>
+                    </div>
+                    <div class="swap" aria-live="polite">
+                      <!-- LOGIN -->
+                      <form class="panel active" id="loginPanel" autocomplete="on">
+                        <div class="field" data-field>
+                          <label for="loginUser">Username or Email</label>
+                          <input id="loginUser" name="username" inputmode="email" autocomplete="username" placeholder="alex@26s201.edu" />
+                        </div>
+                        <div class="field" data-field>
+                          <label for="loginPass">Password</label>
+                          <input id="loginPass" name="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+                        </div>
+                        <div class="row">
+                          <div class="remember">
+                            <button class="switch" id="rememberSwitch" type="button" aria-pressed="false" aria-label="Remember me">
+                              <span class="dot" aria-hidden="true"></span>
+                            </button>
+                            <span>Remember me</span>
+                          </div>
+                          <button class="link" type="button" id="forgotBtn">Forgot password?</button>
+                        </div>
+                        <button class="primary" type="submit" id="loginBtn">Login</button>
+                        <div class="helperRow">
+                          <span style="color: var(--muted2); font-size: 12px;">New here?</span>
+                          <button class="link" type="button" id="goRegister">Create account</button>
+                        </div>
+                      </form>
+                      <!-- REGISTER -->
+                      <form class="panel" id="registerPanel" autocomplete="on">
+                        <div class="field" data-field>
+                          <label for="regName">Full name</label>
+                          <input id="regName" name="name" autocomplete="name" placeholder="Alex Chen" />
+                        </div>
+                        <div class="field" data-field>
+                          <label for="regEmail">Email</label>
+                          <input id="regEmail" name="email" inputmode="email" autocomplete="email" placeholder="alex@26s201.edu" />
+                        </div>
+                        <div class="field" data-field>
+                          <label for="regPass">Create password</label>
+                          <input id="regPass" name="new-password" type="password" autocomplete="new-password" placeholder="At least 8 characters" />
+                        </div>
+                        <button class="primary" type="submit" id="createBtn">Create account</button>
+                        <div class="divider">or</div>
+                        <button class="ghost" type="button" id="backToLogin">
+                          <span aria-hidden="true">←</span>
+                          <span>Back to login</span>
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                  <div class="foot">
+                    <div>© <span id="year"></span> 26S201 · Class OS</div>
+                    <div class="mono" id="statusPill">Status: ready</div>
+                  </div>
+                </div>
+                <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+                  <div class="toastInner">
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                      <span class="dotOk" id="toastDot" aria-hidden="true"></span>
+                      <div class="toastMsg" id="toastMsg">Saved.</div>
+                    </div>
+                    <button class="link" type="button" id="toastClose" aria-label="Close">Close</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!-- design notes -->
+      <aside class="notes" aria-label="Design notes">
+        <h2>Design Notes</h2>
+        <div class="block">
+          <p><strong>Style</strong>: Minimal, premium, iOS-adjacent. Clear hierarchy, soft shadows, large radius cards, restrained glass blur to feel “lightweight” and modern.</p>
+        </div>
+        <div class="block">
+          <p><strong>Color logic</strong>: Neutral base (white/gray/black) + a single calm blue accent for focus rings and primary actions. This keeps attention on tasks, not decoration.</p>
+        </div>
+        <div class="block">
+          <p><strong>Why minimal layout</strong>: Students log in frequently. A one-screen flow reduces friction and cognitive load—fast entry, no distractions.</p>
+        </div>
+        <div class="block">
+          <p><strong>Fit for a student task platform</strong>: The UI communicates “organized, efficient, reliable” (Tasks/Study/Notifications). The product feels like a tool, not a website.</p>
+        </div>
+        <div class="block">
+          <p><strong>Interaction design</strong>: iOS-like focus glow on fields, tactile button press, smooth theme transition. Register mode is a lightweight state switch—no backend needed.</p>
+          <div class="kpi" aria-hidden="true">
+            <div class="mini">
+              <div class="t">Mode toggle</div>
+              <div class="v">Login ↔ Register</div>
+            </div>
+            <div class="mini">
+              <div class="t">Theme</div>
+              <div class="v">Light ↔ Dark</div>
+            </div>
+          </div>
+          <div class="hint">
+            <span>Shortcuts</span>
+            <span><span class="kbd">T</span> theme · <span class="kbd">R</span> register</span>
+          </div>
+        </div>
+        <div class="block" style="margin-bottom:0;">
+          <p><strong>Prototype status</strong>: Visual + micro-interactions only. Buttons simulate success/error to demonstrate feedback patterns.</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script>
+    (function(){
+      const root = document.body;
+      const fit = document.getElementById('fit');
+      const themeToggle = document.getElementById('themeToggle');
+      const rememberSwitch = document.getElementById('rememberSwitch');
+      const year = document.getElementById('year');
+      const timeText = document.getElementById('timeText');
+      const loginPanel = document.getElementById('loginPanel');
+      const registerPanel = document.getElementById('registerPanel');
+      const goRegister = document.getElementById('goRegister');
+      const backToLogin = document.getElementById('backToLogin');
+      const modeChip = document.getElementById('modeChip');
+      const cardTitle = document.getElementById('cardTitle');
+      const cardSubtitle = document.getElementById('cardSubtitle');
+      const statusPill = document.getElementById('statusPill');
+      const forgotBtn = document.getElementById('forgotBtn');
+      const toast = document.getElementById('toast');
+      const toastMsg = document.getElementById('toastMsg');
+      const toastClose = document.getElementById('toastClose');
+      const toastDot = document.getElementById('toastDot');
+      const state = {
+        theme: (localStorage.getItem('cos_theme') || 'light'),
+        remember: (localStorage.getItem('cos_remember') === '1'),
+        mode: (localStorage.getItem('cos_mode') || 'login'),
+        toastTimer: null
+      };
+      function setTheme(next){
+        state.theme = next;
+        root.setAttribute('data-theme', next);
+        localStorage.setItem('cos_theme', next);
+        showToast(next === 'dark' ? 'Dark mode enabled.' : 'Light mode enabled.', 'ok');
+        statusPill.textContent = 'Theme: ' + next;
+      }
+      function toggleTheme(){
+        setTheme(state.theme === 'dark' ? 'light' : 'dark');
+      }
+      function setRemember(on){
+        state.remember = !!on;
+        rememberSwitch.classList.toggle('on', state.remember);
+        rememberSwitch.setAttribute('aria-pressed', String(state.remember));
+        localStorage.setItem('cos_remember', state.remember ? '1' : '0');
+        showToast(state.remember ? 'We’ll remember you on this device.' : 'Remember me turned off.', state.remember ? 'ok' : 'warn');
+        statusPill.textContent = 'Status: ' + (state.remember ? 'remembering' : 'ready');
+      }
+      function setMode(mode){
+        state.mode = mode;
+        localStorage.setItem('cos_mode', mode);
+        const isLogin = mode === 'login';
+        loginPanel.classList.toggle('active', isLogin);
+        registerPanel.classList.toggle('active', !isLogin);
+        modeChip.textContent = isLogin ? 'Login' : 'Register';
+        cardTitle.textContent = isLogin ? 'Welcome back' : 'Create your account';
+        cardSubtitle.textContent = isLogin
+          ? 'Sign in to keep your day organized.'
+          : 'Join 26S201 and stay in sync with tasks.';
+        showToast(isLogin ? 'Switched to login.' : 'Switched to registration.', 'ok');
+        statusPill.textContent = 'Mode: ' + (isLogin ? 'login' : 'register');
+        // Focus first input after transition
+        window.setTimeout(() => {
+          const el = isLogin ? document.getElementById('loginUser') : document.getElementById('regName');
+          if(el) el.focus({ preventScroll: true });
+        }, 220);
+      }
+      function showToast(message, tone){
+        toastMsg.textContent = message;
+        toastDot.className = 'dotOk';
+        if(tone === 'warn') toastDot.className = 'dotOk dotWarn';
+        if(tone === 'danger') toastDot.className = 'dotOk dotDanger';
+        toast.classList.add('show');
+        clearTimeout(state.toastTimer);
+        state.toastTimer = setTimeout(() => toast.classList.remove('show'), 2400);
+      }
+      function setTime(){
+        const d = new Date();
+        const hh = d.getHours();
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        const h12 = ((hh + 11) % 12) + 1;
+        timeText.textContent = h12 + ':' + mm;
+      }
+      function autoFit(){
+        // Keep phone fully visible next to notes on typical screens.
+        // Scale only if needed, never upscale beyond 1.
+        const wrap = document.querySelector('.wrap');
+        if(!wrap) return;
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        // Estimate available height for phone; ensure notch + padding fits.
+        const targetH = 844 + 40; // phoneH + shell margin
+        const targetW = 390 + 40; // phoneW + shell margin
+        let scale = 1;
+        // If in two-column layout, allow more conservative scaling to avoid overflow.
+        const twoCol = vw >= 981;
+        const maxPhoneAreaW = twoCol ? (vw * 0.58) : vw;
+        scale = Math.min(
+          1,
+          (vh - 60) / targetH,
+          (maxPhoneAreaW - 40) / targetW
+        );
+        scale = Math.max(0.78, scale); // keep readable
+        fit.style.setProperty('--scale', scale.toFixed(3));
+      }
+      // micro-interactions: subtle logo tilt on tap
+      const logo = document.getElementById('logo');
+      if(logo){
+        logo.addEventListener('pointerdown', () => {
+          logo.style.transform = 'translateY(-1px) scale(1.02)';
+          setTimeout(() => logo.style.transform = '', 220);
+        });
+      }
+      // wire events
+      themeToggle.addEventListener('click', toggleTheme);
+      rememberSwitch.addEventListener('click', () => setRemember(!state.remember));
+      goRegister.addEventListener('click', () => setMode('register'));
+      backToLogin.addEventListener('click', () => setMode('login'));
+      toastClose.addEventListener('click', () => toast.classList.remove('show'));
+      forgotBtn.addEventListener('click', () => {
+        showToast('Password reset is a placeholder in this prototype.', 'warn');
+        statusPill.textContent = 'Status: info';
+      });
+      loginPanel.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const u = document.getElementById('loginUser').value.trim();
+        const p = document.getElementById('loginPass').value;
+        if(!u || !p){
+          showToast('Please enter your email and password.', 'danger');
+          statusPill.textContent = 'Status: missing fields';
+          return;
+        }
+        // Prototype success
+        showToast('Signed in (prototype). Redirecting…', 'ok');
+        statusPill.textContent = 'Status: authenticated';
+      });
+      registerPanel.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const n = document.getElementById('regName').value.trim();
+        const em = document.getElementById('regEmail').value.trim();
+        const p = document.getElementById('regPass').value;
+        if(!n || !em || p.length < 8){
+          showToast('Enter name, valid email, and a stronger password.', 'danger');
+          statusPill.textContent = 'Status: check inputs';
+          return;
+        }
+        showToast('Account created (prototype). Now log in.', 'ok');
+        statusPill.textContent = 'Status: account created';
+        setTimeout(() => setMode('login'), 450);
+      });
+      // Keyboard shortcuts
+      window.addEventListener('keydown', (e) => {
+        if(e.key.toLowerCase() === 't') toggleTheme();
+        if(e.key.toLowerCase() === 'r') setMode(state.mode === 'login' ? 'register' : 'login');
+        if(e.key === 'Escape') toast.classList.remove('show');
+      });
+      // init
+      year.textContent = String(new Date().getFullYear());
+      setTime();
+      setInterval(setTime, 30 * 1000);
+      root.setAttribute('data-theme', state.theme);
+      if(state.remember) rememberSwitch.classList.add('on');
+      rememberSwitch.setAttribute('aria-pressed', String(state.remember));
+      setMode(state.mode === 'register' ? 'register' : 'login');
+      setTheme(state.theme);
+      autoFit();
+      window.addEventListener('resize', autoFit, { passive: true });
+      // initial focus
+      setTimeout(() => {
+        const el = state.mode === 'register' ? document.getElementById('regName') : document.getElementById('loginUser');
+        if(el) el.focus({ preventScroll: true });
+      }, 260);
+    })();
+  </script>
+</body>
+</html>
