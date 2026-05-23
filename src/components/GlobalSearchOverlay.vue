@@ -254,10 +254,10 @@ onUnmounted(() => {
 .t-dark .chip { background: rgba(255,255,255,.06);}
 .chipText { font-size: 19rpx; color: rgba(16,24,40,.72);}
 .t-dark .chipText { color: rgba(245,247,255,.7);}
-.row { padding: 10rpx 6rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx;}
-.rowTitle { flex: 1; min-width: 0; font-size: 22rpx; font-weight: 680; color: rgba(16,24,40,.9);}
+.row { padding: var(--list-card-pad-y) 8rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx;}
+.rowTitle { flex: 1; min-width: 0; font-size: var(--list-title-size); font-weight: 680; color: rgba(16,24,40,.9);}
 .t-dark .rowTitle { color: #f5f7fa;}
-.rowMeta { font-size: 19rpx; color: rgba(16,24,40,.52);}
+.rowMeta { font-size: var(--list-meta-size); color: rgba(16,24,40,.52);}
 .t-dark .rowMeta { color: #9aa4b2;}
 .bottomGap { height: 28rpx; }
 </style>

@@ -122,10 +122,10 @@ function onImportant() {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  gap: 12rpx;
-  margin-top: 10rpx;
-  padding: 14rpx 14rpx;
-  border-radius: 22rpx;
+  gap: var(--list-card-gap);
+  margin-top: var(--list-stack-gap);
+  padding: var(--list-card-pad-y) var(--list-card-pad-x);
+  border-radius: var(--list-card-radius);
   background: rgba(255, 255, 255, 0.7);
   border: 1rpx solid rgba(16, 24, 40, 0.04);
   transition: opacity 620ms ease, transform 620ms cubic-bezier(0.34, 1.1, 0.64, 1);
@@ -152,7 +152,7 @@ function onImportant() {
   min-width: 0;
 }
 .title {
-  font-size: 22rpx;
+  font-size: var(--list-title-size);
   font-weight: 720;
   color: rgba(16, 24, 40, 0.92);
 }
@@ -166,8 +166,8 @@ function onImportant() {
   align-items: center;
 }
 .tag {
-  font-size: 18rpx;
-  padding: 4rpx 10rpx;
+  font-size: var(--list-meta-size);
+  padding: var(--list-tag-pad-y) var(--list-tag-pad-x);
   border-radius: 999rpx;
   background: rgba(16, 24, 40, 0.06);
   color: rgba(16, 24, 40, 0.65);
@@ -176,11 +176,11 @@ function onImportant() {
   background: rgba(245, 247, 255, 0.08);
   color: rgba(245, 247, 255, 0.62);
 }
-.ddl { font-size: 18rpx; color: rgba(46, 99, 255, 0.9); }
+.ddl { font-size: var(--list-meta-size); color: rgba(46, 99, 255, 0.9); }
 .preview {
   display: block;
   margin-top: 8rpx;
-  font-size: 20rpx;
+  font-size: var(--list-body-size);
   color: rgba(16, 24, 40, 0.55);
   line-height: 1.45;
 }
@@ -189,7 +189,7 @@ function onImportant() {
 .attach {
   display: block;
   margin-top: 6rpx;
-  font-size: 18rpx;
+  font-size: var(--list-meta-size);
   color: rgba(46, 99, 255, 0.88);
 }
 

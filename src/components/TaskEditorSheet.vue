@@ -4,92 +4,97 @@
     <view class="sheet" @tap.stop>
       <view class="grabber" />
       <view class="head">
-        <text class="title">{{ mode === 'create' ? 'New task' : 'Edit' }}</text>
-        <view class="close" role="button" @tap="emit('update:modelValue', false)">
-          <view class="closeGlyph"><view /><view /></view>
-        </view>
+        <text class="title">{{ mode === 'create' ? 'Task' : 'Edit' }}</text>
       </view>
 
       <scroll-view class="body" scroll-y :show-scrollbar="false">
         <view class="field">
-          <text class="label">Title</text>
           <input class="input" v-model="form.title" placeholder="Title" placeholder-class="placeholder" />
         </view>
-        <view class="field">
-          <text class="label">Description</text>
-          <textarea class="input area" v-model="form.description" placeholder="Notes…" placeholder-class="placeholder" />
+
+        <view class="field collapsible">
+          <view class="collapseHead tap notesHead" role="button" @tap="toggleDesc">
+            <text class="collapseLabel">{{ descExpanded ? 'Notes' : 'Add notes' }}</text>
+            <text class="collapseChev" :class="{ open: descExpanded }">›</text>
+          </view>
+          <view class="collapseBody" :class="{ open: descExpanded }">
+            <textarea
+              class="input area"
+              v-model="form.description"
+              placeholder="Optional"
+              placeholder-class="placeholder"
+            />
+          </view>
         </view>
 
-        <view class="field">
-          <text class="label">Subject</text>
-          <TagSelect
-            v-model="form.subject"
-            :options="tagNames"
-            :allow-create="isAdmin"
-            :can-create="isAdmin"
-            kind="subject"
-            @create="onCreateTag"
-            placeholder="Subject"
-          />
-        </view>
+        <view class="field metaGrid">
+          <view class="metaRow">
+            <view class="metaItem">
+              <TagSelect
+                v-model="form.subject"
+                :options="tagNames"
+                :allow-create="isAdmin"
+                :can-create="isAdmin"
+                kind="subject"
+                @create="onCreateTag"
+                placeholder="Subject"
+              />
+            </view>
 
-        <view class="grid">
-          <view class="field">
-            <text class="label">Priority</text>
-            <view class="priorityRow">
-              <view
-                v-for="p in priorities"
-                :key="p"
-                class="prioChip"
-                :class="['p-' + p, { on: form.priority === p }]"
-                role="button"
-                @tap="form.priority = p"
-              >
-                <text class="prioText">{{ p }}</text>
+            <view class="metaItem">
+              <view class="priorityRow inline">
+                <view
+                  v-for="p in priorities"
+                  :key="p"
+                  class="prioChip"
+                  :class="['p-' + p, { on: form.priority === p }]"
+                  role="button"
+                  @tap="form.priority = p"
+                >
+                  <text class="prioText">{{ p }}</text>
+                </view>
               </view>
             </view>
           </view>
-          <view class="field">
-            <text class="label">Status</text>
-            <view class="input picker tap" role="button" @tap="openStatusPicker">
-              <text class="pickerText">{{ statusLabel(form.status) }}</text>
-              <text class="chevText">&gt;</text>
+
+          <view class="metaRow">
+            <view class="metaItem">
+              <DateField
+                v-model="form.deadlineDate"
+                mode="date"
+                placeholder="Deadline"
+              />
+            </view>
+
+            <view class="metaItem">
+              <view class="reminderHead inline" role="button" @tap="toggleReminder">
+                <text class="reminderLabel">Reminder</text>
+                <view class="toggle" :class="{ on: form.reminderOn }" @tap.stop="toggleReminder">
+                  <view class="toggleKnob" />
+                </view>
+              </view>
+            </view>
+          </view>
+
+          <view v-if="form.reminderOn" class="metaRow reminderBody">
+            <view class="metaItem">
+              <DateField
+                v-model="form.reminderDate"
+                mode="date"
+                placeholder="Date"
+              />
+            </view>
+            <view class="metaItem">
+              <DateField
+                v-model="form.reminderTime"
+                mode="time"
+                placeholder="Time"
+              />
             </view>
           </view>
         </view>
 
         <view class="field">
-          <text class="label">Deadline</text>
-          <DateField
-            v-model="form.deadlineDate"
-            mode="date"
-            placeholder="Date"
-          />
-        </view>
-
-        <view class="field">
-          <view class="reminderHead">
-            <text class="label noMargin">Reminder</text>
-            <view class="toggle" :class="{ on: form.reminderOn }" role="button" @tap="toggleReminder">
-              <view class="toggleKnob" />
-            </view>
-          </view>
-          <view v-if="form.reminderOn" class="reminderBody">
-            <DateField
-              v-model="form.reminderDate"
-              mode="date"
-              placeholder="Date"
-            />
-            <DateField
-              v-model="form.reminderTime"
-              mode="time"
-              placeholder="Time"
-            />
-          </view>
-        </view>
-
-        <view class="field">
-          <text class="label">Checklist</text>
           <view v-for="(item, idx) in form.checklist" :key="item.id" class="checkRow">
             <input class="input checkInput" v-model="item.text" :placeholder="`Step ${idx + 1}`" placeholder-class="placeholder" />
             <view class="del" role="button" @tap="removeChecklist(idx)">
@@ -97,7 +102,7 @@
             </view>
           </view>
           <view class="addCheck tap" role="button" @tap="addChecklist">
-            <text class="addCheckText">＋ Step</text>
+            <text class="addCheckText">＋</text>
           </view>
         </view>
 
@@ -106,32 +111,22 @@
 
       <view class="footer">
         <view class="save" :class="{ hit: saving }" role="button" @tap="submit">
-          <text class="saveText">{{ mode === 'create' ? 'Create' : 'Save' }}</text>
+          <text class="saveText">{{ mode === 'create' ? 'Add' : 'Save' }}</text>
         </view>
       </view>
     </view>
   </view>
-
-  <SelectPickerSheet
-    :open="statusPickerOpen"
-    :options="statusLabels"
-    :selected="statusLabel(form.status)"
-    kind="status"
-    @close="statusPickerOpen = false"
-    @pick="onStatusPick"
-  />
   </view>
 </template>
 
 <script setup>
-import { computed, reactive, watch, ref } from 'vue'
+import { reactive, watch, ref } from 'vue'
 import DateField from '@/components/DateField.vue'
 import TagSelect from '@/components/TagSelect.vue'
-import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
-import { useUserStore } from '@/composables/useUserStore'
-import { isAdminMember } from '@/lib/classMembers'
+import { useAdminMode } from '@/composables/useAdminMode'
+import { resolveTaskStatusFromForm } from '@/lib/taskDueDate'
 import { toast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -145,7 +140,6 @@ const props = defineProps({
       deadline: '',
       subject: '',
       priority: 'P3',
-      status: 'today',
       reminder: '',
       checklist: [],
     }),
@@ -156,14 +150,11 @@ const emit = defineEmits(['update:modelValue', 'save'])
 
 const { themeClass } = useTheme()
 const { tagNames, addTag } = useTagStore()
-const { currentUser } = useUserStore()
-const isAdmin = computed(() => isAdminMember(currentUser.value))
+const { isAdminActive: isAdmin } = useAdminMode()
 
 const priorities = ['P1', 'P2', 'P3']
-const statuses = ['today', 'upcoming', 'overdue', 'completed']
 const saving = ref(false)
-const statusPickerOpen = ref(false)
-const statusLabels = computed(() => statuses.map(statusLabel))
+const descExpanded = ref(false)
 
 const form = reactive({
   title: '',
@@ -171,16 +162,11 @@ const form = reactive({
   deadlineDate: '',
   subject: '',
   priority: 'P3',
-  status: 'today',
   reminderOn: false,
   reminderDate: '',
   reminderTime: '',
   checklist: [],
 })
-
-function statusLabel(s) {
-  return s.charAt(0).toUpperCase() + s.slice(1)
-}
 
 function parseStoredDeadline(raw) {
   if (!raw) return ''
@@ -217,7 +203,6 @@ function syncFromTask() {
   form.deadlineDate = parseStoredDeadline(props.task?.deadline)
   form.subject = props.task?.subject || ''
   form.priority = props.task?.priority || 'P3'
-  form.status = props.task?.status || 'today'
   const r = parseStoredReminder(props.task?.reminder)
   form.reminderOn = r.on
   form.reminderDate = r.date
@@ -229,13 +214,19 @@ function syncFromTask() {
   }))
 }
 
-// Only hydrate the form when the sheet opens — not on every store refresh.
 watch(() => props.modelValue, (open) => {
   if (open) {
     saving.value = false
     syncFromTask()
+    descExpanded.value = !!(props.task?.description || '').trim()
+  } else {
+    descExpanded.value = false
   }
 })
+
+function toggleDesc() {
+  descExpanded.value = !descExpanded.value
+}
 
 function addChecklist() {
   form.checklist.push({ id: `new-${Date.now().toString(36)}`, text: '', done: false })
@@ -256,15 +247,6 @@ function toggleReminder() {
 function onCreateTag(name) {
   if (!isAdmin.value) return
   addTag(name)
-}
-
-function openStatusPicker() {
-  statusPickerOpen.value = true
-}
-
-function onStatusPick(label) {
-  const idx = statusLabels.value.indexOf(label)
-  if (idx >= 0) form.status = statuses[idx]
 }
 
 function buildDeadlineString() {
@@ -297,7 +279,7 @@ function submit() {
     deadline: buildDeadlineString(),
     subject: form.subject,
     priority: form.priority,
-    status: form.status,
+    status: resolveTaskStatusFromForm({ deadlineDate: form.deadlineDate }),
     reminder: buildReminderString(),
     checklist: form.checklist.filter((x) => x.text.trim()),
   })
@@ -313,34 +295,88 @@ function submit() {
 .overlay.show .sheet { transform: translateY(0);}
 .grabber { margin: 12rpx auto 0; width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(16,24,40,.18);}
 .t-dark .grabber { background: rgba(245,247,255,.2);}
-.head { padding: 14rpx 22rpx 10rpx; display: flex; align-items: center; justify-content: space-between;}
-.title { font-size: 28rpx; font-weight: 760; color: rgba(16,24,40,.92);}
+.head { padding: 8rpx 22rpx 6rpx; display: flex; align-items: center; justify-content: space-between;}
+.title { font-size: 26rpx; font-weight: 760; color: rgba(16,24,40,.92);}
 .t-dark .title { color: #f5f7fa;}
-.close { width: 56rpx; height: 56rpx; border-radius: 16rpx; display:flex; align-items:center; justify-content:center; background: rgba(16,24,40,.06);}
-.t-dark .close { background: rgba(255,255,255,.06);}
-.closeGlyph { position: relative; width: 18rpx; height: 18rpx; }
-.closeGlyph view { position: absolute; left: 0; right: 0; top: 50%; height: 2.2rpx; margin-top: -1.1rpx; background: rgba(16,24,40,.7); border-radius: 999rpx; }
-.closeGlyph view:first-child { transform: rotate(45deg); }
-.closeGlyph view:last-child { transform: rotate(-45deg); }
-.t-dark .closeGlyph view { background: rgba(245,247,255,.75);}
 .body { max-height: 68vh; padding: 0 22rpx;}
-.field { margin-top: 14rpx; display: flex; flex-direction: column; gap: 8rpx; }
-.label { font-size: 20rpx; color: rgba(16,24,40,.56); font-weight: 660;}
-.t-dark .label { color: rgba(245,247,255,.6);}
-.label.noMargin { margin: 0; }
-.labelRow { display: flex; align-items: baseline; justify-content: space-between; gap: 10rpx; }
-.labelHint { font-size: 18rpx; color: rgba(16,24,40,.4); }
-.t-dark .labelHint { color: rgba(245,247,255,.4); }
+.field { margin-top: 12rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.collapsible { gap: 0; }
+.collapseHead {
+  min-height: 56rpx;
+  padding: 0 16rpx;
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(16,24,40,.08);
+  background: rgba(255,255,255,.78);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+.t-dark .collapseHead {
+  border-color: rgba(255,255,255,.06);
+  background: #23272d;
+}
+.collapseLabel {
+  font-size: 22rpx;
+  color: rgba(16,24,40,.62);
+  font-weight: 660;
+}
+.t-dark .collapseLabel { color: rgba(245,247,255,.62); }
+.collapseChev {
+  font-size: 28rpx;
+  line-height: 1;
+  color: rgba(16,24,40,.38);
+  transform: rotate(90deg);
+  transition: transform var(--motion-expand) ease, color var(--motion-expand) ease;
+}
+.t-dark .collapseChev { color: rgba(245,247,255,.38); }
+.collapseChev.open { transform: rotate(-90deg); color: rgba(46,99,255,.82); }
+.collapseBody {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height var(--motion-expand) ease, opacity var(--motion-expand) ease, margin-top var(--motion-expand) ease;
+  margin-top: 0;
+}
+.collapseBody.open {
+  max-height: 280rpx;
+  opacity: 1;
+  margin-top: 10rpx;
+}
+.collapseBody .area { min-height: 160rpx; }
 .input { min-height: 84rpx; border-radius: 22rpx; border: 1rpx solid rgba(16,24,40,.08); background: rgba(255,255,255,.78); padding: 0 16rpx; font-size: 24rpx; color: rgba(16,24,40,.92); transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;}
 .t-dark .input { border-color: rgba(255,255,255,.06); background: #23272d; color: #f5f7fa;}
 .input:focus { border-color: rgba(46,99,255,.4); box-shadow: 0 0 0 6rpx rgba(46,99,255,.12);}
 .area { min-height: 140rpx; padding-top: 18rpx;}
 .placeholder { color: rgba(16,24,40,.34);}
 .t-dark .placeholder { color: rgba(245,247,255,.32);}
-.grid { display: flex; gap: 14rpx; margin-top: 14rpx; }
-.grid > .field { flex: 1; margin-top: 0; }
+
+.metaGrid { gap: 8rpx; }
+.metaRow { display: flex; gap: 8rpx; width: 100%; align-items: stretch; }
+.metaItem { flex: 1; min-width: 0; }
+
 .priorityRow { display: flex; gap: 8rpx; }
-.prioChip { flex: 1; height: 72rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; border: 1rpx solid rgba(16,24,40,.08); background: rgba(255,255,255,.62); transition: background 200ms ease, border-color 200ms ease, transform 180ms ease; }
+.priorityRow.inline {
+  min-height: 84rpx;
+  height: 84rpx;
+  padding: 6rpx;
+  border-radius: 22rpx;
+  border: 1rpx solid rgba(16,24,40,.08);
+  background: rgba(255,255,255,.78);
+  gap: 6rpx;
+  box-sizing: border-box;
+}
+.t-dark .priorityRow.inline {
+  border-color: rgba(255,255,255,.06);
+  background: #23272d;
+}
+.prioChip { flex: 1; min-height: 64rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; border: 1rpx solid rgba(16,24,40,.08); background: rgba(255,255,255,.62); transition: background 200ms ease, border-color 200ms ease, transform 180ms ease; }
+.priorityRow.inline .prioChip {
+  height: 72rpx;
+  min-height: 72rpx;
+  border-radius: 16rpx;
+}
 .t-dark .prioChip { background: rgba(255,255,255,.04); border-color: rgba(255,255,255,.06); }
 .prioChip:active { transform: scale(0.97); }
 .prioText { font-size: 21rpx; font-weight: 720; color: rgba(16,24,40,.6); letter-spacing: 0.3rpx; }
@@ -352,28 +388,25 @@ function submit() {
 .t-dark .prioChip.p-P2.on .prioText { color: rgba(255,180,80,.96); }
 .prioChip.p-P3.on { background: rgba(46,99,255,.12); border-color: rgba(46,99,255,.3); }
 .prioChip.p-P3.on .prioText { color: rgba(46,99,255,.96); }
-.picker { display: flex; align-items: center; justify-content: space-between; padding-right: 18rpx; }
-.picker.tap:active { transform: scale(0.99); }
-.pickerText { font-size: 23rpx; font-weight: 700; color: rgba(16,24,40,.86); }
-.t-dark .pickerText { color: rgba(245,247,255,.86); }
-.chevText { font-size: 18rpx; color: rgba(16,24,40,.5); }
-.t-dark .chevText { color: rgba(245,247,255,.5); }
-.reminderHead { display: flex; align-items: center; justify-content: space-between; gap: 14rpx; padding: 4rpx 0; }
-.reminderLeft { display: flex; flex-direction: column; gap: 4rpx; }
-.toggle { width: 70rpx; height: 38rpx; border-radius: 999rpx; background: rgba(16,24,40,.12); border: 1rpx solid rgba(16,24,40,.06); position: relative; transition: background 200ms ease, border-color 200ms ease; }
+.reminderHead { display: flex; align-items: center; justify-content: space-between; gap: 14rpx; min-height: 84rpx; padding: 0 16rpx; border-radius: 22rpx; border: 1rpx solid rgba(16,24,40,.08); background: rgba(255,255,255,.78); box-sizing: border-box; }
+.reminderHead.inline { height: 100%; }
+.t-dark .reminderHead { border-color: rgba(255,255,255,.06); background: #23272d; }
+.reminderLabel { font-size: 24rpx; color: rgba(16,24,40,.62); font-weight: 660; white-space: nowrap; }
+.t-dark .reminderLabel { color: rgba(245,247,255,.62); }
+.toggle { width: 70rpx; height: 38rpx; border-radius: 999rpx; background: rgba(16,24,40,.12); border: 1rpx solid rgba(16,24,40,.06); position: relative; transition: background 200ms ease, border-color 200ms ease; flex-shrink: 0; }
 .t-dark .toggle { background: rgba(245,247,255,.1); border-color: rgba(255,255,255,.08); }
 .toggle.on { background: rgba(46,99,255,.42); border-color: rgba(46,99,255,.32); }
 .toggleKnob { position: absolute; top: 4rpx; left: 4rpx; width: 28rpx; height: 28rpx; border-radius: 50%; background: rgba(255,255,255,.95); transition: transform 200ms ease; }
 .toggle.on .toggleKnob { transform: translateX(30rpx); }
-.reminderBody { display: flex; flex-direction: column; gap: 10rpx; margin-top: 4rpx; }
+.reminderBody { margin-top: 0; }
 .checkRow { display: flex; gap: 8rpx; margin-top: 8rpx; }
 .checkInput { flex: 1; }
 .del { width: 74rpx; min-height: 84rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; background: rgba(220,80,80,.08); border: 1rpx solid rgba(220,80,80,.16); }
 .delText { font-size: 30rpx; color: rgba(220,80,80,.9); line-height: 1; font-weight: 300; }
-.addCheck { margin-top: 12rpx; height: 72rpx; border-radius: 18rpx; border: 1rpx dashed rgba(16,24,40,.18); display: flex; align-items: center; justify-content: center; transition: background 180ms ease; }
+.addCheck { margin-top: 10rpx; height: 64rpx; border-radius: 18rpx; border: 1rpx dashed rgba(16,24,40,.18); display: flex; align-items: center; justify-content: center; transition: background 180ms ease; }
 .t-dark .addCheck { border-color: rgba(255,255,255,.14); }
 .addCheck:active { background: rgba(46,99,255,.04); }
-.addCheckText { font-size: 21rpx; color: rgba(46,99,255,.92); font-weight: 660; }
+.addCheckText { font-size: 28rpx; color: rgba(46,99,255,.92); font-weight: 500; line-height: 1; }
 .t-dark .addCheckText { color: rgba(170,200,255,.94); }
 .gap { height: 24rpx; }
 .footer { padding: 16rpx 22rpx 22rpx; }

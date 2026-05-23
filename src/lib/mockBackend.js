@@ -17,6 +17,14 @@ import {
   slugifyUsername,
   CLASS_MEMBERS,
 } from '@/lib/classMembers'
+import {
+  enrichTask,
+  normalizeTaskStatus,
+  parseDueDateKey,
+  purgeStaleCompletedTasks,
+  resolveTaskStatusFromForm,
+  shouldRetainCompletedTask,
+} from '@/lib/taskDueDate'
 
 // ─── Flag ────────────────────────────────────────────────────────────
 export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true'
@@ -108,7 +116,7 @@ function seedState() {
         title: 'Math chapter 6 discussion Qn 8',
         description: 'Vector geometry — prove that the three medians of a triangle meet at one point. Bring annotated worksheet to class.',
         deadline: 'Due Thu 4:00 PM', subject: 'Math',
-        priority: 'P1', status: 'today', reminder: '1h before',
+        priority: 'P1', status: 'recent', reminder: '1h before',
         done: false,
         checklist: [
           { id: 'c1', text: 'Read worked example on p.142', done: true },
@@ -124,7 +132,7 @@ function seedState() {
         title: 'Physics projectile motion assignment',
         description: 'Worksheet 4.2 — 6 problems on launched balls and inclined surfaces. Show working clearly.',
         deadline: 'Due Fri 11:59 PM', subject: 'Physics',
-        priority: 'P2', status: 'today', reminder: 'Morning of',
+        priority: 'P2', status: 'recent', reminder: 'Morning of',
         done: false,
         checklist: [
           { id: 'c1', text: 'Watch recap video', done: false },
@@ -431,21 +439,24 @@ function detectRole(email) {
 
 // ─── Mappers (snake_case row → camelCase domain object) ──────────────
 function rowToTask(row) {
-  return {
+  const task = {
     id: row.id,
     title: row.title,
     description: row.description || '',
     deadline: row.deadline || 'Anytime',
     subject: row.subject || 'General',
     priority: row.priority || 'P3',
-    status: row.status || 'today',
+    status: normalizeTaskStatus(row.status),
     reminder: row.reminder || 'None',
     done: !!row.done,
     checklist: row.checklist || [],
     relatedNotice: row.related_notice || null,
     sourceNoticeId: row.source_notice_id || '',
     createdAt: row.created_at,
+    updatedAt: row.updated_at || '',
+    completedAt: row.completed_at || (row.done ? row.updated_at : '') || '',
   }
+  return enrichTask(task)
 }
 
 function rowToNotification(row, state = {}) {
@@ -455,10 +466,12 @@ function rowToNotification(row, state = {}) {
     title: row.title,
     subject: row.subject || '',
     deadline: row.deadline || '',
+    deadlineAt: row.deadline_at || '',
     description: row.description || '',
     attachment: row.attachment || '',
     attachmentUrl: row.attachment_url || '',
     by: row.by || 'Admin',
+    createdBy: row.created_by || '',
     createdAt: row.created_at,
     hidden: state.hidden ?? false,
     read: state.read ?? false,
@@ -655,8 +668,19 @@ export async function updateProfile(userId, payload) {
 // ═════════════════════════════════════════════════════════════════════
 //  ADMIN — member management (mock only)
 // ═════════════════════════════════════════════════════════════════════
+export async function requireAdminCaller() {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { error: new Error('Not signed in') }
+  const profile = _state.profiles.find((p) => p.id === userId)
+  if (!isAdminMember(profile)) return { error: new Error('Admins only') }
+  return { error: null }
+}
+
 export async function adminAddMember({ username, display_name, name, email, role = 'student', birthday = '', is_admin = false }) {
   await tick()
+  const { error: denied } = await requireAdminCaller()
+  if (denied) return { data: null, error: denied }
   const cleanUsername = slugifyUsername(username || name || display_name)
   const cleanDisplay = String(display_name || name || '').trim()
   if (!cleanUsername || !/^[a-z0-9_]+$/.test(cleanUsername)) {
@@ -724,6 +748,8 @@ export async function changePassword(userId, newPassword) {
 
 export async function adminSetRole(userId, role) {
   await tick()
+  const { error: denied } = await requireAdminCaller()
+  if (denied) return { data: null, error: denied }
   const idx = _state.profiles.findIndex((p) => p.id === userId)
   if (idx < 0) return { data: null, error: new Error('Profile not found') }
   _state.profiles[idx].role = role === 'admin' ? 'admin' : role === 'teacher_admin' ? 'teacher_admin' : 'student'
@@ -739,10 +765,22 @@ export async function fetchTasks(options = {}) {
   await tick()
   const userId = currentUserId()
   if (!userId) return { data: [], error: new Error('Not signed in') }
+
+  const staleIds = _state.tasks
+    .filter((t) => t.user_id === userId && t.done && !shouldRetainCompletedTask(rowToTask(t)))
+    .map((t) => t.id)
+  if (staleIds.length) {
+    _state.tasks = _state.tasks.filter((t) => !staleIds.includes(t.id))
+    persist()
+  }
+
   let rows = _state.tasks.filter((t) => t.user_id === userId)
-  if (options.status) rows = rows.filter((t) => t.status === options.status)
+  if (options.status) {
+    const status = options.status === 'recent' ? ['recent', 'today'] : [options.status]
+    rows = rows.filter((t) => status.includes(normalizeTaskStatus(t.status)))
+  }
   rows = [...rows].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-  return { data: rows.map(rowToTask), error: null }
+  return { data: purgeStaleCompletedTasks(rows.map(rowToTask)), error: null }
 }
 
 export async function fetchTaskById(taskId) {
@@ -758,6 +796,7 @@ export async function createTask(payload) {
   await tick()
   const userId = currentUserId()
   if (!userId) return { data: null, error: new Error('Not signed in') }
+  const deadlineDate = parseDueDateKey(payload.deadline)
   const row = {
     id: uid('tsk'), user_id: userId,
     title: payload.title?.trim() || 'Untitled Task',
@@ -765,7 +804,7 @@ export async function createTask(payload) {
     deadline: payload.deadline?.trim() || 'Anytime',
     subject: payload.subject?.trim() || 'General',
     priority: payload.priority || 'P3',
-    status: payload.status || 'today',
+    status: payload.status || resolveTaskStatusFromForm({ deadlineDate }),
     reminder: payload.reminder?.trim() || 'None',
     done: false,
     checklist: payload.checklist || [],
@@ -792,6 +831,8 @@ export async function updateTask(taskId, payload) {
   if (payload.reminder !== undefined)    row.reminder = payload.reminder?.trim() ?? 'None'
   if (payload.done !== undefined)        row.done = !!payload.done
   if (payload.checklist !== undefined)   row.checklist = payload.checklist
+  if (payload.done === true) row.completed_at = payload.completedAt || nowIso()
+  if (payload.done === false) row.completed_at = null
   row.updated_at = nowIso()
   persist()
   return { data: rowToTask(row), error: null }
@@ -820,9 +861,14 @@ export async function toggleTaskDone(taskId, currentDone) {
   const idx = _state.tasks.findIndex((t) => t.id === taskId)
   if (idx < 0) return { data: null, error: new Error('Task not found') }
   const newDone = !currentDone
+  const now = nowIso()
   _state.tasks[idx].done = newDone
-  _state.tasks[idx].status = newDone ? 'completed' : 'today'
-  _state.tasks[idx].updated_at = nowIso()
+  const deadlineDate = parseDueDateKey(_state.tasks[idx].deadline)
+  _state.tasks[idx].status = newDone
+    ? 'completed'
+    : resolveTaskStatusFromForm({ deadlineDate })
+  _state.tasks[idx].completed_at = newDone ? now : null
+  _state.tasks[idx].updated_at = now
   persist()
   return { data: rowToTask(_state.tasks[idx]), error: null }
 }
@@ -876,17 +922,23 @@ export async function fetchNotifications(options = {}) {
 
 export async function createNotification(payload) {
   await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const profile = _state.profiles.find((p) => p.id === userId)
+  if (!isAdminMember(profile)) return { data: null, error: new Error('Admins only') }
   const row = {
     id: uid('ntf'),
     type: payload.type,
     title: payload.title,
     subject: payload.subject || '',
     deadline: payload.deadline || '',
+    deadline_at: payload.deadlineAt || '',
     description: payload.description || '',
     attachment: payload.attachment || '',
     attachment_url: payload.attachmentUrl || '',
     important: !!payload.important,
     by: payload.by || 'Admin',
+    created_by: userId || '',
     created_at: nowIso(),
   }
   _state.notifications.unshift(row)

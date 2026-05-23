@@ -108,7 +108,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useMemberStore } from '@/composables/useMemberStore'
 import { useUserStore } from '@/composables/useUserStore'
-import { isAdminMember } from '@/lib/classMembers'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 
@@ -123,7 +123,7 @@ const unreadCount = computed(() => visibleNotifications.value.filter((n) => !n.r
 
 const tab = ref('communities')
 const showAddCommunity = ref(false)
-const isAdmin = computed(() => isAdminMember(currentUser.value))
+const { isAdminActive: isAdmin } = useAdminMode()
 const draft = ref({ name: '', desc: '', icon: '#' })
 
 function initials(name) {
@@ -204,37 +204,37 @@ function createCommunity() {
 .t-dark .seg.on { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
 
 .scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 196rpx); padding: 14rpx 28rpx 200rpx; }
-.list { display: flex; flex-direction: column; gap: 12rpx; }
+.list { display: flex; flex-direction: column; gap: var(--list-stack-gap); }
 .emptyWrap, .emptyFull { padding: 32rpx 12rpx; }
 .emptyFull { grid-column: span 2; }
 
-.card { padding: 16rpx 18rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.card { padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .card:active { transform: scale(0.985); }
-.row { display: flex; align-items: center; gap: 14rpx; }
-.icon { width: 50rpx; height: 50rpx; border-radius: 16rpx; background: rgba(46, 99, 255, 0.10); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: 24rpx; font-weight: 720; }
+.row { display: flex; align-items: center; gap: var(--list-card-gap); }
+.icon { width: var(--list-icon-size); height: var(--list-icon-size); border-radius: var(--list-icon-radius); background: rgba(46, 99, 255, 0.10); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: var(--list-icon-font); font-weight: 720; flex-shrink: 0; }
 .t-dark .icon { background: rgba(120, 160, 255, 0.14); color: rgba(170, 200, 255, 0.96); }
-.meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.name { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.name { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); }
 .t-dark .name { color: rgba(245, 247, 255, 0.92); }
-.desc { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.desc { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); line-height: 1.35; }
 .t-dark .desc { color: rgba(245, 247, 255, 0.45); }
-.enterDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.6); }
+.enterDot { width: var(--list-tag-dot); height: var(--list-tag-dot); border-radius: 50%; background: rgba(46, 99, 255, 0.6); flex-shrink: 0; }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; }
-.mCard { padding: 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); display: flex; flex-direction: column; gap: 4rpx; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--list-stack-gap); }
+.mCard { padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); display: flex; flex-direction: column; gap: 6rpx; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .mCard { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .mCard:active { transform: scale(0.985); }
-.mAvatar { width: 48rpx; height: 48rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.14); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.96); font-size: 18rpx; font-weight: 760; margin-bottom: 4rpx; }
+.mAvatar { width: var(--list-avatar-size); height: var(--list-avatar-size); border-radius: 50%; background: rgba(46, 99, 255, 0.14); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.96); font-size: var(--list-meta-size); font-weight: 760; margin-bottom: 4rpx; }
 .t-dark .mAvatar { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
-.mName { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.mName { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); }
 .t-dark .mName { color: rgba(245, 247, 255, 0.92); }
 .mMetaRow { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
-.mMbti { font-size: 17rpx; color: rgba(46, 99, 255, 0.9); font-weight: 700; }
+.mMbti { font-size: var(--list-meta-size); color: rgba(46, 99, 255, 0.9); font-weight: 700; }
 .t-dark .mMbti { color: rgba(170, 200, 255, 0.95); }
-.mFocus { font-size: 17rpx; color: rgba(16, 24, 40, 0.45); }
+.mFocus { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.45); }
 .t-dark .mFocus { color: rgba(245, 247, 255, 0.45); }
-.mInterests { font-size: 18rpx; color: rgba(16, 24, 40, 0.48); margin-top: 2rpx; }
+.mInterests { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.48); margin-top: 2rpx; }
 .t-dark .mInterests { color: rgba(245, 247, 255, 0.45); }
 
 .gap { height: 24rpx; }

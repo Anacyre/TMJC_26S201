@@ -98,20 +98,20 @@ onShow(() => {})
 .title { font-size: 32rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); letter-spacing: -0.4rpx; max-width: 600rpx; line-height: 1.35; }
 .t-dark .title { color: rgba(245, 247, 255, 0.9); }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; padding-top: 8rpx; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--list-stack-gap); padding-top: 8rpx; }
 .tile {
-  padding: 20rpx 16rpx 18rpx;
-  border-radius: 22rpx;
+  padding: var(--list-card-pad-y) var(--list-card-pad-x);
+  border-radius: var(--list-card-radius);
   background: rgba(255, 255, 255, 0.7);
   border: 1rpx solid rgba(16, 24, 40, 0.04);
-  display: flex; flex-direction: column; gap: 2rpx;
+  display: flex; flex-direction: column; gap: 4rpx;
   transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
 }
 .t-dark .tile { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .tile:active { transform: scale(0.985); }
-.tileGlyph { width: 52rpx; height: 52rpx; border-radius: 16rpx; background: rgba(46, 99, 255, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 10rpx; }
+.tileGlyph { width: var(--list-icon-size); height: var(--list-icon-size); border-radius: var(--list-icon-radius); background: rgba(46, 99, 255, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 10rpx; }
 .t-dark .tileGlyph { background: rgba(120, 160, 255, 0.14); }
-.tileName { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.tileName { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.9); }
 .t-dark .tileName { color: rgba(245, 247, 255, 0.92); }
 
 .gWrap { position: relative; width: 32rpx; height: 32rpx; display: flex; align-items: center; justify-content: center; }

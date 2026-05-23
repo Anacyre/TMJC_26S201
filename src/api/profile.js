@@ -1,7 +1,25 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import { isAdminMember } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
+
+async function requireAdminCaller() {
+  if (USE_MOCK) {
+    const { error } = await mock.requireAdminCaller()
+    return error
+  }
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return new Error('未登录')
+  const { data: profile, error } = await supabase
+    .from('profiles')
+    .select('role, is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (error) return error
+  if (!isAdminMember(profile)) return new Error('Admins only')
+  return null
+}
 
 /**
  * 获取指定用户的 profile
@@ -56,6 +74,8 @@ export async function updateProfile(userId, payload) {
 
 export async function adminAddMember(payload) {
   if (USE_MOCK) return mock.adminAddMember(payload)
+  const denied = await requireAdminCaller()
+  if (denied) return { data: null, error: denied }
   const { data, error } = await supabase.functions.invoke('admin-add-member', { body: payload })
   if (error) return { data: null, error }
   if (data?.error) return { data: null, error: new Error(data.error) }
@@ -64,6 +84,8 @@ export async function adminAddMember(payload) {
 
 export async function adminSetRole(userId, role) {
   if (USE_MOCK) return mock.adminSetRole(userId, role)
+  const denied = await requireAdminCaller()
+  if (denied) return { data: null, error: denied }
   const isAdmin = role === 'admin' || role === 'teacher_admin'
   const nextRole = isAdmin ? role : 'student'
   const { data, error } = await supabase

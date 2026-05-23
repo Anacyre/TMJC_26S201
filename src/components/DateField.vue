@@ -1,6 +1,6 @@
 <template>
   <view class="dateField" :class="themeClass">
-    <view class="control tap" role="button" @tap="pickerOpen = true">
+    <view class="control tap" :class="{ compact: props.compact }" role="button" @tap="pickerOpen = true">
       <view class="left">
         <view class="iconWrap">
           <view v-if="mode === 'date'" class="cal">
@@ -55,6 +55,7 @@ const props = defineProps({
   end: { type: String, default: '' },
   fields: { type: String, default: 'day' },
   clearable: { type: Boolean, default: true },
+  compact: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'change', 'clear'])
@@ -116,6 +117,24 @@ function onClear() {
   border-color: rgba(255, 255, 255, 0.08);
 }
 .control.tap:active { transform: scale(0.99); }
+.control.compact {
+  min-height: 64rpx;
+  padding: 8rpx 12rpx;
+  gap: 8rpx;
+}
+.control.compact .iconWrap {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 10rpx;
+}
+.control.compact .value {
+  font-size: 20rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.control.compact .chev { width: 24rpx; height: 24rpx; }
+.control.compact .clearBtn { display: none; }
 
 .left {
   display: flex;

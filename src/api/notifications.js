@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import { isAdminMember } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -13,10 +14,12 @@ function rowToNotification(row, state = {}) {
     title: row.title,
     subject: row.subject || '',
     deadline: row.deadline || '',
+    deadlineAt: row.deadline_at || '',
     description: row.description || '',
     attachment: row.attachment || '',
     attachmentUrl: row.attachment_url || '',
     by: row.by || 'Admin',
+    createdBy: row.created_by || '',
     createdAt: row.created_at,
     hidden: !!state.hidden,
     read: !!state.read,
@@ -63,6 +66,18 @@ export async function fetchNotifications(options = {}) {
  */
 export async function createNotification(payload) {
   if (USE_MOCK) return mock.createNotification(payload)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('未登录') }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) return { data: null, error: profileError }
+  if (!isAdminMember(profile)) return { data: null, error: new Error('Admins only') }
+
   const { data, error } = await supabase
     .from('notifications')
     .insert({
@@ -70,11 +85,13 @@ export async function createNotification(payload) {
       title: payload.title,
       subject: payload.subject || '',
       deadline: payload.deadline || '',
+      deadline_at: payload.deadlineAt || null,
       description: payload.description || '',
       attachment: payload.attachment || '',
       attachment_url: payload.attachmentUrl || '',
       important: payload.important || false,
       by: payload.by || 'Admin',
+      created_by: user.id,
     })
     .select()
     .single()
@@ -139,7 +156,7 @@ export async function setInPlanner(notificationId, value) {
 }
 
 /**
- * 删除通知（仅管理员）
+ * 删除通知（管理员或发布者本人）
  */
 export async function deleteNotification(notificationId) {
   if (USE_MOCK) return mock.deleteNotification(notificationId)

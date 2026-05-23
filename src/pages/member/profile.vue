@@ -100,9 +100,12 @@
           <view class="accountRow tap" role="button" @tap="aliasOpen = true">
             <text class="accountLabel">Alias</text>
           </view>
-          <view class="accountRow tap danger" role="button" @tap="confirmLogout">
-            <text class="accountLabel dangerText">Log out</text>
-          </view>
+        </view>
+      </view>
+
+      <view v-if="isMe" class="logoutWrap">
+        <view class="logoutBtn tap" role="button" @tap="confirmLogout">
+          <text class="logoutText">Log out</text>
         </view>
       </view>
 
@@ -429,6 +432,25 @@ onLoad((q) => { id.value = q?.id || currentUser.value.id })
 .t-dark .link { color: rgba(170, 200, 255, 0.95); }
 
 .gap { height: 32rpx; }
+
+.logoutWrap { margin-top: 28rpx; padding: 0 4rpx; }
+.logoutBtn {
+  height: 80rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(229, 72, 77, 0.22);
+  transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
+}
+.t-dark .logoutBtn {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 120, 120, 0.28);
+}
+.logoutBtn:active { transform: scale(0.985); background: rgba(229, 72, 77, 0.08); }
+.logoutText { font-size: 22rpx; font-weight: 720; color: rgba(229, 72, 77, 0.96); }
+.t-dark .logoutText { color: rgba(255, 120, 120, 0.96); }
 
 .overlay { position: fixed; inset: 0; z-index: 60; opacity: 0; pointer-events: none; background: rgba(8, 12, 24, 0.4); backdrop-filter: blur(12px); transition: opacity 0.22s ease; }
 .overlay.show { opacity: 1; pointer-events: auto; }

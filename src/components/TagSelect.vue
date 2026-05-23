@@ -1,6 +1,6 @@
 <template>
   <view class="tagSelect" :class="themeClass">
-    <view class="control tap" role="button" @tap="pickerOpen = true">
+    <view class="control tap" :class="{ compact: props.compact }" role="button" @tap="pickerOpen = true">
       <view class="left">
         <view class="chip" :class="resolvedColorClass">
           <view class="chipDot" />
@@ -36,6 +36,7 @@ const props = defineProps({
   canCreate: { type: Boolean, default: false },
   kind: { type: String, default: 'subject' },
   color: { type: String, default: '' },
+  compact: { type: Boolean, default: false },
 })
 
 const emit = defineEmits(['update:modelValue', 'create'])
@@ -87,17 +88,34 @@ function onCreate(value) {
   border-color: rgba(255, 255, 255, 0.08);
 }
 .control.tap:active { transform: scale(0.99); }
+.control.compact {
+  min-height: 64rpx;
+  padding: 8rpx 12rpx;
+  gap: 8rpx;
+}
+.control.compact .chip {
+  max-width: 100%;
+  overflow: hidden;
+}
+.control.compact .chipText {
+  font-size: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.control.compact .chev { width: 24rpx; height: 24rpx; }
 
 .left { display: flex; align-items: center; flex: 1; min-width: 0; }
 
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 10rpx;
-  padding: 10rpx 16rpx;
+  gap: 8rpx;
+  min-height: 32rpx;
+  padding: 0 12rpx;
   border-radius: 999rpx;
   background: rgba(16, 24, 40, 0.06);
   border: 1rpx solid rgba(16, 24, 40, 0.08);
+  box-sizing: border-box;
 }
 .t-dark .chip {
   background: rgba(255, 255, 255, 0.06);
@@ -105,16 +123,19 @@ function onCreate(value) {
 }
 
 .chipDot {
-  width: 10rpx;
-  height: 10rpx;
+  width: 8rpx;
+  height: 8rpx;
   border-radius: 50%;
+  flex-shrink: 0;
   background: rgba(16, 24, 40, 0.42);
 }
 .t-dark .chipDot { background: rgba(245, 247, 255, 0.42); }
 
 .chipText {
-  font-size: 22rpx;
+  font-size: 18rpx;
   font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
   color: rgba(16, 24, 40, 0.86);
 }
 .t-dark .chipText { color: rgba(245, 247, 255, 0.86); }

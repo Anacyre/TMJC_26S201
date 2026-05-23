@@ -20,7 +20,7 @@
           <view class="iconBtn" role="button" @tap="restore(n.id)">
             <text class="glyph">↺</text>
           </view>
-          <view class="iconBtn danger" role="button" @tap="remove(n.id)">
+          <view v-if="canDelete(n)" class="iconBtn danger" role="button" @tap="remove(n.id)">
             <text class="glyph">×</text>
           </view>
         </view>
@@ -40,10 +40,14 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
+import { useUserStore } from '@/composables/useUserStore'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { hiddenNotifications, unhide, removeNotification, fetchNotifications } = useNotificationStore()
+const { currentUser } = useUserStore()
+const { isAdminActive } = useAdminMode()
 
 const list = computed(() => hiddenNotifications.value)
 
@@ -56,8 +60,18 @@ function restore(id) {
   toast.updated()
 }
 
-function remove(id) {
-  removeNotification(id)
+function canDelete(notice) {
+  const userId = currentUser.value?.id
+  if (!userId || !notice?.id) return false
+  return isAdminActive.value || notice.createdBy === userId
+}
+
+async function remove(id) {
+  const { error } = await removeNotification(id)
+  if (error) {
+    toast.show('Could not delete')
+    return
+  }
   toast.removed()
 }
 </script>
@@ -106,16 +120,16 @@ function remove(id) {
 .row {
   display: flex;
   align-items: center;
-  gap: 12rpx;
-  margin-top: 10rpx;
-  padding: 14rpx 14rpx;
-  border-radius: 20rpx;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  gap: var(--list-card-gap);
+  margin-top: var(--list-stack-gap);
+  padding: var(--list-card-pad-y) var(--list-card-pad-x);
+  border-radius: var(--list-card-radius);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
   opacity: 0.92;
 }
 .t-dark .row {
-  background: #1a1d21;
+  background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
 }
 .main {
@@ -123,7 +137,7 @@ function remove(id) {
   min-width: 0;
 }
 .title {
-  font-size: 22rpx;
+  font-size: var(--list-title-size);
   font-weight: 680;
   color: rgba(16, 24, 40, 0.72);
 }
@@ -133,7 +147,7 @@ function remove(id) {
 .meta {
   display: block;
   margin-top: 6rpx;
-  font-size: 18rpx;
+  font-size: var(--list-meta-size);
   color: rgba(16, 24, 40, 0.42);
 }
 .t-dark .meta {
@@ -145,9 +159,9 @@ function remove(id) {
   flex-shrink: 0;
 }
 .iconBtn {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 16rpx;
+  width: var(--list-action-size);
+  height: var(--list-action-size);
+  border-radius: var(--list-check-radius);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -162,7 +176,7 @@ function remove(id) {
   border-color: rgba(220, 80, 80, 0.2);
 }
 .glyph {
-  font-size: 22rpx;
+  font-size: var(--list-meta-size);
   color: rgba(16, 24, 40, 0.55);
   font-weight: 500;
 }

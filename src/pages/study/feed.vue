@@ -111,15 +111,15 @@ onLoad((q) => { id.value = q?.id || 's1' })
 .noticeStripChev { font-size: 26rpx; color: rgba(46, 99, 255, 0.6); font-weight: 300; }
 
 .scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 108rpx); padding: 0 28rpx 40rpx; }
-.card { margin-top: 10rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.card { margin-top: var(--list-stack-gap); padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.card:active { transform: scale(0.99); }
+.card:active { transform: scale(0.985); }
 .head { display: flex; justify-content: space-between; align-items: center; gap: 10rpx; }
-.type { font-size: 16rpx; padding: 4rpx 10rpx; border-radius: 999rpx; background: rgba(16, 24, 40, 0.06); color: rgba(16, 24, 40, 0.65); font-weight: 700; }
+.type { font-size: var(--list-meta-size); padding: 4rpx 12rpx; border-radius: 999rpx; background: rgba(16, 24, 40, 0.06); color: rgba(16, 24, 40, 0.65); font-weight: 700; }
 .t-dark .type { background: rgba(255, 255, 255, 0.08); color: rgba(245, 247, 255, 0.72); }
-.title { display: block; margin-top: 10rpx; font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.title { display: block; margin-top: 10rpx; font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); }
 .t-dark .title { color: rgba(245, 247, 255, 0.92); }
-.meta { display: block; margin-top: 6rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.meta { display: block; margin-top: 8rpx; font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); }
 .t-dark .meta { color: rgba(245, 247, 255, 0.45); }
 .emptyWrap { padding: 32rpx 0; }
 .gap { height: 24rpx; }

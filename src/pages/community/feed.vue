@@ -165,15 +165,15 @@ onLoad((q) => { id.value = q?.id || 'c1' })
 
 .scroll { position: relative; z-index: 1; height: calc(100vh - 200rpx); padding: 0 28rpx 60rpx; }
 .emptyWrap { padding: 40rpx 0; }
-.card { margin-top: 10rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.card { margin-top: var(--list-stack-gap); padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.tap:active { transform: scale(0.99); }
-.title { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.tap:active { transform: scale(0.985); }
+.title { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); }
 .t-dark .title { color: rgba(245, 247, 255, 0.92); }
-.metaRow { margin-top: 6rpx; display: flex; align-items: center; gap: 8rpx; }
-.meta { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.metaRow { margin-top: 8rpx; display: flex; align-items: center; gap: 8rpx; }
+.meta { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); }
 .t-dark .meta { color: rgba(245, 247, 255, 0.45); }
-.metaDot { font-size: 18rpx; color: rgba(16, 24, 40, 0.3); }
+.metaDot { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.3); }
 .t-dark .metaDot { color: rgba(245, 247, 255, 0.3); }
 
 .stats { margin-top: 14rpx; display: flex; gap: 18rpx; }

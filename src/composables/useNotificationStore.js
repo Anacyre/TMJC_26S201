@@ -115,8 +115,11 @@ async function setInPlanner(id, value) {
 }
 
 async function removeNotification(id) {
-  notifications.value = notifications.value.filter((n) => n.id !== id)
-  await notificationsApi.deleteNotification(id)
+  const { error } = await notificationsApi.deleteNotification(id)
+  if (!error) {
+    notifications.value = notifications.value.filter((n) => n.id !== id)
+  }
+  return { error }
 }
 
 async function addNotification(payload) {

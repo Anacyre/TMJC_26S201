@@ -98,6 +98,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import BottomNav from '@/components/BottomNav.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -106,17 +107,22 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { adminAddMember, adminSetRole } from '@/api/profile'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { isAdminMember, isTeacherMember, memberEmail, slugifyUsername } from '@/lib/classMembers'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { members, fetchMembers } = useCommunityStore()
 const { currentUser } = useUserStore()
-const isAdmin = computed(() => isAdminMember(currentUser.value))
+const { isAdminActive: isAdmin } = useAdminMode()
 const tab = ref('members')
 const addOpen = ref(false)
 const saving = ref(false)
 const draft = ref({ username: '', display_name: '', email: '', role: 'student' })
+
+onShow(() => {
+  fetchMembers()
+})
 
 function isTestAccount(name) {
   return String(name || '').trim().toLowerCase().startsWith('test')
@@ -146,6 +152,10 @@ function openAdd() {
 
 async function commitAdd() {
   if (saving.value) return
+  if (!isAdmin.value) {
+    toast.show('Admins only')
+    return
+  }
   const username = slugifyUsername(draft.value.username || draft.value.display_name)
   const display_name = String(draft.value.display_name || '').trim()
   if (!username) {
@@ -178,6 +188,10 @@ async function commitAdd() {
 }
 
 async function promote(m) {
+  if (!isAdmin.value) {
+    toast.show('Admins only')
+    return
+  }
   await adminSetRole(m.id, 'admin')
   await fetchMembers()
   toast.updated()
@@ -209,16 +223,16 @@ async function stepDown() {
 
 .list { flex: 1; }
 .emptyWrap { padding-top: 32rpx; }
-.row { display: flex; align-items: center; gap: 14rpx; margin-top: 12rpx; padding: 16rpx 14rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.06); }
+.row { display: flex; align-items: center; gap: var(--list-card-gap); margin-top: var(--list-stack-gap); padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.06); transition: transform 180ms ease, background 220ms ease; }
 .t-dark .row { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .left { display: flex; align-items: center; gap: 12rpx; flex: 1; min-width: 0; }
-.ava { width: 56rpx; height: 56rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.14); color: rgba(46, 99, 255, 0.96); font-size: 21rpx; font-weight: 760; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ava { width: var(--list-avatar-size); height: var(--list-avatar-size); border-radius: 50%; background: rgba(46, 99, 255, 0.14); color: rgba(46, 99, 255, 0.96); font-size: var(--list-meta-size); font-weight: 760; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .t-dark .ava { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
-.meta { display: flex; flex-direction: column; gap: 2rpx; min-width: 0; }
+.meta { display: flex; flex-direction: column; gap: 4rpx; min-width: 0; }
 .nameLine { display: flex; align-items: center; gap: 8rpx; min-width: 0; }
-.name { font-size: 23rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); max-width: 200rpx; }
+.name { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); max-width: 200rpx; }
 .t-dark .name { color: #f5f7fa; }
-.email { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.email { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); }
 .t-dark .email { color: #9aa4b2; }
 .badge { padding: 4rpx 8rpx; border-radius: 999rpx; }
 .badge.admin { background: rgba(46, 99, 255, 0.14); border: 1rpx solid rgba(46, 99, 255, 0.22); }

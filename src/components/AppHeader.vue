@@ -15,7 +15,7 @@
       </view>
 
       <view class="side right">
-        <view v-if="isAdmin" class="adminBadge"><text class="adminBadgeText">ADMIN</text></view>
+        <AdminToggle v-if="isRealAdmin" />
         <view class="iconBtn" role="button" @tap="onOpenSearch">
           <view class="searchGlyph">
             <view class="searchRing" />
@@ -38,9 +38,10 @@ import { computed } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useUserStore } from '@/composables/useUserStore'
-import { isAdminMember } from '@/lib/classMembers'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { navTo, pageAnim } from '@/lib/navigation'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import AdminToggle from '@/components/AdminToggle.vue'
 import ClassLogo from '@/components/ClassLogo.vue'
 import BackButton from '@/components/BackButton.vue'
 
@@ -53,6 +54,7 @@ const props = defineProps({
 const { themeClass } = useTheme()
 const { openSearch } = useGlobalSearch()
 const { currentUser } = useUserStore()
+const { isRealAdmin } = useAdminMode()
 const initials = computed(() =>
   (currentUser.value.name || '?')
     .split(' ')
@@ -61,7 +63,6 @@ const initials = computed(() =>
     .slice(0, 2)
     .toUpperCase()
 )
-const isAdmin = computed(() => isAdminMember(currentUser.value))
 const resolvedShowAvatar = computed(() => props.showAvatar)
 
 function goHome() {
@@ -87,7 +88,8 @@ function openProfile() {
   right: 0;
   z-index: 100;
   width: 100%;
-  padding-top: env(safe-area-inset-top);
+  padding: calc(env(safe-area-inset-top) + var(--shell-bar-margin-top, 12rpx)) var(--shell-bar-inset, 20rpx) 0;
+  box-sizing: border-box;
 }
 
 .spacer {
@@ -99,14 +101,13 @@ function openProfile() {
 .bar {
   height: var(--shell-bar-height, 116rpx);
   width: 100%;
-  border-radius: 0;
+  border-radius: 28rpx;
   display: flex;
   align-items: center;
-  padding: 0 28rpx;
+  padding: 0 24rpx;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.68);
-  border: none;
-  border-bottom: 1rpx solid rgba(16, 24, 40, 0.06);
+  border: 1rpx solid rgba(16, 24, 40, 0.06);
   box-shadow: 0 12rpx 40rpx rgba(12, 20, 40, 0.06);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -115,7 +116,7 @@ function openProfile() {
 
 .t-dark .bar {
   background: rgba(26, 29, 33, 0.78);
-  border-bottom-color: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.06);
   box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.35);
 }
 
@@ -237,22 +238,4 @@ function openProfile() {
   border-color: rgba(120, 160, 255, 0.32);
 }
 .t-dark .avatarText { color: rgba(170, 200, 255, 0.95); }
-
-.adminBadge {
-  padding: 8rpx 14rpx;
-  border-radius: 999rpx;
-  background: rgba(46, 99, 255, 0.14);
-  border: 1rpx solid rgba(46, 99, 255, 0.22);
-}
-.adminBadgeText {
-  font-size: 17rpx;
-  font-weight: 800;
-  letter-spacing: 0.8rpx;
-  color: rgba(46, 99, 255, 0.96);
-}
-.t-dark .adminBadge {
-  background: rgba(120, 160, 255, 0.18);
-  border-color: rgba(120, 160, 255, 0.32);
-}
-.t-dark .adminBadgeText { color: rgba(170, 200, 255, 0.96); }
 </style>

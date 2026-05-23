@@ -1,27 +1,45 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import {
+  enrichTask,
+  normalizeTaskStatus,
+  purgeStaleCompletedTasks,
+  resolveTaskStatusFromForm,
+  shouldRetainCompletedTask,
+} from '@/lib/taskDueDate'
 
 const USE_MOCK = mock.USE_MOCK
 
-/**
- * 将数据库行映射为前端 Task 对象
- */
+function parseDeadlineDate(deadline) {
+  if (!deadline) return ''
+  const iso = String(deadline).match(/(\d{4}-\d{2}-\d{2})/)
+  return iso ? iso[1] : ''
+}
+
 function rowToTask(row) {
-  return {
+  const task = {
     id: row.id,
     title: row.title,
     description: row.description || '',
     deadline: row.deadline || 'Anytime',
     subject: row.subject || 'General',
     priority: row.priority || 'P3',
-    status: row.status || 'today',
+    status: normalizeTaskStatus(row.status),
     reminder: row.reminder || 'None',
     done: row.done || false,
     checklist: row.checklist || [],
     relatedNotice: row.related_notice || null,
     sourceNoticeId: row.source_notice_id || '',
     createdAt: row.created_at,
+    updatedAt: row.updated_at || '',
+    completedAt: row.completed_at || (row.done ? row.updated_at : '') || '',
   }
+  return enrichTask(task)
+}
+
+async function deleteCompletedTask(taskId) {
+  const { error } = await supabase.from('tasks').delete().eq('id', taskId)
+  return { error }
 }
 
 /**
@@ -42,7 +60,12 @@ export async function fetchTasks(options = {}) {
   if (options.status) query = query.eq('status', options.status)
 
   const { data, error } = await query
-  return { data: error ? [] : data.map(rowToTask), error }
+  if (error) return { data: [], error }
+
+  const mapped = (data || []).map(rowToTask)
+  const stale = mapped.filter((task) => !shouldRetainCompletedTask(task))
+  await Promise.all(stale.map((task) => deleteCompletedTask(task.id)))
+  return { data: purgeStaleCompletedTasks(mapped), error: null }
 }
 
 /**
@@ -60,7 +83,12 @@ export async function fetchTaskById(taskId) {
     .eq('user_id', user.id)
     .maybeSingle()
 
-  return { data: data ? rowToTask(data) : null, error }
+  if (!data) return { data: null, error }
+  if (!shouldRetainCompletedTask(rowToTask(data))) {
+    await deleteCompletedTask(taskId)
+    return { data: null, error: new Error('Task expired') }
+  }
+  return { data: rowToTask(data), error }
 }
 
 /**
@@ -71,6 +99,9 @@ export async function createTask(payload) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { data: null, error: new Error('未登录') }
 
+  const deadlineDate = parseDeadlineDate(payload.deadline)
+  const status = payload.status || resolveTaskStatusFromForm({ deadlineDate })
+
   const { data, error } = await supabase
     .from('tasks')
     .insert({
@@ -80,7 +111,7 @@ export async function createTask(payload) {
       deadline: payload.deadline?.trim() || 'Anytime',
       subject: payload.subject?.trim() || 'General',
       priority: payload.priority || 'P3',
-      status: payload.status || 'today',
+      status,
       reminder: payload.reminder?.trim() || 'None',
       done: false,
       checklist: payload.checklist || [],
@@ -98,6 +129,12 @@ export async function createTask(payload) {
  */
 export async function updateTask(taskId, payload) {
   if (USE_MOCK) return mock.updateTask(taskId, payload)
+  const deadlineDate = parseDeadlineDate(payload.deadline)
+  const status = payload.status || resolveTaskStatusFromForm({
+    deadlineDate,
+    done: payload.done,
+  })
+
   const { data, error } = await supabase
     .from('tasks')
     .update({
@@ -106,10 +143,11 @@ export async function updateTask(taskId, payload) {
       deadline: payload.deadline?.trim() ?? 'Anytime',
       subject: payload.subject?.trim() ?? 'General',
       priority: payload.priority,
-      status: payload.status,
+      status,
       reminder: payload.reminder?.trim() ?? 'None',
       done: payload.done,
       checklist: payload.checklist,
+      completed_at: payload.done ? payload.completedAt || new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', taskId)
@@ -147,13 +185,28 @@ export async function archiveTask(taskId) {
  */
 export async function toggleTaskDone(taskId, currentDone) {
   if (USE_MOCK) return mock.toggleTaskDone(taskId, currentDone)
+  const { data: existing, error: fetchError } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .maybeSingle()
+
+  if (fetchError || !existing) return { data: null, error: fetchError || new Error('Task not found') }
+
   const newDone = !currentDone
+  const now = new Date().toISOString()
+  const deadlineDate = parseDeadlineDate(existing.deadline)
+  const status = newDone
+    ? 'completed'
+    : resolveTaskStatusFromForm({ deadlineDate })
+
   const { data, error } = await supabase
     .from('tasks')
     .update({
       done: newDone,
-      status: newDone ? 'completed' : 'today',
-      updated_at: new Date().toISOString(),
+      status,
+      completed_at: newDone ? now : null,
+      updated_at: now,
     })
     .eq('id', taskId)
     .select()

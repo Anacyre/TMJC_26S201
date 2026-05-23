@@ -45,26 +45,26 @@
           <view v-if="!notices.length" class="emptyCard">
             <EmptyState variant="notifications" title="No notices yet" />
           </view>
-          <view v-else class="noticeGrid">
+          <view v-else class="taskList">
             <view
               v-for="n in notices"
               :key="n.id"
-              class="noticeItem tap"
+              class="taskRow tap"
               :class="{ pressed: pressedKey === 'notice:' + n.id }"
               @touchstart="pressedKey = 'notice:' + n.id"
               @touchend="pressedKey = ''"
               @touchcancel="pressedKey = ''"
               @tap="openNotice(n)"
             >
-              <view class="noticeTop">
-                <view class="tag" :class="'tag-' + (n.tag || '').toLowerCase()">
-                  <view class="tagDot" />
-                  <text class="tagText">{{ n.tag }}</text>
+              <view class="taskMain">
+                <text class="taskTitle" :number-of-lines="1">{{ n.title }}</text>
+                <view class="taskMeta">
+                  <text v-if="n.deadline" class="metaMuted">{{ n.deadline }}</text>
+                  <view class="task-chip" :class="noticeTypeClass(n.type)">
+                    <text class="task-chip-text">{{ n.type }}</text>
+                  </view>
                 </view>
-                <text v-if="n.ddl" class="ddl">{{ n.ddl }}</text>
               </view>
-              <text class="noticeTitle" :number-of-lines="2">{{ n.title }}</text>
-              <text class="noticeSubject">{{ n.subject }}</text>
             </view>
           </view>
         </view>
@@ -93,7 +93,9 @@
                 <text class="taskTitle" :class="{ done: t.done }" :number-of-lines="1">{{ t.title }}</text>
                 <view class="taskMeta">
                   <text class="metaMuted">{{ t.deadline }}</text>
-                  <text class="state" :class="'state-' + t.status">{{ t.status }}</text>
+                  <view class="task-chip" :class="'state-' + t.status">
+                    <text class="task-chip-text">{{ t.status }}</text>
+                  </view>
                 </view>
               </view>
             </view>
@@ -117,6 +119,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
+import { taskDueBucket } from '@/lib/taskDueDate'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
@@ -135,14 +138,21 @@ const notices = computed(() =>
   visibleNotifications.value.slice(0, 4).map((n) => ({
     id: n.id,
     title: n.title,
-    tag: n.type,
-    subject: n.subject,
-    ddl: n.deadline ? `DDL ${n.deadline}` : '',
+    type: n.type || 'General',
+    deadline: n.deadline || '',
   }))
 )
 
+function noticeTypeClass(type) {
+  const key = String(type || '').toLowerCase()
+  if (key === 'homework') return 'sub-blue'
+  if (key === 'via') return 'sub-green'
+  if (key === 'event') return 'sub-amber'
+  return 'sub-slate'
+}
+
 const todayTasks = computed(() =>
-  tasks.value.filter((x) => !x.done && (x.status === 'today' || x.status === 'overdue')).slice(0, 4)
+  tasks.value.filter((x) => !x.done && (taskDueBucket(x) === 'recent' || taskDueBucket(x) === 'overdue')).slice(0, 4)
 )
 
 const greeting = computed(() => {
@@ -159,7 +169,7 @@ const todayText = computed(() => {
   return `${wk}, ${m} ${d.getDate()}`
 })
 
-const todayTasksCount = computed(() => tasks.value.filter((x) => x.status === 'today' && !x.done).length)
+const todayTasksCount = computed(() => tasks.value.filter((x) => !x.done && taskDueBucket(x) === 'recent').length)
 const unreadNoticesCount = computed(() => visibleNotifications.value.filter((n) => !n.read).length)
 const focusHoursDisplay = computed(() => totalHoursLabel.value || '0m')
 
@@ -224,48 +234,23 @@ onShow(() => { fetchCurrentUser() })
 .t-dark .sectionTitle { color: rgba(245, 247, 255, 0.55); }
 
 .emptyCard { padding: 8rpx 0; }
-.noticeGrid { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.noticeItem { width: calc(50% - 6rpx); padding: 16rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
-.t-dark .noticeItem { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.noticeItem.tap:active { transform: scale(0.985); }
-.noticeTop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10rpx; gap: 8rpx; }
-.tag { display: inline-flex; align-items: center; gap: 6rpx; padding: 4rpx 10rpx; border-radius: 999rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.06); }
-.t-dark .tag { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.06); }
-.tagDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.42); }
-.t-dark .tagDot { background: rgba(245, 247, 255, 0.42); }
-.tag-homework { background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
-.tag-homework .tagDot { background: rgba(46, 99, 255, 0.95); }
-.tag-via { background: rgba(36, 160, 110, 0.10); border-color: rgba(36, 160, 110, 0.18); }
-.tag-via .tagDot { background: rgba(36, 160, 110, 0.95); }
-.tag-event, .tag-events { background: rgba(220, 140, 30, 0.12); border-color: rgba(220, 140, 30, 0.22); }
-.tag-event .tagDot, .tag-events .tagDot { background: rgba(220, 140, 30, 0.95); }
-.tagText { font-size: 17rpx; font-weight: 700; color: rgba(16, 24, 40, 0.72); }
-.t-dark .tagText { color: rgba(245, 247, 255, 0.7); }
-.ddl { font-size: 17rpx; color: rgba(46, 99, 255, 0.9); font-weight: 700; }
-.noticeTitle { font-size: 22rpx; font-weight: 700; color: rgba(16, 24, 40, 0.88); line-height: 1.35; }
-.t-dark .noticeTitle { color: rgba(245, 247, 255, 0.9); }
-.noticeSubject { display: block; margin-top: 8rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.45); }
-.t-dark .noticeSubject { color: rgba(245, 247, 255, 0.45); }
 
-.taskList { display: flex; flex-direction: column; gap: 10rpx; }
-.taskRow { display: flex; align-items: center; gap: 14rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.taskList { display: flex; flex-direction: column; gap: var(--list-stack-gap); }
+.taskRow { display: flex; align-items: center; gap: var(--list-card-gap); padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .taskRow { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.taskRow.tap:active { transform: scale(0.99); }
-.check { width: 38rpx; height: 38rpx; border-radius: 12rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; }
+.taskRow.tap:active { transform: scale(0.985); }
+.check { width: var(--list-check-size); height: var(--list-check-size); border-radius: var(--list-check-radius); background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; }
 .t-dark .check { background: rgba(245, 247, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
-.checkDot { width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.16); transition: transform 180ms ease, background 180ms ease; }
+.checkDot { width: var(--list-check-dot); height: var(--list-check-dot); border-radius: 50%; background: rgba(16, 24, 40, 0.16); transition: transform 180ms ease, background 180ms ease; }
 .check.on { background: rgba(46, 99, 255, 0.14); border-color: rgba(46, 99, 255, 0.22); }
 .check.on .checkDot { background: rgba(46, 99, 255, 0.95); transform: scale(1.05); }
-.taskMain { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; }
-.taskTitle { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.taskMain { flex: 1; display: flex; flex-direction: column; gap: 6rpx; min-width: 0; }
+.taskTitle { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.9); }
 .t-dark .taskTitle { color: rgba(245, 247, 255, 0.9); }
 .taskTitle.done { opacity: 0.5; text-decoration: line-through; }
 .taskMeta { display: flex; align-items: center; gap: 10rpx; justify-content: space-between; }
-.metaMuted { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.metaMuted { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); }
 .t-dark .metaMuted { color: rgba(245, 247, 255, 0.45); }
-.state { font-size: 16rpx; padding: 4rpx 10rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
-.state-overdue { color: rgba(220, 55, 45, 0.96); background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
-.state-today { color: rgba(46, 99, 255, 0.96); background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
 
 .spacer { height: 18rpx; }
 </style>

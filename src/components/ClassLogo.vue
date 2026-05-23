@@ -2,7 +2,6 @@
   <view class="logoMark" :class="[size, themeClass, { brand: brand }]" role="img" aria-label="26S201">
     <view class="ring outer" />
     <view class="ring inner" />
-    <view class="orbitDot" />
     <view class="centerLine" />
   </view>
 </template>
@@ -44,18 +43,6 @@ const { themeClass } = useTheme()
   transform: rotate(-32deg);
 }
 
-.orbitDot {
-  position: absolute;
-  top: 4%;
-  left: 50%;
-  width: 12%;
-  height: 12%;
-  margin-left: -6%;
-  border-radius: 50%;
-  background: rgba(46, 99, 255, 0.95);
-  box-shadow: 0 0 0 6rpx rgba(46, 99, 255, 0.14);
-}
-
 .centerLine {
   position: absolute;
   left: 50%;
@@ -76,9 +63,4 @@ const { themeClass } = useTheme()
 }
 .t-dark .centerLine,
 .t-dark.logoMark .centerLine { background: rgba(245, 247, 255, 0.4); }
-.t-dark .orbitDot,
-.t-dark.logoMark .orbitDot {
-  background: rgba(120, 160, 255, 0.96);
-  box-shadow: 0 0 0 6rpx rgba(120, 160, 255, 0.18);
-}
 </style>

@@ -100,7 +100,7 @@
       <view class="gap" />
     </scroll-view>
 
-    <view v-if="isAdmin" class="addFab" role="button" @tap="openCreate" aria-label="Add notification">
+    <view v-if="isAdminActive" class="addFab" role="button" @tap="openCreate" aria-label="Add notification">
       <view class="plus">
         <view class="hLine" />
         <view class="vLine" />
@@ -110,32 +110,25 @@
     <view class="overlay" :class="{ show: showCreate }" @tap="showCreate = false">
       <view class="sheet" @tap.stop>
         <view class="grabber" />
-        <text class="sheetTitle">New notice</text>
 
-        <view class="field">
-          <text class="fieldLabel">Type</text>
-          <view class="typeRow">
-            <view
-              v-for="t in noticeTypes"
-              :key="t.id"
-              class="typeChip"
-              :class="['t-' + t.id, { on: draft.type === t.label }]"
-              role="button"
-              @tap="draft.type = t.label"
-            >
-              <view class="typeDot" />
-              <text class="typeText">{{ t.label }}</text>
-            </view>
+        <view class="typeRow">
+          <view
+            v-for="t in noticeTypes"
+            :key="t.id"
+            class="typeChip"
+            :class="['t-' + t.id, { on: draft.type === t.label }]"
+            role="button"
+            @tap="draft.type = t.label"
+          >
+            <text class="typeText">{{ t.label }}</text>
           </view>
         </view>
 
         <view class="field">
-          <text class="fieldLabel">Title</text>
           <input class="input" v-model="draft.title" placeholder="Title" placeholder-class="placeholder" />
         </view>
 
         <view class="field">
-          <text class="fieldLabel">Subject</text>
           <TagSelect
             v-model="draft.subject"
             :options="tagNames"
@@ -143,18 +136,22 @@
             :can-create="true"
             kind="subject"
             @create="onCreateTag"
-            placeholder="Choose subject"
+            placeholder="Subject"
           />
         </view>
 
         <view class="field">
-          <text class="fieldLabel">Deadline</text>
-          <DateField v-model="draft.deadlineDate" mode="date" placeholder="Pick a date" />
+          <DateField v-model="draft.deadlineDate" mode="date" placeholder="Deadline" />
         </view>
 
-        <view class="field">
-          <text class="fieldLabel">Description</text>
-          <textarea class="input area" v-model="draft.description" placeholder="Details…" placeholder-class="placeholder" />
+        <view class="field collapsible">
+          <view class="collapseHead tap" role="button" @tap="descExpanded = !descExpanded">
+            <text class="collapseLabel">{{ descExpanded ? 'Details' : 'Add details' }}</text>
+            <text class="collapseChev" :class="{ open: descExpanded }">›</text>
+          </view>
+          <view class="collapseBody" :class="{ open: descExpanded }">
+            <textarea class="input area" v-model="draft.description" placeholder="Optional" placeholder-class="placeholder" />
+          </view>
         </view>
 
         <view class="commit tap" :class="{ busy: publishing }" role="button" @tap="publish">
@@ -184,7 +181,7 @@ import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
-import { isAdminMember } from '@/lib/classMembers'
+import { useAdminMode } from '@/composables/useAdminMode'
 
 const { themeClass } = useTheme()
 const {
@@ -201,7 +198,7 @@ const {
 const { addTaskFromNotice } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
-const isAdmin = computed(() => isAdminMember(currentUser.value))
+const { isAdminActive, isRealAdmin } = useAdminMode()
 
 const typeFilters = ['All', 'Homework', 'General', 'VIA', 'Events', 'Important']
 const subjectFilters = computed(() => ['All', ...tagNames.value.filter((n) => n !== 'General')])
@@ -219,6 +216,7 @@ const hidingId = ref('')
 const scrollInto = ref('')
 const showCreate = ref(false)
 const publishing = ref(false)
+const descExpanded = ref(false)
 
 function emptyDraft() {
   return {
@@ -310,7 +308,12 @@ function openHidden() {
 }
 
 function openCreate() {
+  if (!isRealAdmin.value) {
+    toast.show('Admins only')
+    return
+  }
   draft.value = emptyDraft()
+  descExpanded.value = false
   showCreate.value = true
 }
 
@@ -331,6 +334,10 @@ function formatDeadline(value) {
 
 async function publish() {
   if (publishing.value) return
+  if (!isRealAdmin.value) {
+    toast.show('Admins only')
+    return
+  }
   if (!draft.value.title.trim()) {
     toast.show('Title required')
     return
@@ -346,6 +353,7 @@ async function publish() {
       title: String(draft.value.title).trim(),
       subject: String(draft.value.subject || '').trim(),
       deadline: formatDeadline(draft.value.deadlineDate),
+      deadlineAt: draft.value.deadlineDate || null,
       description: String(draft.value.description || '').trim(),
       by: currentUser.value?.name || 'Admin',
       important: false,
@@ -417,40 +425,63 @@ watch([typeFilter, subjectFilter], () => {
 .overlay.show { opacity: 1; pointer-events: auto; }
 .sheet { position: absolute; left: 12rpx; right: 12rpx; bottom: 12rpx; max-height: 92vh; padding: 0 22rpx 22rpx; border-radius: 34rpx; background: rgba(255, 255, 255, 0.94); border: 1rpx solid rgba(255, 255, 255, 0.6); overflow: hidden; }
 .t-dark .sheet { background: #1a1d21; border-color: rgba(255, 255, 255, 0.06); }
-.grabber { margin: 12rpx auto; width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(16,24,40,.18); }
+.grabber { margin: 12rpx auto 8rpx; width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(16,24,40,.18); }
 .t-dark .grabber { background: rgba(245,247,255,.2); }
-.sheetTitle { font-size: 28rpx; font-weight: 760; color: rgba(16, 24, 40, 0.92); }
-.t-dark .sheetTitle { color: #f5f7fa; }
-.sheetSub { display: block; margin-top: 4rpx; font-size: 20rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .sheetSub { color: rgba(245, 247, 255, 0.5); }
 
-.field { margin-top: 16rpx; display: flex; flex-direction: column; gap: 8rpx; }
-.fieldLabel { font-size: 20rpx; color: rgba(16, 24, 40, 0.56); font-weight: 660; }
-.t-dark .fieldLabel { color: rgba(245, 247, 255, 0.6); }
+.field { margin-top: 12rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.collapsible { gap: 0; }
+.collapseHead {
+  min-height: 84rpx;
+  padding: 0 16rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(16, 24, 40, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+.t-dark .collapseHead { background: #23272d; border-color: rgba(255, 255, 255, 0.08); }
+.collapseLabel { font-size: 24rpx; color: rgba(16, 24, 40, 0.62); font-weight: 660; }
+.t-dark .collapseLabel { color: rgba(245, 247, 255, 0.62); }
+.collapseChev {
+  font-size: 28rpx;
+  line-height: 1;
+  color: rgba(16, 24, 40, 0.38);
+  transform: rotate(90deg);
+  transition: transform var(--motion-expand) ease, color var(--motion-expand) ease;
+}
+.t-dark .collapseChev { color: rgba(245, 247, 255, 0.38); }
+.collapseChev.open { transform: rotate(-90deg); color: rgba(46, 99, 255, 0.82); }
+.collapseBody {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition: max-height var(--motion-expand) ease, opacity var(--motion-expand) ease, margin-top var(--motion-expand) ease;
+  margin-top: 0;
+}
+.collapseBody.open {
+  max-height: 280rpx;
+  opacity: 1;
+  margin-top: 10rpx;
+}
 .input { min-height: 84rpx; padding: 0 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.78); border: 1rpx solid rgba(16, 24, 40, 0.08); color: rgba(16, 24, 40, 0.92); font-size: 24rpx; }
 .t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.08); color: #f5f7fa; }
-.area { min-height: 140rpx; padding-top: 16rpx; }
+.area { min-height: 160rpx; padding-top: 16rpx; }
 .placeholder { color: rgba(16, 24, 40, 0.35); }
 .t-dark .placeholder { color: rgba(245, 247, 255, 0.35); }
 
-.typeRow { display: flex; gap: 8rpx; flex-wrap: wrap; }
-.typeChip { display: flex; align-items: center; gap: 10rpx; padding: 12rpx 18rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.06); transition: background 220ms ease, border-color 220ms ease, transform 180ms ease; }
+.typeRow { display: flex; gap: 8rpx; flex-wrap: wrap; margin-top: 4rpx; }
+.typeChip { display: flex; align-items: center; padding: 10rpx 16rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.06); transition: background 220ms ease, border-color 220ms ease, transform 180ms ease; }
 .t-dark .typeChip { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .typeChip:active { transform: scale(0.97); }
 .typeChip.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.24); }
-.typeDot { width: 10rpx; height: 10rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.4); }
-.t-dark .typeDot { background: rgba(245, 247, 255, 0.4); }
-.typeChip.t-homework .typeDot { background: rgba(46, 99, 255, 0.95); }
-.typeChip.t-general .typeDot { background: rgba(16, 24, 40, 0.62); }
-.t-dark .typeChip.t-general .typeDot { background: rgba(245, 247, 255, 0.7); }
-.typeChip.t-via .typeDot { background: rgba(36, 160, 110, 0.95); }
-.typeChip.t-events .typeDot { background: rgba(220, 140, 30, 0.95); }
-.typeText { font-size: 21rpx; font-weight: 700; color: rgba(16, 24, 40, 0.78); }
+.typeText { font-size: 20rpx; font-weight: 700; color: rgba(16, 24, 40, 0.78); }
 .t-dark .typeText { color: rgba(245, 247, 255, 0.78); }
 .typeChip.on .typeText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
 .t-dark .typeChip.on .typeText { color: rgba(170, 200, 255, 0.96); }
 
-.commit { margin-top: 22rpx; height: 92rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #5a8eff, #2e63ff); color: #fff; box-shadow: 0 18rpx 50rpx rgba(46, 99, 255, 0.28); transition: transform 180ms ease, box-shadow 180ms ease; }
+.commit { margin-top: 18rpx; height: 88rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #5a8eff, #2e63ff); color: #fff; box-shadow: 0 18rpx 50rpx rgba(46, 99, 255, 0.28); transition: transform 180ms ease, box-shadow 180ms ease; }
 .commit:active { transform: scale(0.985); }
 .commit.busy { opacity: 0.7; pointer-events: none; }
 .commitText { font-size: 23rpx; font-weight: 760; color: #fff; }

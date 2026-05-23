@@ -8,7 +8,7 @@
       <view class="safe">
         <view class="card pad">
           <view class="head">
-            <view class="state" :class="'state-' + task.status"><text class="stateText">{{ task.status }}</text></view>
+            <view class="state" :class="'state-' + statusBucket"><text class="stateText">{{ statusLabel }}</text></view>
             <text class="time">{{ task.deadline }}</text>
           </view>
 
@@ -76,6 +76,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
+import { taskDisplayStatus, taskBucketLabel } from '@/lib/taskDueDate'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
@@ -104,6 +105,9 @@ const task = computed(() => {
 })
 
 const isMissingTask = computed(() => taskReady.value && id.value && task.value.id === 'fallback')
+
+const statusBucket = computed(() => taskDisplayStatus(task.value))
+const statusLabel = computed(() => taskBucketLabel(statusBucket.value))
 
 const relatedNoticeBlock = computed(() => {
   const t = task.value
@@ -218,6 +222,7 @@ onLoad(async (query) => {
   border-color: rgba(255, 59, 48, 0.12);
 }
 
+.state-recent,
 .state-today {
   background: rgba(46, 99, 255, 0.10);
   border-color: rgba(46, 99, 255, 0.12);
@@ -245,6 +250,7 @@ onLoad(async (query) => {
   color: rgba(255, 59, 48, 0.92);
 }
 
+.state-recent .stateText,
 .state-today .stateText {
   color: rgba(46, 99, 255, 0.92);
 }

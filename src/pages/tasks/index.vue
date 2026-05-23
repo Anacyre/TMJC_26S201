@@ -6,97 +6,93 @@
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
-        <view class="tabs">
-          <view class="tab" :class="{ on: tab === 'today' }" role="button" @tap="tab = 'today'">
-            <text class="tabText">Today</text>
+        <scroll-view class="tabScroll" scroll-x :show-scrollbar="false" enhanced>
+          <view class="tabs">
+            <view
+              v-for="item in tabItems"
+              :key="item.id"
+              class="tab"
+              :class="[item.tone, { on: isTabActive(item.id) }]"
+              role="button"
+              @tap="toggleTab(item.id)"
+            >
+              <text class="tabText">{{ item.label }}</text>
+            </view>
           </view>
-          <view class="tab" :class="{ on: tab === 'upcoming' }" role="button" @tap="tab = 'upcoming'">
-            <text class="tabText">Upcoming</text>
+        </scroll-view>
+
+        <scroll-view v-if="!loading" class="tabScroll sortScroll" scroll-x :show-scrollbar="false" enhanced>
+          <view class="tabs">
+            <view
+              class="tab"
+              :class="{ on: sortMode === 'due-date' }"
+              role="button"
+              @tap="sortMode = 'due-date'"
+            >
+              <text class="tabText">Due date</text>
+            </view>
+            <view
+              class="tab"
+              :class="{ on: sortMode === 'priority' }"
+              role="button"
+              @tap="sortMode = 'priority'"
+            >
+              <text class="tabText">Priority</text>
+            </view>
           </view>
-          <view class="tab" :class="{ on: tab === 'completed' }" role="button" @tap="tab = 'completed'">
-            <text class="tabText">Done</text>
-          </view>
-        </view>
+        </scroll-view>
 
         <SkeletonList v-if="loading" variant="tasks" :count="4" />
 
-        <view v-else-if="!filtered.length" class="emptyWrap">
+        <view v-else-if="!groupedSections.length" class="emptyWrap">
           <EmptyState
             variant="tasks"
             :title="emptyTitle"
-            :action-label="tab !== 'completed' ? 'Add' : ''"
+            :action-label="showAddAction ? 'Add' : ''"
             @action="openCreate"
           />
         </view>
 
         <view v-else class="list">
-          <template v-for="t in filtered" :key="t.id">
-            <SwipeRow
-              v-if="tab === 'completed'"
-              side="left"
-              :actions="taskSwipeActions"
-              commit-action="delete"
-              :context-items="taskContextItems"
-              @commit="deleteTaskRow(t.id)"
-              @action="onTaskSwipeAction(t.id, $event)"
-            >
-              <view
-                class="card task tap"
-                :class="['st-' + t.status, { pressed: pressedKey === t.id }]"
-                @touchstart="pressedKey = t.id"
-                @touchend="pressedKey = ''"
-                @touchcancel="pressedKey = ''"
-                @tap="openTask(t)"
-              >
-                <view class="left">
-                  <view class="check" :class="{ on: t.done }" role="button" @tap.stop="toggleDone(t)">
-                    <view class="checkDot" />
-                  </view>
-                </view>
-                <view class="main">
-                  <view class="row1">
-                    <text class="title" :class="{ done: t.done }" :number-of-lines="1">{{ t.title }}</text>
-                    <view class="prio" :class="'p-' + t.priority">
-                      <text class="prioText">{{ t.priority }}</text>
-                    </view>
-                  </view>
-                  <view class="row2">
-                    <text class="metaMuted">{{ t.deadline }}</text>
-                    <view class="tag"><text class="tagText">{{ t.subject }}</text></view>
-                    <text class="state" :class="'state-' + t.status">{{ t.status }}</text>
-                  </view>
-                </view>
-              </view>
-            </SwipeRow>
-            <view
-              v-else
-              class="card task tap"
-              :class="['st-' + t.status, { pressed: pressedKey === t.id }]"
-              @touchstart="pressedKey = t.id"
-              @touchend="pressedKey = ''"
-              @touchcancel="pressedKey = ''"
-              @tap="openTask(t)"
-            >
-              <view class="left">
-                <view class="check" :class="{ on: t.done }" role="button" @tap.stop="toggleDone(t)">
-                  <view class="checkDot" />
-                </view>
-              </view>
-              <view class="main">
-                <view class="row1">
-                  <text class="title" :class="{ done: t.done }" :number-of-lines="1">{{ t.title }}</text>
-                  <view class="prio" :class="'p-' + t.priority">
-                    <text class="prioText">{{ t.priority }}</text>
-                  </view>
-                </view>
-                <view class="row2">
-                  <text class="metaMuted">{{ t.deadline }}</text>
-                  <view class="tag"><text class="tagText">{{ t.subject }}</text></view>
-                  <text class="state" :class="'state-' + t.status">{{ t.status }}</text>
-                </view>
-              </view>
+          <view
+            v-for="(section, sectionIndex) in groupedSections"
+            :key="section.key"
+            class="section"
+            :class="{ divided: sectionIndex > 0 }"
+          >
+            <text class="sectionLabel">{{ section.label }}</text>
+            <view class="sectionBody">
+              <template v-for="t in section.tasks" :key="t.id">
+                <SwipeRow
+                  v-if="t.done"
+                  side="left"
+                  :actions="taskSwipeActions"
+                  commit-action="delete"
+                  :context-items="taskContextItems"
+                  @commit="deleteTaskRow(t.id)"
+                  @action="onTaskSwipeAction(t.id, $event)"
+                >
+                  <TaskListCard
+                    :task="t"
+                    :pressed="pressedKey === t.id"
+                    @press-start="pressedKey = t.id"
+                    @press-end="pressedKey = ''"
+                    @open="openTask(t)"
+                    @toggle="toggleDone(t)"
+                  />
+                </SwipeRow>
+                <TaskListCard
+                  v-else
+                  :task="t"
+                  :pressed="pressedKey === t.id"
+                  @press-start="pressedKey = t.id"
+                  @press-end="pressedKey = ''"
+                  @open="openTask(t)"
+                  @toggle="toggleDone(t)"
+                />
+              </template>
             </view>
-          </template>
+          </view>
         </view>
 
         <view class="spacer" />
@@ -124,9 +120,11 @@ import TaskEditorSheet from '@/components/TaskEditorSheet.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SwipeRow from '@/components/SwipeRow.vue'
+import TaskListCard from '@/components/TaskListCard.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
+import { buildTaskSections, taskDueBucket } from '@/lib/taskDueDate'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
@@ -141,22 +139,61 @@ const taskContextItems = [
   { id: 'archive', label: 'Archive', icon: 'archive' },
 ]
 
-const tab = ref('today')
+const tabItems = [
+  { id: 'recent', label: 'Recent' },
+  { id: 'upcoming', label: 'Upcoming' },
+  { id: 'completed', label: 'Done' },
+  { id: 'no-deadline', label: 'No deadline' },
+  { id: 'overdue', label: 'Overdue', tone: 'danger' },
+]
+
+const selectedTabs = ref(new Set())
+const sortMode = ref('due-date')
 const pressedKey = ref('')
 const createOpen = ref(false)
-const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', status: 'today', reminder: '', checklist: [] })
+const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', reminder: '', checklist: [] })
 
-const filtered = computed(() => {
-  if (tab.value === 'completed') return tasks.value.filter((x) => x.done && x.status !== 'archived')
-  if (tab.value === 'upcoming') return tasks.value.filter((x) => !x.done && x.status === 'upcoming')
-  return tasks.value.filter((x) => !x.done && (x.status === 'today' || x.status === 'overdue'))
+const tabTasks = computed(() => {
+  const pool = tasks.value.filter((x) => x.status !== 'archived')
+  if (!selectedTabs.value.size) return pool
+  return pool.filter((x) => selectedTabs.value.has(taskDueBucket(x)))
+})
+
+const groupedSections = computed(() => {
+  const items = tabTasks.value
+  if (!items.length) return []
+  return buildTaskSections(items, sortMode.value)
+})
+
+const showAddAction = computed(() => {
+  if (!selectedTabs.value.size) return true
+  return !selectedTabs.value.has('completed') || selectedTabs.value.size > 1
 })
 
 const emptyTitle = computed(() => {
-  if (tab.value === 'completed') return 'No tasks'
-  if (tab.value === 'upcoming') return 'Nothing upcoming'
-  return 'Nothing today'
+  if (!selectedTabs.value.size) return 'No tasks'
+  if (selectedTabs.value.size === 1) {
+    const only = [...selectedTabs.value][0]
+    if (only === 'no-deadline') return 'No tasks without deadline'
+    if (only === 'overdue') return 'Nothing overdue'
+    if (only === 'completed') return 'No completed tasks'
+    if (only === 'upcoming') return 'Nothing upcoming'
+    if (only === 'recent') return 'Nothing recent'
+    return 'No matching tasks'
+  }
+  return 'No matching tasks'
 })
+
+function isTabActive(id) {
+  return selectedTabs.value.has(id)
+}
+
+function toggleTab(id) {
+  const next = new Set(selectedTabs.value)
+  if (next.has(id)) next.delete(id)
+  else next.add(id)
+  selectedTabs.value = next
+}
 
 function toggleDone(t) {
   toggleTaskDone(t.id)
@@ -204,9 +241,16 @@ function onTaskSwipeAction(id, actionId) {
 .scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
 .safe { padding: 0 28rpx 200rpx; }
 
-.tabs { display: flex; gap: 8rpx; padding: 8rpx 0 18rpx; }
-.tab { padding: 12rpx 18rpx; border-radius: 999rpx; background: transparent; opacity: 0.62; transition: transform 150ms cubic-bezier(0.34,1.2,0.64,1), opacity 150ms ease, background 150ms ease; }
-.tab.on { opacity: 1; background: rgba(46, 99, 255, 0.12); }
+.tabScroll { padding: 8rpx 0 14rpx; white-space: nowrap; }
+.sortScroll { padding-top: 0; padding-bottom: 16rpx; }
+.tabs { display: inline-flex; gap: 8rpx; padding-right: 8rpx; }
+.tab { flex-shrink: 0; padding: 12rpx 18rpx; border-radius: 999rpx; background: transparent; opacity: 0.62; transition: transform 150ms cubic-bezier(0.34,1.2,0.64,1), opacity 150ms ease, background 150ms ease, border-color 150ms ease; border: 1rpx solid transparent; }
+.tab.on { opacity: 1; background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.18); }
+.tab.danger .tabText { color: rgba(255, 59, 48, 0.78); }
+.tab.danger.on { background: rgba(255, 59, 48, 0.12); border-color: rgba(255, 59, 48, 0.22); }
+.tab.danger.on .tabText { color: rgba(255, 59, 48, 0.96); font-weight: 740; }
+.t-dark .tab.danger .tabText { color: rgba(255, 120, 110, 0.82); }
+.t-dark .tab.danger.on .tabText { color: rgba(255, 140, 130, 0.96); }
 .tab:active { transform: scale(0.97); }
 .tabText { font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.7); }
 .t-dark .tabText { color: rgba(245, 247, 255, 0.66); }
@@ -214,51 +258,27 @@ function onTaskSwipeAction(id, actionId) {
 .t-dark .tab.on .tabText { color: rgba(170, 200, 255, 0.96); }
 
 .emptyWrap { padding: 24rpx 0 0; }
-.list { display: flex; flex-direction: column; gap: 10rpx; }
+.list { display: flex; flex-direction: column; }
 
-.card { width: 100%; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
-.t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.tap:active { transform: scale(0.99); }
-.pressed { transform: scale(0.99); }
+.section { padding-top: 2rpx; }
+.section.divided {
+  margin-top: 22rpx;
+  padding-top: 20rpx;
+  border-top: 1rpx solid rgba(16, 24, 40, 0.08);
+}
+.t-dark .section.divided { border-top-color: rgba(255, 255, 255, 0.08); }
 
-.task { display: flex; gap: 14rpx; padding: 14rpx 16rpx; align-items: center; }
-.left { padding-top: 0; }
-.check { width: 38rpx; height: 38rpx; border-radius: 12rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
-.t-dark .check { background: rgba(245, 247, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
-.check:active { transform: scale(0.96); }
-.checkDot { width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.16); transition: transform 220ms ease, background 220ms ease; }
-.check.on { background: rgba(46, 99, 255, 0.14); border-color: rgba(46, 99, 255, 0.22); }
-.check.on .checkDot { background: rgba(46, 99, 255, 0.94); transform: scale(1.05); }
+.sectionLabel {
+  display: block;
+  padding: 0 4rpx 12rpx;
+  font-size: 22rpx;
+  font-weight: 700;
+  color: rgba(16, 24, 40, 0.58);
+  letter-spacing: 0.2rpx;
+}
+.t-dark .sectionLabel { color: rgba(245, 247, 255, 0.52); }
 
-.main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.row1 { display: flex; align-items: center; justify-content: space-between; gap: 10rpx; }
-.title { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
-.t-dark .title { color: rgba(245, 247, 255, 0.92); }
-.title.done { opacity: 0.5; text-decoration: line-through; }
-.prio { padding: 4rpx 10rpx; border-radius: 999rpx; background: transparent; border: 1rpx solid rgba(16, 24, 40, 0.06); }
-.t-dark .prio { border-color: rgba(255, 255, 255, 0.06); }
-.prio.p-P1 { background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
-.prio.p-P2 { background: rgba(255, 149, 0, 0.10); border-color: rgba(255, 149, 0, 0.18); }
-.prio.p-P3 { background: rgba(88, 86, 214, 0.10); border-color: rgba(88, 86, 214, 0.18); }
-.prioText { font-size: 16rpx; font-weight: 800; color: rgba(16, 24, 40, 0.62); }
-.t-dark .prioText { color: rgba(245, 247, 255, 0.58); }
-.prio.p-P1 .prioText { color: rgba(220, 55, 45, 0.96); }
-.prio.p-P2 .prioText { color: rgba(180, 110, 20, 0.96); }
-.t-dark .prio.p-P2 .prioText { color: rgba(255, 180, 80, 0.96); }
-.prio.p-P3 .prioText { color: rgba(88, 86, 214, 0.96); }
-
-.row2 { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
-.metaMuted { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .metaMuted { color: rgba(245, 247, 255, 0.45); }
-.tag { padding: 4rpx 10rpx; border-radius: 999rpx; background: rgba(46, 99, 255, 0.08); border: 1rpx solid rgba(46, 99, 255, 0.16); }
-.tagText { font-size: 16rpx; font-weight: 700; color: rgba(46, 99, 255, 0.94); }
-.state { font-size: 16rpx; font-weight: 700; padding: 4rpx 10rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
-.state-overdue { color: rgba(255, 59, 48, 0.92); background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
-.state-today { color: rgba(46, 99, 255, 0.92); background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
-.state-upcoming { color: rgba(16, 24, 40, 0.6); background: rgba(16, 24, 40, 0.06); border-color: rgba(16, 24, 40, 0.08); }
-.t-dark .state-upcoming { color: rgba(245, 247, 255, 0.54); background: rgba(245, 247, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
-.state-completed { color: rgba(36, 160, 110, 0.96); background: rgba(36, 160, 110, 0.10); border-color: rgba(36, 160, 110, 0.18); }
-.t-dark .state-completed { color: rgba(120, 220, 170, 0.96); }
+.sectionBody { display: flex; flex-direction: column; gap: var(--list-stack-gap); }
 
 .spacer { height: 18rpx; }
 

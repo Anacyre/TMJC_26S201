@@ -36,13 +36,38 @@
 
   /* ── Shell chrome (header + bottom dock) ── */
   --shell-bar-height: 116rpx;
-  --shell-bar-inset: 16rpx;
-  --shell-header-offset: calc(var(--shell-bar-height) + env(safe-area-inset-top));
+  --shell-bar-inset: 20rpx;
+  --shell-bar-margin-top: 12rpx;
+  --shell-header-offset: calc(var(--shell-bar-height) + var(--shell-bar-margin-top) + env(safe-area-inset-top));
+
+  /* ── List / feed cards (home-aligned) ── */
+  --list-card-radius: 30rpx;
+  --list-card-pad-y: 24rpx;
+  --list-card-pad-x: 24rpx;
+  --list-card-gap: 18rpx;
+  --list-stack-gap: 14rpx;
+  --list-title-size: 30rpx;
+  --list-meta-size: 22rpx;
+  --list-body-size: 22rpx;
+  --list-check-size: 50rpx;
+  --list-check-radius: 16rpx;
+  --list-check-dot: 18rpx;
+  --list-icon-size: 64rpx;
+  --list-icon-radius: 20rpx;
+  --list-icon-font: 32rpx;
+  --list-avatar-size: 60rpx;
+  --list-action-size: 64rpx;
+  --list-tag-dot: 10rpx;
+  --list-tag-pad-y: 6rpx;
+  --list-tag-pad-x: 14rpx;
+  --list-chip-height: 42rpx;
+  --list-chip-pad-x: 16rpx;
 
   /* ── Motion (haptic-style) ── */
   --motion-fast: 120ms;
   --motion-base: 150ms;
   --motion-slow: 180ms;
+  --motion-expand: 400ms;
   --ease-spring: cubic-bezier(0.34, 1.2, 0.64, 1);
   --ease-out: cubic-bezier(0.22, 0.61, 0.36, 1);
   --ease-soft: cubic-bezier(0.25, 0.46, 0.45, 0.94);
@@ -169,6 +194,88 @@ html[data-theme='dark'] {
 .empty-enter {
   animation: ds-empty-in var(--motion-slow) var(--ease-spring) both;
 }
+
+/* ── Task list chips (priority / subject / status) ── */
+.task-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--list-chip-height);
+  padding: 0 var(--list-chip-pad-x);
+  border-radius: 999rpx;
+  border: 1rpx solid transparent;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.task-chip-text {
+  font-size: var(--list-meta-size);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.task-chip.prio {
+  background: transparent;
+  border-color: rgba(16, 24, 40, 0.08);
+}
+html[data-theme='dark'] .task-chip.prio {
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.task-chip.prio-p1 {
+  background: rgba(255, 59, 48, 0.10);
+  border-color: rgba(255, 59, 48, 0.18);
+}
+.task-chip.prio-p1 .task-chip-text { color: rgba(220, 55, 45, 0.96); }
+.task-chip.prio-p2 {
+  background: rgba(255, 149, 0, 0.10);
+  border-color: rgba(255, 149, 0, 0.18);
+}
+.task-chip.prio-p2 .task-chip-text { color: rgba(180, 110, 20, 0.96); }
+html[data-theme='dark'] .task-chip.prio-p2 .task-chip-text { color: rgba(255, 180, 80, 0.96); }
+.task-chip.prio-p3 {
+  background: rgba(88, 86, 214, 0.10);
+  border-color: rgba(88, 86, 214, 0.18);
+}
+.task-chip.prio-p3 .task-chip-text { color: rgba(88, 86, 214, 0.96); }
+.task-chip.prio .task-chip-text { color: rgba(16, 24, 40, 0.62); }
+html[data-theme='dark'] .task-chip.prio .task-chip-text { color: rgba(245, 247, 255, 0.58); }
+
+.task-chip.sub-blue { background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
+.task-chip.sub-blue .task-chip-text { color: rgba(46, 99, 255, 0.94); }
+.task-chip.sub-violet { background: rgba(120, 90, 220, 0.10); border-color: rgba(120, 90, 220, 0.18); }
+.task-chip.sub-violet .task-chip-text { color: rgba(120, 90, 220, 0.96); }
+.task-chip.sub-green { background: rgba(36, 160, 110, 0.10); border-color: rgba(36, 160, 110, 0.18); }
+.task-chip.sub-green .task-chip-text { color: rgba(36, 160, 110, 0.96); }
+.task-chip.sub-amber { background: rgba(220, 140, 30, 0.12); border-color: rgba(220, 140, 30, 0.22); }
+.task-chip.sub-amber .task-chip-text { color: rgba(180, 110, 20, 0.96); }
+html[data-theme='dark'] .task-chip.sub-amber .task-chip-text { color: rgba(245, 200, 130, 0.96); }
+.task-chip.sub-rose { background: rgba(220, 80, 110, 0.10); border-color: rgba(220, 80, 110, 0.18); }
+.task-chip.sub-rose .task-chip-text { color: rgba(220, 80, 110, 0.96); }
+.task-chip.sub-slate { background: rgba(16, 24, 40, 0.06); border-color: rgba(16, 24, 40, 0.08); }
+.task-chip.sub-slate .task-chip-text { color: rgba(16, 24, 40, 0.72); }
+html[data-theme='dark'] .task-chip.sub-slate {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html[data-theme='dark'] .task-chip.sub-slate .task-chip-text { color: rgba(245, 247, 255, 0.72); }
+
+.task-chip.state-overdue { background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
+.task-chip.state-overdue .task-chip-text { color: rgba(255, 59, 48, 0.92); }
+.task-chip.state-recent,
+.task-chip.state-today { background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
+.task-chip.state-recent .task-chip-text,
+.task-chip.state-today .task-chip-text { color: rgba(46, 99, 255, 0.92); }
+.task-chip.state-upcoming { background: rgba(16, 24, 40, 0.06); border-color: rgba(16, 24, 40, 0.08); }
+.task-chip.state-upcoming .task-chip-text { color: rgba(16, 24, 40, 0.6); }
+html[data-theme='dark'] .task-chip.state-upcoming {
+  background: rgba(245, 247, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+html[data-theme='dark'] .task-chip.state-upcoming .task-chip-text { color: rgba(245, 247, 255, 0.54); }
+.task-chip.state-completed { background: rgba(36, 160, 110, 0.10); border-color: rgba(36, 160, 110, 0.18); }
+.task-chip.state-completed .task-chip-text { color: rgba(36, 160, 110, 0.96); }
+html[data-theme='dark'] .task-chip.state-completed .task-chip-text { color: rgba(120, 220, 170, 0.96); }
 
 /* ── Toast entrance ── */
 @keyframes ds-toast-in {

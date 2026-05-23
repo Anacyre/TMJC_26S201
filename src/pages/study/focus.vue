@@ -1,7 +1,19 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader nav-mode="back" />
+    <view class="bgLiveStack" :class="{ active: running }" :style="bgMotionVars">
+      <view
+        v-for="index in 2"
+        :key="index - 1"
+        class="bg bgLiveLayer"
+        :class="{ on: bgFront === index - 1 }"
+        :style="bgLayerStyle(index - 1)"
+      />
+    </view>
+
+    <view class="focusChrome headerWrap" :class="chromeClass">
+      <AppHeader nav-mode="back" />
+    </view>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
@@ -9,7 +21,8 @@
         <view class="stage">
           <view
             v-if="showReset"
-            class="resetDot tap"
+            class="resetDot tap focusChrome"
+            :class="chromeClass"
             role="button"
             aria-label="Reset"
             @tap="reset"
@@ -56,7 +69,7 @@
           </view>
         </view>
 
-        <view class="bottomDock">
+        <view class="bottomDock focusChrome" :class="chromeClass">
           <scroll-view class="noiseScroll" scroll-x :show-scrollbar="false" enhanced>
             <view class="noiseTrack">
               <view
@@ -108,7 +121,7 @@
           </view>
         </view>
 
-        <view class="weekStrip">
+        <view class="weekStrip focusChrome" :class="chromeClass">
           <view v-for="d in weekTotals" :key="d.key" class="wBar">
             <view class="wFill" :style="{ height: barHeight(d.minutes) + '%' }" />
           </view>
@@ -118,7 +131,9 @@
       </view>
     </scroll-view>
 
-    <GlobalSearchOverlay />
+    <view class="focusChrome" :class="chromeClass">
+      <GlobalSearchOverlay />
+    </view>
   </view>
 </template>
 
@@ -131,12 +146,12 @@ import { useTheme } from '@/composables/useTheme'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { playFocusAudio, stopFocusAudio } from '@/composables/useFocusAudio'
 import { useUserStore } from '@/composables/useUserStore'
-import { isAdminMember } from '@/lib/classMembers'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { currentUser } = useUserStore()
-const isAdmin = computed(() => isAdminMember(currentUser.value))
+const { isAdminActive: isAdmin } = useAdminMode()
 
 const {
   prefs,
@@ -165,6 +180,82 @@ const remaining = ref(saved?.remaining ?? selectedMinutes.value * 60)
 const elapsed = ref(saved?.elapsed ?? 0)
 const running = ref(false)
 const tickRef = ref(null)
+const chromeHidden = ref(false)
+const chromeLocked = ref(false)
+const bgLayers = ref([null, null])
+const bgFront = ref(0)
+const bgMotionMs = ref(9000)
+let chromeFadeTimer = null
+let bgShiftTimer = null
+
+const CHROME_FADE_MS = 1500
+const BG_CROSSFADE_MS = 6000
+
+const isDarkTheme = computed(() => themeClass.value === 't-dark')
+
+const chromeClass = computed(() => ({
+  'is-hidden': chromeHidden.value,
+  'is-locked': chromeLocked.value,
+}))
+
+function randomHoldMs() {
+  return 6000 + Math.floor(Math.random() * 6001)
+}
+
+/** 0 at session start → 1 when focus time is fully elapsed. */
+const focusProgress = computed(() => {
+  const total = totalSeconds.value
+  if (total <= 0) return 0
+  const done = total - remaining.value
+  return Math.max(0, Math.min(1, done / total))
+})
+
+const lightnessScale = computed(() => focusProgress.value)
+
+const bgMotionVars = computed(() => {
+  const s = lightnessScale.value
+  if (isDarkTheme.value) {
+    return {
+      '--focus-bright-lo': '1',
+      '--focus-bright-hi': String(1 + 0.12 * s),
+    }
+  }
+  return {
+    '--focus-bright-lo': String(1 - 0.06 * s),
+    '--focus-bright-hi': '1',
+  }
+})
+
+function themeLiftFromBoost(rawBoost) {
+  const magnitude = Math.abs(rawBoost || 0)
+  const scaled = Math.round(magnitude * lightnessScale.value)
+  return isDarkTheme.value ? scaled : -scaled
+}
+
+function buildGradientBackground(seed) {
+  const g = seed
+  const dark = isDarkTheme.value
+  const lift = themeLiftFromBoost(g.lBoost)
+  const l1 = clampLight((dark ? 44 : 62) + lift, dark ? 30 : 48, dark ? 58 : 78)
+  const l2 = clampLight((dark ? 38 : 56) + Math.round(lift * 0.75), dark ? 24 : 42, dark ? 52 : 72)
+  const baseL = clampLight((dark ? 7 : 96) + Math.round(lift * 0.5), dark ? 2 : 86, dark ? 14 : 99)
+  const baseL2 = clampLight((dark ? 5 : 92) + Math.round(lift * 0.4), dark ? 1 : 82, dark ? 13 : 99)
+  const a1 = clampAlpha((dark ? 0.16 : 0.14) + lift * 0.006, 0.06, 0.24)
+  const a2 = clampAlpha((dark ? 0.09 : 0.08) + lift * 0.0045, 0.03, 0.18)
+  const sat = g.s
+  const satSoft = Math.round(sat * 0.85)
+  const satMuted = Math.round(sat * 0.42)
+  return `radial-gradient(920rpx 660rpx at ${g.x1}% 8%, hsla(${g.h1}, ${sat}%, ${l1}%, ${a1}), transparent 62%), radial-gradient(860rpx 600rpx at ${g.x2}% 88%, hsla(${g.h2}, ${satSoft}%, ${l2}%, ${a2}), transparent 58%), linear-gradient(180deg, hsl(${g.h1}, ${satMuted}%, ${baseL}%), hsl(${g.h3}, ${Math.round(satMuted * 0.85)}%, ${baseL2}%))`
+}
+
+function bgLayerStyle(index) {
+  const seed = bgLayers.value[index]
+  if (!running.value || !seed) return {}
+  return {
+    background: buildGradientBackground(seed),
+    animationDuration: `${bgMotionMs.value}ms`,
+  }
+}
 
 const dragLastY = ref(0)
 const dragAccum = ref(0)
@@ -191,6 +282,95 @@ const ringStyle = computed(() => {
 watch(selectedMinutes, (v) => {
   if (canEditDuration.value) minuteDraft.value = v
 })
+
+function clampLight(value, min, max) {
+  return Math.max(min, Math.min(max, Math.round(value)))
+}
+
+function clampAlpha(value, min, max) {
+  return Math.max(min, Math.min(max, Number(value.toFixed(3))))
+}
+
+function pickGradientSeed() {
+  const h1 = 188 + Math.floor(Math.random() * 62)
+  return {
+    h1,
+    h2: h1 + 8 + Math.floor(Math.random() * 22),
+    h3: h1 - 8 + Math.floor(Math.random() * 16),
+    s: 26 + Math.floor(Math.random() * 12),
+    lBoost: Math.floor(Math.random() * 12),
+    x1: 24 + Math.floor(Math.random() * 22),
+    x2: 54 + Math.floor(Math.random() * 20),
+  }
+}
+
+function clearChromeFadeTimer() {
+  if (chromeFadeTimer) {
+    clearTimeout(chromeFadeTimer)
+    chromeFadeTimer = null
+  }
+}
+
+function clearBgShiftTimer() {
+  if (bgShiftTimer) {
+    clearTimeout(bgShiftTimer)
+    bgShiftTimer = null
+  }
+}
+
+function stopBgAnimation() {
+  bgLayers.value = [null, null]
+  bgFront.value = 0
+  clearBgShiftTimer()
+}
+
+function crossfadeToNextLayer() {
+  const back = 1 - bgFront.value
+  bgMotionMs.value = randomHoldMs()
+  bgLayers.value[back] = pickGradientSeed()
+  bgFront.value = back
+}
+
+function scheduleNextBgShift() {
+  clearBgShiftTimer()
+  if (!running.value) return
+  const holdMs = randomHoldMs()
+  bgShiftTimer = setTimeout(() => {
+    if (!running.value) return
+    crossfadeToNextLayer()
+    bgShiftTimer = setTimeout(() => {
+      scheduleNextBgShift()
+    }, BG_CROSSFADE_MS)
+  }, holdMs)
+}
+
+function startBgAnimation() {
+  stopBgAnimation()
+  bgMotionMs.value = randomHoldMs()
+  bgLayers.value = [pickGradientSeed(), null]
+  bgFront.value = 0
+  scheduleNextBgShift()
+}
+
+function enterImmersiveChrome() {
+  clearChromeFadeTimer()
+  chromeLocked.value = false
+  chromeHidden.value = false
+  requestAnimationFrame(() => {
+    if (!running.value) return
+    chromeHidden.value = true
+    chromeFadeTimer = setTimeout(() => {
+      if (running.value) chromeLocked.value = true
+      chromeFadeTimer = null
+    }, CHROME_FADE_MS)
+  })
+}
+
+function exitImmersiveChrome() {
+  clearChromeFadeTimer()
+  chromeLocked.value = false
+  chromeHidden.value = false
+}
 
 function barHeight(minutes) {
   const max = Math.max(60, ...weekTotals.value.map((d) => d.minutes))
@@ -303,6 +483,8 @@ function start() {
   tickRef.value = setInterval(tick, 1000)
   persistSession()
   syncAudio()
+  startBgAnimation()
+  enterImmersiveChrome()
 }
 
 function pause() {
@@ -313,6 +495,8 @@ function pause() {
   }
   persistSession()
   stopFocusAudio()
+  stopBgAnimation()
+  exitImmersiveChrome()
 }
 
 function reset() {
@@ -421,6 +605,9 @@ onHide(() => {
 onBeforeUnmount(() => {
   pause()
   stopFocusAudio()
+  clearChromeFadeTimer()
+  clearBgShiftTimer()
+  stopBgAnimation()
 })
 </script>
 
@@ -434,6 +621,49 @@ onBeforeUnmount(() => {
 .t-dark .bg {
   background: radial-gradient(900rpx 640rpx at 50% 8%, rgba(60, 120, 255, 0.14), transparent 62%),
     linear-gradient(180deg, #111315, #0e1014);
+}
+.bgLiveStack {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  pointer-events: none;
+  overflow: hidden;
+}
+.bgLiveStack.active { opacity: 1; }
+.bgLiveLayer {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 6s ease-in-out, filter 1.2s ease;
+  animation: focusBgDrift ease-in-out infinite alternate;
+  will-change: opacity, transform, filter;
+}
+.bgLiveLayer.on { opacity: 1; }
+@keyframes focusBgDrift {
+  0% {
+    transform: scale(1) translate3d(0, 0, 0);
+    filter: brightness(var(--focus-bright-lo, 1));
+  }
+  100% {
+    transform: scale(1.05) translate3d(0, -16rpx, 0);
+    filter: brightness(var(--focus-bright-hi, 1));
+  }
+}
+
+.focusChrome {
+  opacity: 1;
+  transition: opacity 1.5s ease;
+}
+.focusChrome.is-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.focusChrome.is-locked { visibility: hidden; }
+.headerWrap {
+  position: relative;
+  z-index: 2;
 }
 
 .scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }

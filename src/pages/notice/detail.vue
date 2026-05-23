@@ -23,6 +23,9 @@
           </view>
           <view class="btn primary tap" @tap="addToPlanner"><text class="btnTextPrimary">Add task</text></view>
           <view class="btn ghost tap" @tap="hideNotice"><text class="btnText">Hide</text></view>
+          <view v-if="canDelete" class="btn ghost danger tap" @tap="deleteNotice">
+            <text class="btnTextDanger">Delete</text>
+          </view>
         </view>
       </view>
     </view>
@@ -38,11 +41,15 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useTasksStore } from '@/composables/useTasksStore'
+import { useUserStore } from '@/composables/useUserStore'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner } = useNotificationStore()
+const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, removeNotification } = useNotificationStore()
 const { addTaskFromNotice } = useTasksStore()
+const { currentUser } = useUserStore()
+const { isAdminActive } = useAdminMode()
 const id = ref('')
 const fallback = {
   id: '',
@@ -59,6 +66,12 @@ const fallback = {
 }
 const notice = computed(() => getNotificationById(id.value) || fallback)
 const timeLabel = computed(() => shortTimeLabel(notice.value.createdAt))
+const canDelete = computed(() => {
+  const userId = currentUser.value?.id
+  const n = notice.value
+  if (!userId || !n?.id) return false
+  return isAdminActive.value || n.createdBy === userId
+})
 
 function shortTimeLabel(iso) {
   if (!iso) return 'just now'
@@ -89,6 +102,26 @@ function hideNotice() {
   setHidden(notice.value.id, true)
   toast.hidden()
   setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
+}
+
+function deleteNotice() {
+  if (!notice.value?.id || !canDelete.value) return
+  uni.showModal({
+    title: 'Delete notice?',
+    content: 'This permanently removes the notice for everyone.',
+    confirmText: 'Delete',
+    confirmColor: '#dc5050',
+    success: async (res) => {
+      if (!res.confirm) return
+      const { error } = await removeNotification(notice.value.id)
+      if (error) {
+        toast.show('Could not delete')
+        return
+      }
+      toast.removed()
+      setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
+    },
+  })
 }
 
 function addToPlanner() {
@@ -281,5 +314,15 @@ onLoad((query) => {
   font-size: 22rpx;
   font-weight: 740;
   color: #fff;
+}
+
+.btn.ghost.danger {
+  border-color: rgba(220, 80, 80, 0.22);
+}
+
+.btnTextDanger {
+  font-size: 22rpx;
+  font-weight: 720;
+  color: rgba(200, 90, 90, 0.95);
 }
 </style>

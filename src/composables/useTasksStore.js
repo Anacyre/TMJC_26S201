@@ -1,8 +1,15 @@
 import { computed, ref } from 'vue'
 import * as tasksApi from '@/api/tasks'
+import { resolveTaskStatusFromForm, taskDueBucket } from '@/lib/taskDueDate'
 
 const tasks = ref([])
 const loading = ref(false)
+
+function parseDeadlineDate(deadline) {
+  if (!deadline) return ''
+  const iso = String(deadline).match(/(\d{4}-\d{2}-\d{2})/)
+  return iso ? iso[1] : ''
+}
 
 // ─── 数据获取 ────────────────────────────────────────────────────
 
@@ -62,16 +69,20 @@ async function toggleChecklist(taskId, checklistId) {
 
 async function updateTask(taskId, payload) {
   const target = getTaskById(taskId)
+  const deadline = payload.deadline?.trim() || target?.deadline || 'Anytime'
+  const deadlineDate = parseDeadlineDate(deadline)
+  const done = payload.done ?? target?.done ?? false
   const merged = {
     title: payload.title?.trim() || target?.title || 'Untitled Task',
     description: payload.description?.trim() ?? target?.description ?? '',
-    deadline: payload.deadline?.trim() || target?.deadline || 'Anytime',
+    deadline,
     subject: payload.subject?.trim() || target?.subject || 'General',
     priority: payload.priority || target?.priority || 'P3',
-    status: payload.status || target?.status || 'today',
+    status: resolveTaskStatusFromForm({ deadlineDate, done }),
     reminder: payload.reminder?.trim() || target?.reminder || 'None',
-    done: payload.status === 'completed' ? true : payload.done ?? target?.done ?? false,
+    done,
     checklist: payload.checklist ?? target?.checklist ?? [],
+    completedAt: done ? payload.completedAt || target?.completedAt || new Date().toISOString() : null,
   }
   const { data, error } = await tasksApi.updateTask(taskId, merged)
   if (!error && data) upsertTask(data)
@@ -98,7 +109,6 @@ async function addTaskFromNotice({ noticeId, title, subject, deadline, descripti
     subject: subject?.trim() || 'General',
     deadline: deadline?.trim() ? `Due ${deadline.trim()}` : 'See notice',
     description: description?.trim() || '',
-    status: 'today',
     priority: 'P2',
     relatedNotice: { id: noticeId, title: noticeTitle || title },
     sourceNoticeId: noticeId,
@@ -121,13 +131,16 @@ async function deleteTask(id) {
 
 // ─── 计算属性 ────────────────────────────────────────────────────
 
-const tasksCountToday = computed(() => tasks.value.filter((x) => x.status === 'today' && !x.done).length)
+const tasksCountRecent = computed(() =>
+  tasks.value.filter((x) => !x.done && taskDueBucket(x) === 'recent').length
+)
 
 export function useTasksStore() {
   return {
     tasks,
     loading,
-    tasksCountToday,
+    tasksCountToday: tasksCountRecent,
+    tasksCountRecent,
     fetchTasks,
     loadTaskById,
     getTaskById,
