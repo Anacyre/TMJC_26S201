@@ -2,7 +2,7 @@
   <view class="page" :class="themeClass">
     <view class="bg" />
 
-    <AppHeader title="Task" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Task" nav-mode="back" />
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">

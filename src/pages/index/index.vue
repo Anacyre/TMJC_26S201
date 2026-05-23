@@ -22,21 +22,21 @@
             <view class="metric tap" role="button" @tap="openPlanner">
               <view class="metricNumRow">
                 <text class="metricNum">{{ todayTasksCount }}</text>
-                <text class="metricChev">›</text>
+                <text class="metricChev">???/text>
               </view>
               <text class="metricLabel">tasks today</text>
             </view>
             <view class="metric tap" role="button" @tap="viewAllNotices">
               <view class="metricNumRow">
                 <text class="metricNum">{{ unreadNoticesCount }}</text>
-                <text class="metricChev">›</text>
+                <text class="metricChev">???/text>
               </view>
               <text class="metricLabel">unread notices</text>
             </view>
             <view class="metric tap" role="button" @tap="openFocus">
               <view class="metricNumRow">
                 <text class="metricNum">{{ focusHoursDisplay }}</text>
-                <text class="metricChev">›</text>
+                <text class="metricChev">???/text>
               </view>
               <text class="metricLabel">focused</text>
             </view>
@@ -81,7 +81,7 @@
 
         <view class="section">
           <view class="sectionHead">
-            <text class="sectionTitle">Today’s focus</text>
+            <text class="sectionTitle">Today???s focus</text>
             <text class="sectionLink" role="button" @tap="openPlanner">Open planner</text>
           </view>
 
@@ -177,6 +177,7 @@ import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
+import { navTo, pageAnim } from '@/lib/navigation'
 
 const { theme, themeClass } = useTheme()
 const { tasks, toggleTaskDone } = useTasksStore()
@@ -215,7 +216,7 @@ const todayText = computed(() => {
   const d = new Date()
   const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
   const m = d.toLocaleString('en-US', { month: 'short' })
-  return `${wk} · ${m} ${d.getDate()}`
+  return `${wk} � ${m} ${d.getDate()}`
 })
 
 const todayTasksCount = computed(() => tasks.value.filter((x) => x.status === 'today' && !x.done).length)
@@ -223,15 +224,15 @@ const unreadNoticesCount = computed(() => visibleNotifications.value.filter((n) 
 const focusHoursDisplay = computed(() => totalHoursLabel.value || '0m')
 
 function viewAllNotices() {
-  uni.navigateTo({ url: '/pages/notifications/index', animationType: 'slide-in-right', animationDuration: 220 })
+  navTo('/pages/notifications/index', pageAnim.slide)
 }
 
 function openNotice(n) {
-  uni.navigateTo({ url: `/pages/notice/detail?id=${encodeURIComponent(n.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
+  navTo(`/pages/notice/detail?id=${encodeURIComponent(n.id)}`, pageAnim.slide)
 }
 
 function openTask(t) {
-  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
+  navTo(`/pages/task/detail?id=${encodeURIComponent(t.id)}`, pageAnim.slide)
 }
 
 function toggleTask(t) {
@@ -239,19 +240,19 @@ function toggleTask(t) {
 }
 
 function openPlanner() {
-  uni.navigateTo({ url: '/pages/tasks/index', animationType: 'slide-in-right', animationDuration: 220 })
+  navTo('/pages/tasks/index', pageAnim.slide)
 }
 
 function openPost(p) {
-  uni.navigateTo({ url: `/pages/community/post-detail?id=${encodeURIComponent(p.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
+  navTo(`/pages/community/post-detail?id=${encodeURIComponent(p.id)}`, pageAnim.slide)
 }
 
 function exploreCommunity() {
-  uni.navigateTo({ url: '/pages/community/index', animationType: 'slide-in-right', animationDuration: 220 })
+  navTo('/pages/community/index', pageAnim.slide)
 }
 
 function openFocus() {
-  uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 })
+  navTo('/pages/study/focus', pageAnim.slide)
 }
 
 onLoad(() => { fetchCurrentUser() })

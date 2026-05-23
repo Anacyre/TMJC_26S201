@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Members" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Members" nav-mode="back" />
 
     <view v-if="!isAdmin" class="lock">
       <EmptyState
@@ -86,7 +86,7 @@
           </view>
         </view>
         <view class="commit" role="button" @tap="commitAdd">
-          <text class="commitText">{{ saving ? 'Creatingâ€¦' : 'Create account' }}</text>
+          <text class="commitText">{{ saving ? 'Creatingâ€? : 'Create account' }}</text>
         </view>
       </view>
     </view>

@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Notice" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Notice" nav-mode="back" />
 
     <view class="safe">
       <view class="card pad">

@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Notifications" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Notifications" nav-mode="back" />
 
     <view class="filterWrap">
       <view class="filtersTop">
@@ -158,7 +158,7 @@
         </view>
 
         <view class="commit" :class="{ busy: publishing }" role="button" @tap="publish">
-          <text class="commitText">{{ publishing ? 'Publishingâ€¦' : 'Publish' }}</text>
+          <text class="commitText">{{ publishing ? 'Publishingâ€? : 'Publish' }}</text>
         </view>
       </view>
     </view>

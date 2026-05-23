@@ -1,15 +1,18 @@
 <template>
-  <view class="header" :class="[themeClass, { back: navMode === 'back' }]">
-    <view v-if="navMode === 'brand'" class="left brand" role="button" @tap="goHome">
-      <ClassLogo size="md" />
-      <text class="brandText">26S201</text>
+  <view class="header" :class="[themeClass, navMode]">
+    <view class="side left">
+      <view v-if="navMode === 'brand'" class="brand" role="button" @tap="goHome">
+        <ClassLogo size="md" />
+        <text class="brandText">26S201</text>
+      </view>
+      <BackButton v-else />
     </view>
-    <BackButton v-else />
 
-    <text v-if="navMode === 'back'" class="title" :number-of-lines="1">{{ title }}</text>
-    <view v-else class="title spacer" />
+    <view class="center">
+      <text v-if="navMode === 'back' && title" class="title" :number-of-lines="1">{{ title }}</text>
+    </view>
 
-    <view class="right">
+    <view class="side right">
       <view v-if="isAdmin" class="adminBadge"><text class="adminBadgeText">ADMIN</text></view>
       <view class="iconBtn" role="button" @tap="onOpenSearch">
         <view class="searchGlyph">
@@ -18,12 +21,9 @@
         </view>
       </view>
       <ThemeToggle />
-      <view
-        v-if="resolvedShowAvatar"
-        class="avatar"
-        role="button"
-        @tap="openProfile"
-      ><text class="avatarText">{{ initials }}</text></view>
+      <view v-if="resolvedShowAvatar" class="avatar" role="button" @tap="openProfile">
+        <text class="avatarText">{{ initials }}</text>
+      </view>
     </view>
   </view>
 </template>
@@ -34,15 +34,16 @@ import { useTheme } from '@/composables/useTheme'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useUserStore } from '@/composables/useUserStore'
 import { isAdminMember } from '@/lib/classMembers'
+import { navTo, pageAnim } from '@/lib/navigation'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import ClassLogo from '@/components/ClassLogo.vue'
 import BackButton from '@/components/BackButton.vue'
 
 const props = defineProps({
   title: { type: String, default: 'Dashboard' },
-  /** brand: home (logo + avatar). back: chevron + title (no avatar by default). */
+  /** brand: home-style logo bar. back: chevron + centered title. */
   navMode: { type: String, default: 'brand' },
-  showAvatar: { type: Boolean, default: null },
+  showAvatar: { type: Boolean, default: true },
 })
 
 const { themeClass } = useTheme()
@@ -57,22 +58,16 @@ const initials = computed(() =>
     .toUpperCase()
 )
 const isAdmin = computed(() => isAdminMember(currentUser.value))
-const resolvedShowAvatar = computed(() =>
-  props.showAvatar == null ? props.navMode === 'brand' : props.showAvatar
-)
+const resolvedShowAvatar = computed(() => props.showAvatar)
 
 function goHome() {
-  uni.navigateTo({ url: '/pages/index/index', animationType: 'fade-in', animationDuration: 200 })
+  navTo('/pages/index/index', pageAnim.fade)
 }
 function onOpenSearch() {
   openSearch()
 }
 function openProfile() {
-  uni.navigateTo({
-    url: `/pages/member/profile?id=${currentUser.value.id}`,
-    animationType: 'slide-in-right',
-    animationDuration: 220,
-  })
+  navTo(`/pages/member/profile?id=${currentUser.value.id}`, pageAnim.slide)
 }
 </script>
 
@@ -85,7 +80,6 @@ function openProfile() {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12rpx;
   background: rgba(248, 250, 255, 0.62);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
@@ -99,22 +93,42 @@ function openProfile() {
   padding-bottom: 12rpx;
 }
 
-.left {
-  flex-shrink: 0;
-  min-width: 0;
+.side {
+  flex: 1;
   display: flex;
   align-items: center;
-  gap: 10rpx;
-  border-radius: 999rpx;
-  transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
+  min-width: 0;
+  z-index: 1;
 }
-.left:active {
-  transform: scale(0.985);
+.side.left {
+  justify-content: flex-start;
+}
+.side.right {
+  justify-content: flex-end;
+  gap: 8rpx;
+}
+
+.center {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 42%;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .brand {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
   padding: 8rpx 16rpx 8rpx 10rpx;
-  background: transparent;
+  border-radius: 999rpx;
+  transition: transform 180ms ease;
+}
+.brand:active {
+  transform: scale(0.985);
 }
 .brandText {
   font-size: 22rpx;
@@ -127,29 +141,17 @@ function openProfile() {
 }
 
 .title {
-  flex: 1;
-  text-align: center;
   font-size: 22rpx;
   font-weight: 640;
   color: rgba(16, 24, 40, 0.66);
   letter-spacing: 0.2rpx;
-  padding: 0 8rpx;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  text-align: center;
 }
 .t-dark .title {
   color: rgba(245, 247, 255, 0.7);
-}
-.title.spacer {
-  flex: 1;
-}
-
-.right {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
 }
 
 .iconBtn {

@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="More" nav-mode="back" :show-avatar="false" />
+    <AppHeader />
 
     <view class="safe">
       <view class="grid">

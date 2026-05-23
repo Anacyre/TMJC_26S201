@@ -2,7 +2,7 @@
   <view class="page" :class="themeClass">
     <view class="bg" />
 
-    <AppHeader title="Tasks" nav-mode="back" :show-avatar="false" />
+    <AppHeader />
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
@@ -128,6 +128,7 @@ import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { toast } from '@/composables/useToast'
+import { navTo, pageAnim } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 const { tasks, loading, toggleTaskDone, addTask, deleteTask, archiveTask } = useTasksStore()
@@ -163,7 +164,7 @@ function toggleDone(t) {
 }
 
 function openTask(t) {
-  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}` })
+  navTo(`/pages/task/detail?id=${encodeURIComponent(t.id)}`, pageAnim.slide)
 }
 
 function openCreate() {

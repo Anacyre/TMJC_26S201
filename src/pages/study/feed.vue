@@ -1,12 +1,12 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader :title="subject.name" nav-mode="back" :show-avatar="false" />
+    <AppHeader :title="subject.name" nav-mode="back" />
     <view v-if="subjectNoticeSlug" class="noticeStrip" role="button" @tap="openSubjectNotices">
       <view class="noticeStripMain">
         <text class="noticeStripLabel">Notices</text>
       </view>
-      <text class="noticeStripChev">â€º</text>
+      <text class="noticeStripChev">â€?/text>
     </view>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view v-if="!resourcesView.length" class="emptyWrap">

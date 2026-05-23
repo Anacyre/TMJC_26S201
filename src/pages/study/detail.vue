@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Resource" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Resource" nav-mode="back" />
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="card pad">
         <view class="head">
@@ -16,7 +16,7 @@
             <text class="btnTextPrimary">Download</text>
           </view>
           <view class="btn" :class="{ on: likedState }" role="button" @tap="onLike">
-            <text class="btnText">{{ likedState ? 'â™¥ Liked' : 'â™¥ Like' }}</text>
+            <text class="btnText">{{ likedState ? 'â™?Liked' : 'â™?Like' }}</text>
           </view>
         </view>
       </view>

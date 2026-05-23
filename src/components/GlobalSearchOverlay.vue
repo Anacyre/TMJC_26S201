@@ -108,6 +108,7 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref } from 'vue'
 import { onHide, onBackPress } from '@dcloudio/uni-app'
+import { navTo, pageAnim } from '@/lib/navigation'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useTheme } from '@/composables/useTheme'
 import EmptyState from '@/components/EmptyState.vue'
@@ -153,24 +154,24 @@ function clearText() {
 
 function openTask(x) {
   close()
-  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(x.id)}` })
+  navTo(`/pages/task/detail?id=${encodeURIComponent(x.id)}`, pageAnim.slide)
 }
 
 function openNotice(x) {
   close()
-  uni.navigateTo({ url: `/pages/notice/detail?id=${encodeURIComponent(x.id)}` })
+  navTo(`/pages/notice/detail?id=${encodeURIComponent(x.id)}`, pageAnim.slide)
 }
 function openCommunity(x) {
   close()
-  uni.navigateTo({ url: `/pages/community/feed?id=${encodeURIComponent(x.id)}` })
+  navTo(`/pages/community/feed?id=${encodeURIComponent(x.id)}`, pageAnim.slide)
 }
 function openMember(x) {
   close()
-  uni.navigateTo({ url: `/pages/member/profile?id=${encodeURIComponent(x.id)}` })
+  navTo(`/pages/member/profile?id=${encodeURIComponent(x.id)}`, pageAnim.slide)
 }
 function openResource(x) {
   close()
-  uni.navigateTo({ url: `/pages/study/detail?id=${encodeURIComponent(x.id)}` })
+  navTo(`/pages/study/detail?id=${encodeURIComponent(x.id)}`, pageAnim.slide)
 }
 function onTouchStart(e) {
   touchY.value = e.changedTouches?.[0]?.clientY || 0

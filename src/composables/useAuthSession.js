@@ -1,5 +1,6 @@
 import { bootstrapData } from '@/composables/useBootstrap'
-import { hasStoredSession } from '@/lib/mockBackend'
+import { hasActiveSession } from '@/api/auth'
+import { useUserStore } from '@/composables/useUserStore'
 
 const REMEMBER_KEY = 'auth_remember_v1'
 
@@ -27,9 +28,11 @@ export function loadRememberMeToggle() {
 
 export async function tryRestoreSession() {
   const pref = getRememberPref()
-  if (!pref.enabled || !hasStoredSession()) return false
+  if (!pref.enabled) return false
+  if (!(await hasActiveSession())) return false
   await bootstrapData({ force: true })
-  return true
+  const { currentUser } = useUserStore()
+  return !!currentUser.value.id
 }
 
 export function clearAuthSession() {

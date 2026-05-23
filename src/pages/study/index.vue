@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Study" nav-mode="back" :show-avatar="false" />
+    <AppHeader />
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="focusEntry" role="button" @tap="openFocus">
         <view class="focusGlyph">

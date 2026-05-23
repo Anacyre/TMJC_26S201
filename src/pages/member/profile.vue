@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Profile" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Profile" nav-mode="back" />
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="hero">
         <view class="avatar">{{ initials(member.name) }}</view>
@@ -112,7 +112,7 @@
         </view>
         <view class="field">
           <text class="fieldLabel">Interests</text>
-          <input class="input" v-model="draft.interests" placeholder="oil painting, jazz pianoâ€¦" placeholder-class="ph" />
+          <input class="input" v-model="draft.interests" placeholder="oil painting, jazz pianoâ€? placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="fieldLabel">Bio</text>
@@ -123,7 +123,7 @@
           <picker :range="visibilityOptions" :value="visibilityOptions.indexOf(draft.birthdayVisibility)" @change="onVisibilityChange">
             <view class="input picker">
               <text class="pickerText">{{ draft.birthdayVisibility }}</text>
-              <text class="chevText">â–¾</text>
+              <text class="chevText">â–?/text>
             </view>
           </picker>
         </view>
@@ -202,7 +202,7 @@ const weekMinutesLabel = computed(() => {
 
 const topSubjectLabel = computed(() => {
   const list = subjectDistribution.value
-  if (!list.length) return 'â€”'
+  if (!list.length) return 'â€?
   return list[0].name
 })
 

@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Hidden notices" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="Hidden notices" nav-mode="back" />
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view v-if="!list.length" class="empty">
@@ -18,7 +18,7 @@
         </view>
         <view class="acts">
           <view class="iconBtn" role="button" @tap="restore(n.id)">
-            <text class="glyph">↺</text>
+            <text class="glyph">�?/text>
           </view>
           <view class="iconBtn danger" role="button" @tap="remove(n.id)">
             <text class="glyph">×</text>

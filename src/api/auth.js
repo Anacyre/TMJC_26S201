@@ -1,10 +1,16 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
-import { authLoginEmail, memberEmail } from '@/lib/classMembers'
+import { authLoginEmail } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
 export { hasStoredSession } from '@/lib/mockBackend'
+
+export async function hasActiveSession() {
+  if (USE_MOCK) return mock.hasStoredSession()
+  const { data: { session } } = await supabase.auth.getSession()
+  return !!session?.user
+}
 
 export function resolveAccountToEmail(input) {
   if (USE_MOCK) return mock.resolveAccountToEmail(input)
@@ -19,23 +25,19 @@ export async function resolveAccountToEmailAsync(input) {
 
   const { data } = await supabase
     .from('profiles')
-    .select('email, role, username')
+    .select('username, role')
     .ilike('username', trimmed)
     .maybeSingle()
-  if (data?.role === 'teacher_admin') return authLoginEmail(data.username || trimmed, data.role)
-  if (data?.email) return data.email
+  if (data?.username) return authLoginEmail(data.username, data.role || 'student')
 
-  for (const domain of ['@students.edu.sg', '@class.com']) {
-    const { data: byEmail } = await supabase
-      .from('profiles')
-      .select('email, role, username')
-      .eq('email', `${trimmed}${domain}`)
-      .maybeSingle()
-    if (byEmail?.role === 'teacher_admin') return authLoginEmail(byEmail.username || trimmed, byEmail.role)
-    if (byEmail?.email) return byEmail.email
-  }
+  const { data: byName } = await supabase
+    .from('profiles')
+    .select('username, role')
+    .ilike('display_name', trimmed)
+    .maybeSingle()
+  if (byName?.username) return authLoginEmail(byName.username, byName.role || 'student')
 
-  return memberEmail(trimmed, 'student')
+  return authLoginEmail(trimmed, 'student')
 }
 
 /**
@@ -103,7 +105,7 @@ export async function getCurrentUser() {
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle()
 
   return { user, profile, error: profileError }
 }
