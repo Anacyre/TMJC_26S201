@@ -120,11 +120,22 @@
     </view>
 
     <view class="noticeEditorRoot">
-      <view class="overlay" :class="[themeClass, { show: showCreate }]" @tap="showCreate = false">
+      <view class="overlay" :class="[themeClass, { show: showCreate }]" @tap="closeCreate">
         <view class="sheet" @tap.stop>
           <view class="grabber" />
           <view class="head">
-            <text class="sheetTitle">Notice</text>
+            <view class="headMain">
+              <text class="sheetTitle">Notice</text>
+              <text v-if="draftSavedAt" class="draftHint">Draft saved</text>
+            </view>
+            <text
+              v-if="hasDraftContent"
+              class="discardDraft tap"
+              role="button"
+              @tap.stop="discardDraft"
+            >
+              Discard
+            </text>
           </view>
 
           <scroll-view class="body" scroll-y :show-scrollbar="false">
@@ -141,6 +152,8 @@
                 <textarea
                   class="input area"
                   v-model="draft.description"
+                  :maxlength="TEXT_AREA_MAX_LENGTH"
+                  auto-height
                   placeholder="Optional"
                   placeholder-class="placeholder"
                 />
@@ -213,6 +226,13 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
+import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
+import {
+  clearNoticeDraft,
+  loadNoticeDraft,
+  noticeDraftHasContent,
+  saveNoticeDraft,
+} from '@/lib/noticeDraft'
 
 const { themeClass } = useTheme()
 const {
@@ -250,6 +270,9 @@ const scrollInto = ref('')
 const showCreate = ref(false)
 const publishing = ref(false)
 const descExpanded = ref(false)
+const draftSavedAt = ref(0)
+let draftSaveTimer = null
+let draftSavedHintTimer = null
 
 function emptyDraft() {
   return {
@@ -263,6 +286,37 @@ function emptyDraft() {
 
 const draft = ref(emptyDraft())
 const showDraftSubject = computed(() => draft.value.type === 'Homework')
+const hasDraftContent = computed(() => noticeDraftHasContent(draft.value))
+
+function persistNoticeDraft() {
+  const userId = currentUser.value?.id
+  if (!userId || !isRealAdmin.value) return
+  saveNoticeDraft(userId, draft.value)
+  draftSavedAt.value = Date.now()
+  clearTimeout(draftSavedHintTimer)
+  draftSavedHintTimer = setTimeout(() => {
+    draftSavedAt.value = 0
+  }, 2200)
+}
+
+function schedulePersistNoticeDraft() {
+  if (!showCreate.value) return
+  clearTimeout(draftSaveTimer)
+  draftSaveTimer = setTimeout(persistNoticeDraft, 400)
+}
+
+function closeCreate() {
+  if (showCreate.value) persistNoticeDraft()
+  showCreate.value = false
+}
+
+function discardDraft() {
+  draft.value = emptyDraft()
+  descExpanded.value = false
+  clearNoticeDraft(currentUser.value?.id)
+  draftSavedAt.value = 0
+  toast.show('Draft cleared')
+}
 
 function subjectMatches(n, chip) {
   if (chip === 'All') return true
@@ -391,9 +445,13 @@ function openCreate() {
     toast.show('Admins only')
     return
   }
-  draft.value = emptyDraft()
-  descExpanded.value = false
+  const userId = currentUser.value?.id
+  const saved = userId ? loadNoticeDraft(userId) : null
+  draft.value = saved || emptyDraft()
+  descExpanded.value = !!(draft.value.description || '').trim()
+  draftSavedAt.value = 0
   showCreate.value = true
+  if (saved) toast.show('Draft restored')
 }
 
 function onCreateTag(name) {
@@ -437,8 +495,11 @@ async function publish() {
       by: currentUser.value?.name || 'Admin',
       important: false,
     })
-    showCreate.value = false
+    clearNoticeDraft(currentUser.value?.id)
     draft.value = emptyDraft()
+    descExpanded.value = false
+    draftSavedAt.value = 0
+    showCreate.value = false
     toast.published()
   } catch (err) {
     toast.show('Could not publish')
@@ -467,6 +528,8 @@ watch(typeFilter, (next, prev) => {
 watch(() => draft.value.type, (next, prev) => {
   if (prev === 'Homework' && next !== 'Homework') draft.value.subject = ''
 })
+
+watch(draft, schedulePersistNoticeDraft, { deep: true })
 
 watch([typeFilter, subjectFilter], () => {
   scrollInto.value = ''
@@ -533,9 +596,15 @@ watch([typeFilter, subjectFilter], () => {
 .overlay.show .sheet { transform: translateY(0); }
 .grabber { margin: 16rpx auto 0; width: 80rpx; height: 9rpx; border-radius: 999rpx; background: rgba(16, 24, 40, 0.18); }
 .t-dark .grabber { background: rgba(245, 247, 255, 0.2); }
-.head { padding: 12rpx 28rpx 10rpx; display: flex; align-items: center; justify-content: space-between; }
+.head { padding: 12rpx 28rpx 10rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
+.headMain { display: flex; flex-direction: column; gap: 4rpx; min-width: 0; }
 .sheetTitle { font-size: 30rpx; font-weight: 760; color: rgba(16, 24, 40, 0.92); }
 .t-dark .sheetTitle { color: #f5f7fa; }
+.draftHint { font-size: 20rpx; font-weight: 660; color: rgba(46, 99, 255, 0.78); }
+.t-dark .draftHint { color: rgba(170, 200, 255, 0.78); }
+.discardDraft { flex-shrink: 0; font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.45); padding: 8rpx 4rpx; }
+.t-dark .discardDraft { color: rgba(245, 247, 255, 0.42); }
+.discardDraft:active { opacity: 0.72; }
 .body { max-height: 72vh; padding: 0 28rpx; box-sizing: border-box; }
 
 .field { margin-top: 16rpx; display: flex; flex-direction: column; gap: 10rpx; }
@@ -572,11 +641,11 @@ watch([typeFilter, subjectFilter], () => {
   margin-top: 0;
 }
 .collapseBody.open {
-  max-height: 320rpx;
+  max-height: 560rpx;
   opacity: 1;
   margin-top: 12rpx;
 }
-.collapseBody .area { min-height: 180rpx; }
+.collapseBody .area { min-height: 220rpx; }
 .input {
   min-height: 96rpx;
   padding: 0 20rpx;
@@ -589,7 +658,7 @@ watch([typeFilter, subjectFilter], () => {
 }
 .t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.06); color: #f5f7fa; }
 .input:focus { border-color: rgba(46, 99, 255, 0.4); box-shadow: 0 0 0 6rpx rgba(46, 99, 255, 0.12); }
-.area { min-height: 168rpx; padding-top: 22rpx; }
+.area { min-height: 220rpx; padding-top: 22rpx; }
 .placeholder { color: rgba(16, 24, 40, 0.34); }
 .t-dark .placeholder { color: rgba(245, 247, 255, 0.32); }
 

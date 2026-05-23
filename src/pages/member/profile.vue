@@ -129,7 +129,14 @@
         </view>
         <view class="field">
           <text class="fieldLabel">Bio</text>
-          <textarea class="input area" v-model="draft.bio" placeholder="Bio" placeholder-class="ph" />
+          <textarea
+            class="input area"
+            v-model="draft.bio"
+            :maxlength="TEXT_AREA_MAX_LENGTH"
+            auto-height
+            placeholder="Bio"
+            placeholder-class="ph"
+          />
         </view>
         <view class="field">
           <text class="fieldLabel">Birthday</text>
@@ -175,6 +182,7 @@ import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { getQuickLoginAlias, setQuickLoginAlias } from '@/composables/useMemberStore'
 import { toast } from '@/composables/useToast'
+import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { logout } from '@/api/auth'
 import { clearAuthSession } from '@/composables/useAuthSession'
 
@@ -473,7 +481,7 @@ onLoad((q) => { id.value = q?.id || currentUser.value.id })
 .t-dark .fieldLabel { color: rgba(245, 247, 255, 0.55); }
 .input { min-height: 80rpx; padding: 0 16rpx; border-radius: 18rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.08); color: rgba(16, 24, 40, 0.92); font-size: 23rpx; }
 .t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.08); color: #f5f7fa; }
-.area { min-height: 120rpx; padding-top: 14rpx; }
+.area { min-height: 180rpx; padding-top: 14rpx; }
 .picker { display: flex; align-items: center; justify-content: space-between; padding-right: 18rpx; }
 .pickerText { font-size: 23rpx; font-weight: 660; color: rgba(16, 24, 40, 0.86); }
 .t-dark .pickerText { color: rgba(245, 247, 255, 0.86); }

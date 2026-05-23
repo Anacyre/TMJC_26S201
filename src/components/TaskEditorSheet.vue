@@ -21,6 +21,8 @@
             <textarea
               class="input area"
               v-model="form.description"
+              :maxlength="TEXT_AREA_MAX_LENGTH"
+              auto-height
               placeholder="Optional"
               placeholder-class="placeholder"
             />
@@ -127,6 +129,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { resolveTaskStatusFromForm } from '@/lib/taskDueDate'
+import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { toast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -340,11 +343,11 @@ function submit() {
   margin-top: 0;
 }
 .collapseBody.open {
-  max-height: 320rpx;
+  max-height: 560rpx;
   opacity: 1;
   margin-top: 12rpx;
 }
-.collapseBody .area { min-height: 180rpx; }
+.collapseBody .area { min-height: 220rpx; }
 .input { min-height: 96rpx; border-radius: 24rpx; border: 1rpx solid rgba(16,24,40,.08); background: rgba(255,255,255,.78); padding: 0 20rpx; font-size: 28rpx; color: rgba(16,24,40,.92); transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;}
 .t-dark .input { border-color: rgba(255,255,255,.06); background: #23272d; color: #f5f7fa;}
 .input:focus { border-color: rgba(46,99,255,.4); box-shadow: 0 0 0 6rpx rgba(46,99,255,.12);}

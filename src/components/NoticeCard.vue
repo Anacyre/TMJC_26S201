@@ -12,7 +12,7 @@
         <text class="tag">{{ notice.subject }}</text>
         <text v-if="notice.deadline" class="ddl">{{ notice.deadline }}</text>
       </view>
-      <text class="preview" :class="{ dim: notice.read }">{{ notice.description }}</text>
+      <text class="preview text-word-wrap" :class="{ dim: notice.read }">{{ notice.description }}</text>
       <text v-if="notice.attachment" class="attach">{{ notice.attachment }}</text>
     </view>
 

@@ -13,7 +13,7 @@
         <text class="meta">{{ notice.subject || 'General' }}<text v-if="notice.deadline"> · {{ notice.deadline }}</text></text>
 
         <view class="body">
-          <text class="p">{{ notice.description || 'No description.' }}</text>
+          <text class="p text-word-wrap">{{ notice.description || 'No description.' }}</text>
           <text v-if="notice.attachment" class="p attach">{{ notice.attachment }}</text>
         </view>
 

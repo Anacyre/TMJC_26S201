@@ -31,7 +31,7 @@
 
           <view class="section">
             <text class="sectionTitle">Description</text>
-            <text class="p">{{ task.description }}</text>
+            <text class="p text-word-wrap">{{ task.description }}</text>
           </view>
 
           <view class="section">

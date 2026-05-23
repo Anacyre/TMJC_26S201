@@ -60,7 +60,14 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="sheetTitle">New post</text>
-        <textarea class="input area" v-model="draft.text" placeholder="Write something…" placeholder-class="ph" />
+        <textarea
+          class="input area"
+          v-model="draft.text"
+          :maxlength="TEXT_AREA_MAX_LENGTH"
+          auto-height
+          placeholder="Write something…"
+          placeholder-class="ph"
+        />
         <input class="input" v-model="draft.image" placeholder="Image URL" placeholder-class="ph" />
         <view class="anonRow tap" role="button" @tap="draft.anonymous = !draft.anonymous">
           <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>
@@ -87,6 +94,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { toast } from '@/composables/useToast'
+import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 
 const { themeClass } = useTheme()
 const { getCommunityById, hotPosts, newPosts, topPosts, addPost, loading } = useCommunityStore()
@@ -209,7 +217,7 @@ onLoad((q) => { id.value = q?.id || 'c1' })
 .t-dark .sheetSub { color: rgba(245, 247, 255, 0.5); }
 .input { width: 100%; min-height: 80rpx; margin-top: 12rpx; padding: 0 16rpx; border-radius: 20rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.06); color: rgba(16, 24, 40, 0.92); font-size: 23rpx; }
 .t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.06); color: #f5f7fa; }
-.area { min-height: 140rpx; padding-top: 14rpx; }
+.area { min-height: 220rpx; padding-top: 14rpx; }
 .ph { color: rgba(16, 24, 40, 0.35); }
 .t-dark .ph { color: rgba(245, 247, 255, 0.32); }
 .anonRow { margin-top: 14rpx; display: flex; align-items: center; gap: 10rpx; }

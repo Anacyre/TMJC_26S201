@@ -63,7 +63,8 @@
   --list-chip-height: 42rpx;
   --list-chip-pad-x: 16rpx;
 
-  /* ── Motion (haptic-style) ── */
+  /* ── Multi-line text inputs ── */
+  --text-area-max-length: 1000;
   --motion-fast: 120ms;
   --motion-base: 150ms;
   --motion-slow: 180ms;
@@ -120,6 +121,32 @@ html[data-theme='dark'] {
   transition: background-color var(--motion-slow) var(--ease-soft),
     border-color var(--motion-slow) var(--ease-soft),
     box-shadow var(--motion-slow) var(--ease-soft);
+}
+
+/* Wrap at word boundaries; override uni-app default word-break: break-all on uni-textarea */
+textarea,
+uni-textarea,
+uni-textarea .uni-textarea-wrapper,
+uni-textarea .uni-textarea-textarea,
+uni-textarea .uni-textarea-compute,
+uni-textarea .uni-textarea-line {
+  white-space: pre-wrap !important;
+  word-break: normal !important;
+  overflow-wrap: break-word !important;
+  word-wrap: break-word !important;
+  line-break: auto !important;
+}
+
+uni-textarea {
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.text-word-wrap {
+  white-space: pre-wrap;
+  word-break: normal;
+  overflow-wrap: break-word;
+  word-wrap: break-word;
 }
 
 /* ── Tap target (cards, rows) ── */
