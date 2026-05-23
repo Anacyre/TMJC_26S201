@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Notifications" nav-mode="back" />
+    <AppHeader nav-mode="back" />
 
     <view class="filterWrap">
       <view class="filtersTop">

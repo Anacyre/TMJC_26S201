@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Members" nav-mode="back" />
+    <AppHeader nav-mode="back" />
 
     <view v-if="!isAdmin" class="lock">
       <EmptyState

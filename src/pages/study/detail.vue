@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Resource" nav-mode="back" />
+    <AppHeader nav-mode="back" />
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="card pad">
         <view class="head">

@@ -2,7 +2,7 @@
   <view class="page" :class="themeClass">
     <view class="bg" />
 
-    <AppHeader title="Dashboard" />
+    <AppHeader />
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
@@ -40,16 +40,10 @@
         </view>
 
         <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">Recent notices</text>
-            <text class="sectionLink" role="button" @tap="viewAllNotices">All</text>
-          </view>
+          <text class="sectionTitle">Recent notices</text>
 
           <view v-if="!notices.length" class="emptyCard">
-            <EmptyState
-              variant="notifications"
-              title="No notices yet"
-            />
+            <EmptyState variant="notifications" title="No notices yet" />
           </view>
           <view v-else class="noticeGrid">
             <view
@@ -76,18 +70,10 @@
         </view>
 
         <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">Today's focus</text>
-            <text class="sectionLink" role="button" @tap="openPlanner">Open planner</text>
-          </view>
+          <text class="sectionTitle">Today's focus</text>
 
           <view v-if="!todayTasks.length" class="emptyCard">
-            <EmptyState
-              variant="tasks"
-              title="No tasks today"
-              action-label="Add task"
-              @action="openPlanner"
-            />
+            <EmptyState variant="tasks" title="No tasks today" />
           </view>
           <view v-else class="taskList">
             <view
@@ -114,43 +100,6 @@
           </view>
         </view>
 
-        <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">Community</text>
-            <text class="sectionLink" role="button" @tap="exploreCommunity">Open</text>
-          </view>
-
-          <view v-if="!postRows.length" class="emptyCard">
-            <EmptyState
-              variant="posts"
-              title="No posts yet"
-              action-label="Explore"
-              @action="exploreCommunity"
-            />
-          </view>
-          <view v-else class="postList">
-            <view
-              v-for="p in postRows"
-              :key="p.id"
-              class="postRow tap"
-              :class="{ pressed: pressedKey === 'post:' + p.id }"
-              @touchstart="pressedKey = 'post:' + p.id"
-              @touchend="pressedKey = ''"
-              @touchcancel="pressedKey = ''"
-              @tap="openPost(p)"
-            >
-              <view class="postMain">
-                <text class="postTitle" :number-of-lines="1">{{ p.title }}</text>
-                <text class="metaMuted">{{ p.communityName }}</text>
-              </view>
-              <view class="postRight">
-                <text class="postBy" :number-of-lines="1">{{ p.author }}</text>
-                <text class="postReplies">{{ p.commentsCount }} replies</text>
-              </view>
-            </view>
-          </view>
-        </view>
-
         <view class="spacer" />
       </view>
     </scroll-view>
@@ -169,14 +118,12 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
-import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 
 const { themeClass } = useTheme()
 const { tasks, toggleTaskDone } = useTasksStore()
-const { posts: communityPosts } = useCommunityStore()
 const { visibleNotifications } = useNotificationStore()
 const { currentUser, fetchCurrentUser } = useUserStore()
 const { totalHoursLabel } = useFocusStore()
@@ -197,8 +144,6 @@ const notices = computed(() =>
 const todayTasks = computed(() =>
   tasks.value.filter((x) => !x.done && (x.status === 'today' || x.status === 'overdue')).slice(0, 4)
 )
-
-const postRows = computed(() => communityPosts.value.slice(0, 3))
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -238,14 +183,6 @@ function openPlanner() {
   uni.navigateTo({ url: '/pages/tasks/index', animationType: 'slide-in-right', animationDuration: 220 })
 }
 
-function openPost(p) {
-  uni.navigateTo({ url: `/pages/community/post-detail?id=${encodeURIComponent(p.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
-}
-
-function exploreCommunity() {
-  uni.navigateTo({ url: '/pages/community/index', animationType: 'slide-in-right', animationDuration: 220 })
-}
-
 function openFocus() {
   uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 })
 }
@@ -283,11 +220,8 @@ onShow(() => { fetchCurrentUser() })
 .t-dark .metricLabel { color: rgba(245, 247, 255, 0.48); }
 
 .section { margin-top: 22rpx; }
-.sectionHead { display: flex; align-items: center; justify-content: space-between; padding: 6rpx 4rpx 12rpx; }
-.sectionTitle { font-size: 22rpx; color: rgba(16, 24, 40, 0.6); font-weight: 660; }
+.sectionTitle { display: block; font-size: 22rpx; color: rgba(16, 24, 40, 0.6); font-weight: 660; padding: 6rpx 4rpx 12rpx; }
 .t-dark .sectionTitle { color: rgba(245, 247, 255, 0.55); }
-.sectionLink { font-size: 21rpx; color: rgba(46, 99, 255, 0.95); font-weight: 640; }
-.t-dark .sectionLink { color: rgba(170, 200, 255, 0.95); }
 
 .emptyCard { padding: 8rpx 0; }
 .noticeGrid { display: flex; flex-wrap: wrap; gap: 12rpx; }
@@ -332,18 +266,6 @@ onShow(() => { fetchCurrentUser() })
 .state { font-size: 16rpx; padding: 4rpx 10rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
 .state-overdue { color: rgba(220, 55, 45, 0.96); background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
 .state-today { color: rgba(46, 99, 255, 0.96); background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
-
-.postList { display: flex; flex-direction: column; gap: 10rpx; }
-.postRow { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease; }
-.t-dark .postRow { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.postRow.tap:active { transform: scale(0.99); }
-.postMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.postTitle { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
-.t-dark .postTitle { color: rgba(245, 247, 255, 0.92); }
-.postRight { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; max-width: 200rpx; }
-.postBy { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .postBy { color: rgba(245, 247, 255, 0.5); }
-.postReplies { font-size: 17rpx; color: rgba(46, 99, 255, 0.9); font-weight: 660; }
 
 .spacer { height: 18rpx; }
 </style>

@@ -50,12 +50,10 @@
           </view>
           <view class="field">
             <text class="label">Status</text>
-            <picker :range="statuses" :value="statuses.indexOf(form.status)" @change="(e) => (form.status = statuses[e.detail.value])">
-              <view class="input picker">
-                <text class="pickerText">{{ statusLabel(form.status) }}</text>
-                <text class="chevText">▾</text>
-              </view>
-            </picker>
+            <view class="input picker tap" role="button" @tap="openStatusPicker">
+              <text class="pickerText">{{ statusLabel(form.status) }}</text>
+              <text class="chevText">&gt;</text>
+            </view>
           </view>
         </view>
 
@@ -124,6 +122,7 @@
 import { computed, reactive, watch, ref } from 'vue'
 import DateField from '@/components/DateField.vue'
 import TagSelect from '@/components/TagSelect.vue'
+import { startPicker } from '@/lib/pickerSession'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
@@ -252,6 +251,26 @@ function onCreateTag(name) {
   addTag(name)
 }
 
+function openStatusPicker() {
+  const labels = statuses.map(statusLabel)
+  const id = startPicker({
+    title: 'Choose status',
+    options: labels,
+    value: statusLabel(form.status),
+    kind: 'status',
+    allowCreate: false,
+    onSelect: (label) => {
+      const idx = labels.indexOf(label)
+      if (idx >= 0) form.status = statuses[idx]
+    },
+  })
+  uni.navigateTo({
+    url: `/pages/common/select-picker?id=${encodeURIComponent(id)}`,
+    animationType: 'slide-in-right',
+    animationDuration: 220,
+  })
+}
+
 function buildDeadlineString() {
   if (!form.deadlineDate) return 'Anytime'
   return `Due ${formatDateLabel(form.deadlineDate)}`
@@ -338,6 +357,7 @@ function submit() {
 .prioChip.p-P3.on { background: rgba(46,99,255,.12); border-color: rgba(46,99,255,.3); }
 .prioChip.p-P3.on .prioText { color: rgba(46,99,255,.96); }
 .picker { display: flex; align-items: center; justify-content: space-between; padding-right: 18rpx; }
+.picker.tap:active { transform: scale(0.99); }
 .pickerText { font-size: 23rpx; font-weight: 700; color: rgba(16,24,40,.86); }
 .t-dark .pickerText { color: rgba(245,247,255,.86); }
 .chevText { font-size: 18rpx; color: rgba(16,24,40,.5); }

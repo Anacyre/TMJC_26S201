@@ -1,7 +1,7 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader :title="community.name" nav-mode="back" />
+    <AppHeader nav-mode="back" />
 
     <view class="filters">
       <view v-for="f in ['hot','new','top']" :key="f" class="chip" :class="{ on: filter === f }" role="button" @tap="filter = f">
