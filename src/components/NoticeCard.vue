@@ -25,7 +25,18 @@
           @tap="onImportant"
         >
           <view class="iconBox">
-            <view class="starGlyph" :class="{ filled: notice.important }" />
+            <view class="starGlyph" :class="{ filled: notice.important }">
+              <svg class="starSvg" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                <path
+                  class="starPath"
+                  d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                  :fill="notice.important ? 'currentColor' : 'none'"
+                  :stroke="notice.important ? 'none' : 'currentColor'"
+                  stroke-width="1.55"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </view>
           </view>
         </view>
 
@@ -265,22 +276,23 @@ function onImportant() {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.starGlyph::before {
-  content: '*';
-  font-size: 40rpx;
-  line-height: 1;
-  font-weight: 700;
-  color: rgba(16, 24, 40, 0.38);
+  color: rgba(16, 24, 40, 0.42);
   transition: color 180ms ease, transform 180ms ease;
-  transform: translateY(-1rpx);
 }
-.starGlyph.filled::before {
+.starGlyph.filled {
   color: rgba(46, 99, 255, 0.95);
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
-.t-dark .starGlyph::before { color: rgba(245, 247, 255, 0.38); }
-.t-dark .starGlyph.filled::before { color: rgba(170, 200, 255, 0.96); }
+.t-dark .starGlyph { color: rgba(245, 247, 255, 0.42); }
+.t-dark .starGlyph.filled { color: rgba(170, 200, 255, 0.96); }
+.starSvg {
+  width: 34rpx;
+  height: 34rpx;
+  display: block;
+}
+.starPath {
+  transition: fill 180ms ease, stroke 180ms ease;
+}
 
 .plusGlyph {
   position: relative;

@@ -4,6 +4,12 @@ import { authLoginEmail } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
+function resolveMustChangePassword(profile, user) {
+  if (profile && profile.must_change_password === false) return false
+  if (profile && profile.must_change_password === true) return true
+  return user?.app_metadata?.must_change_password === true
+}
+
 export { hasStoredSession } from '@/lib/mockBackend'
 
 export async function hasActiveSession() {
@@ -41,7 +47,7 @@ export async function resolveAccountToEmailAsync(input) {
 }
 
 /**
- * 用户登录
+ * User login
  * @param {string} email
  * @param {string} password
  * @returns {{ data, error }}
@@ -51,21 +57,21 @@ export async function login(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
   if (error) return { data, error }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from('profiles')
     .select('must_change_password')
     .eq('id', data.user.id)
     .maybeSingle()
 
-  const mustChangePassword =
-    profile?.must_change_password === true ||
-    data.user?.app_metadata?.must_change_password === true
+  if (profileError) return { data, error: profileError }
+
+  const mustChangePassword = resolveMustChangePassword(profile, data.user)
 
   return { data: { ...data, mustChangePassword }, error: null }
 }
 
 /**
- * 用户注册
+ * User registration
  * @param {string} email
  * @param {string} password
  * @param {string} displayName
@@ -84,7 +90,7 @@ export async function register(email, password, displayName) {
 }
 
 /**
- * 退出登录
+ * Sign out
  */
 export async function logout() {
   if (USE_MOCK) return mock.logout()
@@ -93,7 +99,7 @@ export async function logout() {
 }
 
 /**
- * 获取当前登录用户（含 profile）
+ * Get current signed-in user (with profile)
  * @returns {{ user, profile, error }}
  */
 export async function getCurrentUser() {
@@ -111,7 +117,7 @@ export async function getCurrentUser() {
 }
 
 /**
- * 忘记密码（发送重置邮件）
+ * Forgot password (send reset email)
  * @param {string} email
  */
 export async function forgotPassword(email) {
@@ -135,16 +141,18 @@ export async function changePassword(newPassword) {
   const { error } = await supabase.auth.updateUser({ password: newPassword })
   if (error) return { error }
 
-  await supabase
+  const { error: profileError } = await supabase
     .from('profiles')
     .update({ must_change_password: false })
     .eq('id', user.id)
+
+  if (profileError) return { error: profileError }
 
   return { error: null }
 }
 
 /**
- * 监听登录状态变化
+ * Listen for auth state changes
  * @param {Function} callback - (session) => void
  */
 export function onAuthStateChange(callback) {

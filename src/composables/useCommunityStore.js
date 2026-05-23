@@ -8,7 +8,7 @@ const posts = ref([])
 const commentsByPost = ref({})
 const loading = ref(false)
 
-// ─── 数据获取 ────────────────────────────────────────────────────
+// ─── Data fetch ────────────────────────────────────────────────────
 
 async function fetchCommunities() {
   const { data, error } = await communityApi.fetchCommunities()
@@ -52,7 +52,7 @@ async function fetchComments(postId) {
   if (!error) commentsByPost.value[postId] = data
 }
 
-// ─── 读取工具 ────────────────────────────────────────────────────
+// ─── Read helpers ────────────────────────────────────────────────────
 
 function getCommunityById(id) {
   return communities.value.find((x) => x.id === id) || communities.value[0]
@@ -74,14 +74,14 @@ function getComments(postId) {
   return commentsByPost.value[postId] || []
 }
 
-// ─── 写操作 ──────────────────────────────────────────────────────
+// ─── Writes ──────────────────────────────────────────────────────
 
 async function addComment(postId, text, anonymous = false) {
   const { data, error } = await communityApi.addComment(postId, text, anonymous)
   if (!error && data) {
     if (!commentsByPost.value[postId]) commentsByPost.value[postId] = []
     commentsByPost.value[postId].unshift(data)
-    // 更新帖子评论数
+    // Update post comment count
     const idx = posts.value.findIndex((p) => p.id === postId)
     if (idx >= 0) posts.value[idx].commentsCount = (posts.value[idx].commentsCount || 0) + 1
   }
@@ -113,7 +113,7 @@ async function togglePostLike(postId) {
   }
 }
 
-// ─── 计算属性 ────────────────────────────────────────────────────
+// ─── Computed ────────────────────────────────────────────────────
 
 const hotPosts = computed(() => [...posts.value].sort((a, b) => b.likesCount - a.likesCount))
 const newPosts = computed(() => posts.value)

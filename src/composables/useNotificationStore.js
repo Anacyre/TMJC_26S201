@@ -40,7 +40,7 @@ function mergeHiddenFromCache(list, userId = '') {
   return merged
 }
 
-// ─── 数据获取 ────────────────────────────────────────────────────
+// ─── Data fetch ────────────────────────────────────────────────────
 
 async function fetchNotifications() {
   loading.value = true
@@ -56,13 +56,13 @@ async function fetchNotifications() {
   }
 }
 
-// ─── 读取工具 ────────────────────────────────────────────────────
+// ─── Read helpers ────────────────────────────────────────────────────
 
 function getNotificationById(id) {
   return notifications.value.find((n) => n.id === id) || null
 }
 
-// ─── 写操作 ──────────────────────────────────────────────────────
+// ─── Writes ──────────────────────────────────────────────────────
 
 function _patchLocal(id, patch) {
   const idx = notifications.value.findIndex((n) => n.id === id)
@@ -128,7 +128,7 @@ async function addNotification(payload) {
   else if (error) console.error('[useNotificationStore] addNotification:', error.message)
 }
 
-// ─── 计算属性 ────────────────────────────────────────────────────
+// ─── Computed ────────────────────────────────────────────────────
 
 const visibleNotifications = computed(() => notifications.value.filter((n) => !n.hidden))
 const hiddenNotifications = computed(() => notifications.value.filter((n) => n.hidden))

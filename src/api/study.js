@@ -45,7 +45,7 @@ function rowToResource(row, likedSet = new Set()) {
 }
 
 /**
- * 获取所有资源（支持按科目筛选、排序）
+ * Fetch resources (optionally filtered/sorted by subject)
  * @param {{ subjectId?: string, sort?: 'latest'|'downloads'|'likes' }} options
  */
 export async function fetchResources(options = {}) {
@@ -84,12 +84,12 @@ export async function fetchResources(options = {}) {
 }
 
 /**
- * 上传学习资源（先通过 upload.js 上传文件，再调此接口）
+ * Create a study resource (upload file via upload.js first)
  */
 export async function createResource(payload) {
   if (USE_MOCK) return mock.createResource(payload)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: new Error('未登录') }
+  if (!user) return { data: null, error: new Error('Not signed in') }
 
   const { data, error } = await supabase
     .from('resources')
@@ -111,7 +111,7 @@ export async function createResource(payload) {
 }
 
 /**
- * 切换点赞资源（数据库端原子操作）
+ * Toggle resource like (atomic on the database)
  */
 export async function toggleResourceLike(resourceId, currentLiked, currentCount) {
   if (USE_MOCK) return mock.toggleResourceLike(resourceId, currentLiked, currentCount)
@@ -122,7 +122,7 @@ export async function toggleResourceLike(resourceId, currentLiked, currentCount)
 }
 
 /**
- * 记录下载并返回下载 URL（原子 +1）
+ * Record a download and return the download URL (atomic +1)
  */
 export async function downloadResource(resourceId) {
   if (USE_MOCK) return mock.downloadResource(resourceId)

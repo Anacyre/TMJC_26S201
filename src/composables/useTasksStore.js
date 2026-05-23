@@ -11,7 +11,7 @@ function parseDeadlineDate(deadline) {
   return iso ? iso[1] : ''
 }
 
-// ─── 数据获取 ────────────────────────────────────────────────────
+// ─── Data fetch ────────────────────────────────────────────────────
 
 async function fetchTasks() {
   loading.value = true
@@ -38,7 +38,7 @@ async function loadTaskById(taskId) {
   return { data, error }
 }
 
-// ─── 读取工具 ────────────────────────────────────────────────────
+// ─── Read helpers ────────────────────────────────────────────────────
 
 function getTaskById(id) {
   return tasks.value.find((x) => x.id === id) || null
@@ -51,7 +51,7 @@ function upsertTask(task) {
   else tasks.value.unshift(task)
 }
 
-// ─── 写操作（先本地更新再同步）──────────────────────────────────
+// ─── Writes (local first, then sync) ───────────────────────────────────
 
 async function toggleTaskDone(id) {
   const target = getTaskById(id)
@@ -129,7 +129,7 @@ async function deleteTask(id) {
   return { error }
 }
 
-// ─── 计算属性 ────────────────────────────────────────────────────
+// ─── Computed ────────────────────────────────────────────────────
 
 const tasksCountRecent = computed(() =>
   tasks.value.filter((x) => !x.done && taskDueBucket(x) === 'recent').length

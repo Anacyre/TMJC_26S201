@@ -26,6 +26,7 @@
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
       @contextmenu="onContextMenu"
+      @longpress="onLongPress"
     >
       <slot />
     </view>
@@ -257,12 +258,24 @@ function onActionTap(id) {
   setTimeout(() => emit('action', id), 160)
 }
 
+function openContextMenuAt(e) {
+  if (!menuItems.value.length) return
+  e?.preventDefault?.()
+  e?.stopPropagation?.()
+  const t = e?.touches?.[0] || e?.changedTouches?.[0]
+  menuX.value = e?.clientX ?? t?.clientX ?? t?.pageX ?? 120
+  menuY.value = e?.clientY ?? t?.clientY ?? t?.pageY ?? 120
+  menuOpen.value = true
+}
+
 function onContextMenu(e) {
   if (!isDesktop.value || !menuItems.value.length) return
-  e?.preventDefault?.()
-  menuX.value = e?.clientX ?? e?.detail?.x ?? 120
-  menuY.value = e?.clientY ?? e?.detail?.y ?? 120
-  menuOpen.value = true
+  openContextMenuAt(e)
+}
+
+function onLongPress(e) {
+  if (!menuItems.value.length) return
+  openContextMenuAt(e)
 }
 
 function onMenuSelect(item) {

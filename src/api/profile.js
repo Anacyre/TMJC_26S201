@@ -10,7 +10,7 @@ async function requireAdminCaller() {
     return error
   }
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return new Error('未登录')
+  if (!user) return new Error('Not signed in')
   const { data: profile, error } = await supabase
     .from('profiles')
     .select('role, is_admin')
@@ -22,7 +22,7 @@ async function requireAdminCaller() {
 }
 
 /**
- * 获取指定用户的 profile
+ * Fetch a user's profile
  * @param {string} userId
  */
 export async function getProfile(userId) {
@@ -36,7 +36,7 @@ export async function getProfile(userId) {
 }
 
 /**
- * 获取全班成员列表
+ * Fetch all class members
  */
 export async function getMembers() {
   if (USE_MOCK) return mock.getMembers()
@@ -48,7 +48,7 @@ export async function getMembers() {
 }
 
 /**
- * 更新当前用户的 profile
+ * Update the current user's profile
  * @param {string} userId
  * @param {object} payload - { name, mbti, interests, bio, links, birthdayVisibility, avatarUrl }
  */

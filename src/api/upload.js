@@ -4,15 +4,15 @@ import * as mock from '@/lib/mockBackend'
 const USE_MOCK = mock.USE_MOCK
 
 /**
- * 上传文件到 Supabase Storage
- * @param {File|Blob} file - 文件对象
- * @param {'avatar'|'resource'|'attachment'} type - 用途分类
+ * Upload a file to Supabase Storage
+ * @param {File|Blob} file - file object
+ * @param {'avatar'|'resource'|'attachment'} type - usage category
  * @returns {{ fileKey, fileName, fileUrl, fileSize, mimeType, error }}
  */
 export async function uploadFile(file, type = 'resource') {
   if (USE_MOCK) return mock.uploadFile(file, type)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: new Error('未登录') }
+  if (!user) return { error: new Error('Not signed in') }
 
   const ext = file.name?.split('.').pop() || 'bin'
   const timestamp = Date.now()
@@ -38,7 +38,7 @@ export async function uploadFile(file, type = 'resource') {
 }
 
 /**
- * 上传头像（直接更新 profiles 表的 avatar_url）
+ * Upload avatar (updates profiles.avatar_url)
  * @param {File|Blob} file
  * @param {string} userId
  */

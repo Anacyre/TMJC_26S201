@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
-// UniApp 跨平台存储适配器（兼容 H5 / 小程序 / App）
+// UniApp cross-platform storage adapter (H5 / mini programs / App)
 const uniStorage = {
   getItem: (key) => {
     try {

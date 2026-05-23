@@ -21,7 +21,7 @@ const currentUser = ref({
 const loading = ref(false)
 
 /**
- * 从 Supabase 加载当前用户信息
+ * Load current user from Supabase
  */
 async function fetchCurrentUser() {
   loading.value = true
@@ -49,10 +49,10 @@ async function fetchCurrentUser() {
 }
 
 /**
- * 更新用户资料并同步到 Supabase
+ * Update profile and sync to Supabase
  */
 async function updateProfile(payload) {
-  // 乐观更新本地状态
+  // Optimistic local update
   Object.assign(currentUser.value, {
     name: payload.name ?? currentUser.value.name,
     mbti: payload.mbti ?? currentUser.value.mbti,

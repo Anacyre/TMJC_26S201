@@ -43,13 +43,13 @@ async function deleteCompletedTask(taskId) {
 }
 
 /**
- * 获取当前用户的全部任务
+ * Fetch all tasks for the current user
  * @param {{ status?: string }} options
  */
 export async function fetchTasks(options = {}) {
   if (USE_MOCK) return mock.fetchTasks(options)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: [], error: new Error('未登录') }
+  if (!user) return { data: [], error: new Error('Not signed in') }
 
   let query = supabase
     .from('tasks')
@@ -69,12 +69,12 @@ export async function fetchTasks(options = {}) {
 }
 
 /**
- * 获取单个任务
+ * Fetch a single task
  */
 export async function fetchTaskById(taskId) {
   if (USE_MOCK) return mock.fetchTaskById(taskId)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: new Error('未登录') }
+  if (!user) return { data: null, error: new Error('Not signed in') }
 
   const { data, error } = await supabase
     .from('tasks')
@@ -92,12 +92,12 @@ export async function fetchTaskById(taskId) {
 }
 
 /**
- * 创建任务
+ * Create a task
  */
 export async function createTask(payload) {
   if (USE_MOCK) return mock.createTask(payload)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: new Error('未登录') }
+  if (!user) return { data: null, error: new Error('Not signed in') }
 
   const deadlineDate = parseDeadlineDate(payload.deadline)
   const status = payload.status || resolveTaskStatusFromForm({ deadlineDate })
@@ -125,7 +125,7 @@ export async function createTask(payload) {
 }
 
 /**
- * 更新任务
+ * Update a task
  */
 export async function updateTask(taskId, payload) {
   if (USE_MOCK) return mock.updateTask(taskId, payload)
@@ -158,7 +158,7 @@ export async function updateTask(taskId, payload) {
 }
 
 /**
- * 删除任务
+ * Delete a task
  */
 export async function deleteTask(taskId) {
   if (USE_MOCK) return mock.deleteTask(taskId)
@@ -181,7 +181,7 @@ export async function archiveTask(taskId) {
 }
 
 /**
- * 切换任务完成状态
+ * Toggle task done state
  */
 export async function toggleTaskDone(taskId, currentDone) {
   if (USE_MOCK) return mock.toggleTaskDone(taskId, currentDone)
@@ -216,7 +216,7 @@ export async function toggleTaskDone(taskId, currentDone) {
 }
 
 /**
- * 切换 Checklist 某一项的完成状态
+ * Toggle a checklist item done state
  */
 export async function toggleChecklistItem(taskId, checklistId) {
   if (USE_MOCK) return mock.toggleChecklistItem(taskId, checklistId)

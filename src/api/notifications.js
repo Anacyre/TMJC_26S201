@@ -5,7 +5,7 @@ import { isAdminMember } from '@/lib/classMembers'
 const USE_MOCK = mock.USE_MOCK
 
 /**
- * 将数据库行映射为前端 Notification 对象
+ * Map a database row to a frontend Notification object
  */
 function rowToNotification(row, state = {}) {
   return {
@@ -29,13 +29,13 @@ function rowToNotification(row, state = {}) {
 }
 
 /**
- * 获取通知列表（含当前用户的个人状态）
+ * Fetch notifications (including per-user state)
  * @param {{ hidden?: boolean }} options
  */
 export async function fetchNotifications(options = {}) {
   if (USE_MOCK) return mock.fetchNotifications(options)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: [], error: new Error('未登录'), userId: '' }
+  if (!user) return { data: [], error: new Error('Not signed in'), userId: '' }
 
   const { data, error } = await supabase
     .from('notifications')
@@ -62,12 +62,12 @@ export async function fetchNotifications(options = {}) {
 }
 
 /**
- * 创建通知（仅管理员）
+ * Create a notification (admins only)
  */
 export async function createNotification(payload) {
   if (USE_MOCK) return mock.createNotification(payload)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: new Error('未登录') }
+  if (!user) return { data: null, error: new Error('Not signed in') }
 
   const { data: profile, error: profileError } = await supabase
     .from('profiles')
@@ -100,11 +100,11 @@ export async function createNotification(payload) {
 }
 
 /**
- * 更新当前用户对某条通知的个人状态（read-modify-write upsert）
+ * Upsert the current user's personal state for a notification
  */
 async function upsertState(notificationId, patch) {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: new Error('未登录'), userId: '' }
+  if (!user) return { error: new Error('Not signed in'), userId: '' }
 
   const { data: existing } = await supabase
     .from('notification_user_states')
@@ -156,7 +156,7 @@ export async function setInPlanner(notificationId, value) {
 }
 
 /**
- * 删除通知（管理员或发布者本人）
+ * Delete a notification (admin or publisher)
  */
 export async function deleteNotification(notificationId) {
   if (USE_MOCK) return mock.deleteNotification(notificationId)

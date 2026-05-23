@@ -13,7 +13,7 @@
               class="chip"
               :class="{ on: typeFilter === f }"
               role="button"
-              @tap="typeFilter = f"
+              @tap="toggleTypeFilter(f)"
             >
               <text>{{ f }}</text>
             </view>
@@ -23,7 +23,13 @@
           <text class="hiddenPillText">Hidden</text>
         </view>
       </view>
-      <scroll-view class="chipScroll sub" scroll-x :show-scrollbar="false" enhanced>
+      <scroll-view
+        v-if="showSubjectFilter"
+        class="chipScroll sub"
+        scroll-x
+        :show-scrollbar="false"
+        enhanced
+      >
         <view class="chipRow">
           <view
             v-for="s in subjectFilters"
@@ -39,7 +45,13 @@
       </scroll-view>
     </view>
 
-    <scroll-view class="scroll" scroll-y :show-scrollbar="false" :scroll-into-view="scrollInto">
+    <scroll-view
+      class="scroll"
+      :class="{ withSubject: showSubjectFilter }"
+      scroll-y
+      :show-scrollbar="false"
+      :scroll-into-view="scrollInto"
+    >
       <view v-if="loading" class="listPad">
         <SkeletonList variant="notifications" :count="5" />
       </view>
@@ -53,9 +65,9 @@
           side="left"
           :actions="[{ id: 'hide', icon: 'hide' }]"
           commit-action="hide"
-          :context-items="[{ id: 'hide', label: 'Hide', icon: 'hide' }]"
+          :context-items="noticeContextItems(n)"
           @commit="onHide(n)"
-          @action="onHide(n)"
+          @action="onNoticeAction(n, $event)"
         >
           <NoticeCard
             :notice="n"
@@ -75,9 +87,9 @@
           side="left"
           :actions="[{ id: 'hide', icon: 'hide' }]"
           commit-action="hide"
-          :context-items="[{ id: 'hide', label: 'Hide', icon: 'hide' }]"
+          :context-items="noticeContextItems(n)"
           @commit="onHide(n)"
-          @action="onHide(n)"
+          @action="onNoticeAction(n, $event)"
         >
           <NoticeCard
             :id="'n-' + n.id"
@@ -107,55 +119,74 @@
       </view>
     </view>
 
-    <view class="overlay" :class="{ show: showCreate }" @tap="showCreate = false">
-      <view class="sheet" @tap.stop>
-        <view class="grabber" />
-
-        <view class="typeRow">
-          <view
-            v-for="t in noticeTypes"
-            :key="t.id"
-            class="typeChip"
-            :class="['t-' + t.id, { on: draft.type === t.label }]"
-            role="button"
-            @tap="draft.type = t.label"
-          >
-            <text class="typeText">{{ t.label }}</text>
+    <view class="noticeEditorRoot">
+      <view class="overlay" :class="[themeClass, { show: showCreate }]" @tap="showCreate = false">
+        <view class="sheet" @tap.stop>
+          <view class="grabber" />
+          <view class="head">
+            <text class="sheetTitle">Notice</text>
           </view>
-        </view>
 
-        <view class="field">
-          <input class="input" v-model="draft.title" placeholder="Title" placeholder-class="placeholder" />
-        </view>
+          <scroll-view class="body" scroll-y :show-scrollbar="false">
+            <view class="field">
+              <input class="input" v-model="draft.title" placeholder="Title" placeholder-class="placeholder" />
+            </view>
 
-        <view class="field">
-          <TagSelect
-            v-model="draft.subject"
-            :options="tagNames"
-            :allow-create="true"
-            :can-create="true"
-            kind="subject"
-            @create="onCreateTag"
-            placeholder="Subject"
-          />
-        </view>
+            <view class="field collapsible">
+              <view class="collapseHead tap notesHead" role="button" @tap="descExpanded = !descExpanded">
+                <text class="collapseLabel">{{ descExpanded ? 'Details' : 'Add details' }}</text>
+                <text class="collapseChev" :class="{ open: descExpanded }">›</text>
+              </view>
+              <view class="collapseBody" :class="{ open: descExpanded }">
+                <textarea
+                  class="input area"
+                  v-model="draft.description"
+                  placeholder="Optional"
+                  placeholder-class="placeholder"
+                />
+              </view>
+            </view>
 
-        <view class="field">
-          <DateField v-model="draft.deadlineDate" mode="date" placeholder="Deadline" />
-        </view>
+            <view class="field metaGrid">
+              <view class="typeRow inline">
+                <view
+                  v-for="t in noticeTypes"
+                  :key="t.id"
+                  class="typeChip"
+                  :class="['t-' + t.id, { on: draft.type === t.label }]"
+                  role="button"
+                  @tap="draft.type = t.label"
+                >
+                  <text class="typeText">{{ t.label }}</text>
+                </view>
+              </view>
 
-        <view class="field collapsible">
-          <view class="collapseHead tap" role="button" @tap="descExpanded = !descExpanded">
-            <text class="collapseLabel">{{ descExpanded ? 'Details' : 'Add details' }}</text>
-            <text class="collapseChev" :class="{ open: descExpanded }">›</text>
+              <view class="metaRow">
+                <view v-if="showDraftSubject" class="metaItem">
+                  <TagSelect
+                    v-model="draft.subject"
+                    :options="tagNames"
+                    :allow-create="true"
+                    :can-create="true"
+                    kind="subject"
+                    @create="onCreateTag"
+                    placeholder="Subject"
+                  />
+                </view>
+                <view class="metaItem" :class="{ full: !showDraftSubject }">
+                  <DateField v-model="draft.deadlineDate" mode="date" placeholder="Deadline" />
+                </view>
+              </view>
+            </view>
+
+            <view class="sheetGap" />
+          </scroll-view>
+
+          <view class="footer">
+            <view class="save tap" :class="{ busy: publishing }" role="button" @tap="publish">
+              <text class="saveText">{{ publishing ? '…' : 'Publish' }}</text>
+            </view>
           </view>
-          <view class="collapseBody" :class="{ open: descExpanded }">
-            <textarea class="input area" v-model="draft.description" placeholder="Optional" placeholder-class="placeholder" />
-          </view>
-        </view>
-
-        <view class="commit tap" :class="{ busy: publishing }" role="button" @tap="publish">
-          <text class="commitText">{{ publishing ? '…' : 'Publish' }}</text>
         </view>
       </view>
     </view>
@@ -194,13 +225,14 @@ const {
   setHidden,
   getNotificationById,
   addNotification,
+  removeNotification,
 } = useNotificationStore()
 const { addTaskFromNotice } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
 const { isAdminActive, isRealAdmin } = useAdminMode()
 
-const typeFilters = ['All', 'Homework', 'General', 'VIA', 'Events', 'Important']
+const typeFilters = ['Homework', 'General', 'VIA', 'Events', 'Important']
 const subjectFilters = computed(() => ['All', ...tagNames.value.filter((n) => n !== 'General')])
 
 const noticeTypes = [
@@ -210,8 +242,9 @@ const noticeTypes = [
   { id: 'events', label: 'Event' },
 ]
 
-const typeFilter = ref('All')
+const typeFilter = ref('')
 const subjectFilter = ref('All')
+const showSubjectFilter = computed(() => typeFilter.value === 'Homework')
 const hidingId = ref('')
 const scrollInto = ref('')
 const showCreate = ref(false)
@@ -229,6 +262,7 @@ function emptyDraft() {
 }
 
 const draft = ref(emptyDraft())
+const showDraftSubject = computed(() => draft.value.type === 'Homework')
 
 function subjectMatches(n, chip) {
   if (chip === 'All') return true
@@ -237,17 +271,23 @@ function subjectMatches(n, chip) {
   return s.includes(chip.toLowerCase())
 }
 
+function toggleTypeFilter(f) {
+  typeFilter.value = typeFilter.value === f ? '' : f
+}
+
 function typeMatches(n, chip) {
-  if (chip === 'All') return true
+  if (!chip) return true
   if (chip === 'Important') return n.important
   if (chip === 'Events') return n.type === 'Event'
   return n.type === chip
 }
 
 const filtered = computed(() =>
-  visibleNotifications.value.filter(
-    (n) => typeMatches(n, typeFilter.value) && subjectMatches(n, subjectFilter.value)
-  )
+  visibleNotifications.value.filter((n) => {
+    if (!typeMatches(n, typeFilter.value)) return false
+    if (typeFilter.value === 'Homework' && !subjectMatches(n, subjectFilter.value)) return false
+    return true
+  })
 )
 
 const pinnedList = computed(() => {
@@ -292,6 +332,45 @@ function onPlanner(n) {
 
 function onImportant(n) {
   toggleImportant(n.id)
+}
+
+const noticeDeleteContextItem = { id: 'delete', label: 'Delete', icon: 'trash', danger: true }
+
+function canDeleteNotice(n) {
+  const userId = currentUser.value?.id
+  if (!userId || !n?.id) return false
+  return isAdminActive.value || n.createdBy === userId
+}
+
+function noticeContextItems(n) {
+  return canDeleteNotice(n) ? [noticeDeleteContextItem] : []
+}
+
+function onNoticeAction(n, actionId) {
+  if (actionId === 'delete') {
+    confirmDeleteNotice(n)
+    return
+  }
+  if (actionId === 'hide') onHide(n)
+}
+
+function confirmDeleteNotice(n) {
+  if (!canDeleteNotice(n)) return
+  uni.showModal({
+    title: 'Delete notice?',
+    content: 'This permanently removes the notice for everyone.',
+    confirmText: 'Delete',
+    confirmColor: '#dc5050',
+    success: async (res) => {
+      if (!res.confirm) return
+      const { error } = await removeNotification(n.id)
+      if (error) {
+        toast.show('Could not delete')
+        return
+      }
+      toast.removed()
+    },
+  })
 }
 
 function onHide(n) {
@@ -351,7 +430,7 @@ async function publish() {
     await addNotification({
       type: String(draft.value.type).trim(),
       title: String(draft.value.title).trim(),
-      subject: String(draft.value.subject || '').trim(),
+      subject: draft.value.type === 'Homework' ? String(draft.value.subject || '').trim() : '',
       deadline: formatDeadline(draft.value.deadlineDate),
       deadlineAt: draft.value.deadlineDate || null,
       description: String(draft.value.description || '').trim(),
@@ -371,6 +450,7 @@ async function publish() {
 onLoad((q) => {
   if (q?.subject) {
     const map = { math: 'Math', physics: 'Physics', chemistry: 'Chemistry', economics: 'Economics', gp: 'GP' }
+    typeFilter.value = 'Homework'
     subjectFilter.value = map[String(q.subject).toLowerCase()] || 'All'
   }
   if (q?.id) {
@@ -378,6 +458,14 @@ onLoad((q) => {
     const n = getNotificationById(q.id)
     if (n) markRead(n.id)
   }
+})
+
+watch(typeFilter, (next, prev) => {
+  if (prev === 'Homework' && next !== 'Homework') subjectFilter.value = 'All'
+})
+
+watch(() => draft.value.type, (next, prev) => {
+  if (prev === 'Homework' && next !== 'Homework') draft.value.subject = ''
 })
 
 watch([typeFilter, subjectFilter], () => {
@@ -390,7 +478,7 @@ watch([typeFilter, subjectFilter], () => {
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.filterWrap { position: relative; z-index: 2; padding: 0 0 8rpx; }
+.filterWrap { position: relative; z-index: 2; padding: 14rpx 0 8rpx; }
 .filtersTop { display: flex; align-items: center; gap: 10rpx; padding: 0 24rpx 6rpx; }
 .chipScroll.grow { flex: 1; min-width: 0; }
 .hiddenPill { flex-shrink: 0; padding: 10rpx 14rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.08); }
@@ -405,7 +493,8 @@ watch([typeFilter, subjectFilter], () => {
 .chip.sm { padding: 8rpx 14rpx; font-size: 19rpx; }
 .chip.on { background: rgba(46, 99, 255, 0.16); color: rgba(46, 99, 255, 0.96); border-color: rgba(46, 99, 255, 0.22); transform: scale(1.02); }
 .t-dark .chip.on { background: rgba(120, 160, 255, 0.18); color: rgba(170, 200, 255, 0.96); border-color: rgba(120, 160, 255, 0.26); }
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 96rpx); padding: 0 24rpx 32rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 72rpx); padding: 0 24rpx 32rpx; }
+.scroll.withSubject { height: calc(100vh - var(--shell-header-offset, 148rpx) - 116rpx); }
 .pinSection, .feedSection { margin-top: 8rpx; }
 .pinLabel { display: block; font-size: 20rpx; font-weight: 650; color: rgba(16, 24, 40, 0.48); padding: 8rpx 4rpx 10rpx; }
 .t-dark .pinLabel { color: rgba(245, 247, 255, 0.45); }
@@ -421,31 +510,53 @@ watch([typeFilter, subjectFilter], () => {
 .hLine { left: 0; right: 0; top: 50%; height: 2.4rpx; margin-top: -1.2rpx; }
 .vLine { top: 0; bottom: 0; left: 50%; width: 2.4rpx; margin-left: -1.2rpx; }
 
-.overlay { position: fixed; inset: 0; z-index: 50; opacity: 0; pointer-events: none; background: rgba(8, 12, 24, 0.4); backdrop-filter: blur(12px); transition: opacity 0.22s ease; }
+.overlay { position: fixed; inset: 0; z-index: 70; opacity: 0; pointer-events: none; background: rgba(8, 12, 24, 0.32); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); transition: opacity 240ms ease; }
+.overlay.t-dark { background: rgba(0, 0, 0, 0.55); }
 .overlay.show { opacity: 1; pointer-events: auto; }
-.sheet { position: absolute; left: 12rpx; right: 12rpx; bottom: 12rpx; max-height: 92vh; padding: 0 22rpx 22rpx; border-radius: 34rpx; background: rgba(255, 255, 255, 0.94); border: 1rpx solid rgba(255, 255, 255, 0.6); overflow: hidden; }
-.t-dark .sheet { background: #1a1d21; border-color: rgba(255, 255, 255, 0.06); }
-.grabber { margin: 12rpx auto 8rpx; width: 72rpx; height: 8rpx; border-radius: 999rpx; background: rgba(16,24,40,.18); }
-.t-dark .grabber { background: rgba(245,247,255,.2); }
+.sheet {
+  position: absolute;
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 8rpx;
+  max-height: 92vh;
+  border-radius: 38rpx;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1rpx solid rgba(255, 255, 255, 0.62);
+  box-shadow: 0 40rpx 120rpx rgba(10, 16, 30, 0.22);
+  transform: translateY(22rpx);
+  transition: transform 320ms cubic-bezier(0.2, 0.7, 0.1, 1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.t-dark .sheet { background: #1a1d21; border-color: rgba(255, 255, 255, 0.06); box-shadow: 0 44rpx 132rpx rgba(0, 0, 0, 0.55); }
+.overlay.show .sheet { transform: translateY(0); }
+.grabber { margin: 16rpx auto 0; width: 80rpx; height: 9rpx; border-radius: 999rpx; background: rgba(16, 24, 40, 0.18); }
+.t-dark .grabber { background: rgba(245, 247, 255, 0.2); }
+.head { padding: 12rpx 28rpx 10rpx; display: flex; align-items: center; justify-content: space-between; }
+.sheetTitle { font-size: 30rpx; font-weight: 760; color: rgba(16, 24, 40, 0.92); }
+.t-dark .sheetTitle { color: #f5f7fa; }
+.body { max-height: 72vh; padding: 0 28rpx; box-sizing: border-box; }
 
-.field { margin-top: 12rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.field { margin-top: 16rpx; display: flex; flex-direction: column; gap: 10rpx; }
 .collapsible { gap: 0; }
 .collapseHead {
-  min-height: 84rpx;
-  padding: 0 16rpx;
-  border-radius: 22rpx;
+  min-height: 64rpx;
+  padding: 0 20rpx;
+  border-radius: 24rpx;
   background: rgba(255, 255, 255, 0.78);
   border: 1rpx solid rgba(16, 24, 40, 0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12rpx;
+  transition: border-color 200ms ease, background 200ms ease;
 }
-.t-dark .collapseHead { background: #23272d; border-color: rgba(255, 255, 255, 0.08); }
-.collapseLabel { font-size: 24rpx; color: rgba(16, 24, 40, 0.62); font-weight: 660; }
+.t-dark .collapseHead { background: #23272d; border-color: rgba(255, 255, 255, 0.06); }
+.collapseLabel { font-size: 26rpx; color: rgba(16, 24, 40, 0.62); font-weight: 660; }
 .t-dark .collapseLabel { color: rgba(245, 247, 255, 0.62); }
 .collapseChev {
-  font-size: 28rpx;
+  font-size: 32rpx;
   line-height: 1;
   color: rgba(16, 24, 40, 0.38);
   transform: rotate(90deg);
@@ -461,28 +572,91 @@ watch([typeFilter, subjectFilter], () => {
   margin-top: 0;
 }
 .collapseBody.open {
-  max-height: 280rpx;
+  max-height: 320rpx;
   opacity: 1;
-  margin-top: 10rpx;
+  margin-top: 12rpx;
 }
-.input { min-height: 84rpx; padding: 0 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.78); border: 1rpx solid rgba(16, 24, 40, 0.08); color: rgba(16, 24, 40, 0.92); font-size: 24rpx; }
-.t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.08); color: #f5f7fa; }
-.area { min-height: 160rpx; padding-top: 16rpx; }
-.placeholder { color: rgba(16, 24, 40, 0.35); }
-.t-dark .placeholder { color: rgba(245, 247, 255, 0.35); }
+.collapseBody .area { min-height: 180rpx; }
+.input {
+  min-height: 96rpx;
+  padding: 0 20rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(16, 24, 40, 0.08);
+  color: rgba(16, 24, 40, 0.92);
+  font-size: 28rpx;
+  transition: border-color 200ms ease, box-shadow 200ms ease, background 200ms ease;
+}
+.t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.06); color: #f5f7fa; }
+.input:focus { border-color: rgba(46, 99, 255, 0.4); box-shadow: 0 0 0 6rpx rgba(46, 99, 255, 0.12); }
+.area { min-height: 168rpx; padding-top: 22rpx; }
+.placeholder { color: rgba(16, 24, 40, 0.34); }
+.t-dark .placeholder { color: rgba(245, 247, 255, 0.32); }
 
-.typeRow { display: flex; gap: 8rpx; flex-wrap: wrap; margin-top: 4rpx; }
-.typeChip { display: flex; align-items: center; padding: 10rpx 16rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.06); transition: background 220ms ease, border-color 220ms ease, transform 180ms ease; }
+.noticeEditorRoot :deep(.control) {
+  min-height: 96rpx;
+  padding: 16rpx 20rpx;
+  border-radius: 24rpx;
+}
+.noticeEditorRoot :deep(.value) { font-size: 28rpx; }
+.noticeEditorRoot :deep(.label) { font-size: 20rpx; }
+.noticeEditorRoot :deep(.chipText) { font-size: 20rpx; }
+.noticeEditorRoot :deep(.iconWrap) { width: 46rpx; height: 46rpx; border-radius: 14rpx; }
+
+.metaGrid { gap: 10rpx; }
+.metaRow { display: flex; gap: 10rpx; width: 100%; align-items: stretch; }
+.metaItem { flex: 1; min-width: 0; }
+.metaItem.full { flex: 1; width: 100%; }
+
+.typeRow { display: flex; gap: 8rpx; flex-wrap: wrap; }
+.typeRow.inline {
+  min-height: 96rpx;
+  padding: 8rpx;
+  border-radius: 24rpx;
+  border: 1rpx solid rgba(16, 24, 40, 0.08);
+  background: rgba(255, 255, 255, 0.78);
+  gap: 6rpx;
+  box-sizing: border-box;
+  flex-wrap: nowrap;
+}
+.t-dark .typeRow.inline {
+  border-color: rgba(255, 255, 255, 0.06);
+  background: #23272d;
+}
+.typeChip {
+  flex: 1;
+  min-width: 0;
+  min-height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 8rpx;
+  border-radius: 18rpx;
+  background: rgba(255, 255, 255, 0.62);
+  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  transition: background 220ms ease, border-color 220ms ease, transform 180ms ease;
+}
 .t-dark .typeChip { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .typeChip:active { transform: scale(0.97); }
 .typeChip.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.24); }
-.typeText { font-size: 20rpx; font-weight: 700; color: rgba(16, 24, 40, 0.78); }
+.typeText { font-size: 22rpx; font-weight: 700; color: rgba(16, 24, 40, 0.78); text-align: center; }
 .t-dark .typeText { color: rgba(245, 247, 255, 0.78); }
 .typeChip.on .typeText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
 .t-dark .typeChip.on .typeText { color: rgba(170, 200, 255, 0.96); }
 
-.commit { margin-top: 18rpx; height: 88rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #5a8eff, #2e63ff); color: #fff; box-shadow: 0 18rpx 50rpx rgba(46, 99, 255, 0.28); transition: transform 180ms ease, box-shadow 180ms ease; }
-.commit:active { transform: scale(0.985); }
-.commit.busy { opacity: 0.7; pointer-events: none; }
-.commitText { font-size: 23rpx; font-weight: 760; color: #fff; }
+.sheetGap { height: 32rpx; }
+.footer { padding: 20rpx 28rpx 28rpx; flex-shrink: 0; }
+.save {
+  height: 104rpx;
+  border-radius: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #5a8eff, #2e63ff);
+  box-shadow: 0 20rpx 60rpx rgba(46, 99, 255, 0.3);
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+.save:active { transform: scale(0.985); }
+.save.busy { opacity: 0.7; pointer-events: none; }
+.saveText { font-size: 28rpx; font-weight: 760; color: rgba(255, 255, 255, 0.98); letter-spacing: 0.3rpx; }
 </style>

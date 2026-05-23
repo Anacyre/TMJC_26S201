@@ -5,7 +5,7 @@ const subjects = ref([])
 const resources = ref([])
 const loading = ref(false)
 
-// ─── 数据获取 ────────────────────────────────────────────────────
+// ─── Data fetch ────────────────────────────────────────────────────
 
 async function fetchSubjects() {
   const { data, error } = await studyApi.fetchSubjects()
@@ -24,7 +24,7 @@ async function fetchResources(options = {}) {
   }
 }
 
-// ─── 读取工具 ────────────────────────────────────────────────────
+// ─── Read helpers ────────────────────────────────────────────────────
 
 function getSubjectById(id) {
   return subjects.value.find((x) => x.id === id) || subjects.value[0]
@@ -38,7 +38,7 @@ function getResourcesBySubject(subjectId) {
   return resources.value.filter((x) => x.subjectId === subjectId)
 }
 
-// ─── 写操作 ──────────────────────────────────────────────────────
+// ─── Writes ──────────────────────────────────────────────────────
 
 async function uploadResource(payload) {
   const { data, error } = await studyApi.createResource(payload)
@@ -66,7 +66,7 @@ async function downloadResource(resourceId) {
   return studyApi.downloadResource(resourceId)
 }
 
-// ─── 计算属性 ────────────────────────────────────────────────────
+// ─── Computed ────────────────────────────────────────────────────
 
 const latestResources = computed(() => resources.value)
 

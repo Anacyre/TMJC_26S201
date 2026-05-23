@@ -31,7 +31,7 @@ export async function createCommunity(payload) {
 // ─── Posts ──────────────────────────────────────────────────────
 
 /**
- * 将数据库行映射为前端 Post 对象
+ * Map a database row to a frontend Post object
  */
 function rowToPost(row) {
   return {
@@ -52,7 +52,7 @@ function rowToPost(row) {
 }
 
 /**
- * 获取帖子列表
+ * Fetch posts
  * @param {{ communityId?: string, sort?: 'hot'|'new'|'top' }} options
  */
 export async function fetchPosts(options = {}) {
@@ -80,7 +80,7 @@ export async function fetchPosts(options = {}) {
   const { data, error } = await query
   if (error) return { data: [], error }
 
-  // 查询当前用户的点赞状态
+  // Fetch current user's like state
   let likedSet = new Set()
   if (user && data.length > 0) {
     const postIds = data.map((p) => p.id)
@@ -99,12 +99,12 @@ export async function fetchPosts(options = {}) {
 }
 
 /**
- * 创建帖子
+ * Create a post
  */
 export async function createPost(payload) {
   if (USE_MOCK) return mock.createPost(payload)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: new Error('未登录') }
+  if (!user) return { data: null, error: new Error('Not signed in') }
 
   const { data, error } = await supabase
     .from('posts')
@@ -125,7 +125,7 @@ export async function createPost(payload) {
 }
 
 /**
- * 切换点赞帖子（数据库端原子操作，避免并发竞态）
+ * Toggle post like (atomic on the database)
  */
 export async function togglePostLike(postId, currentLiked, currentCount) {
   if (USE_MOCK) return mock.togglePostLike(postId, currentLiked, currentCount)
@@ -150,7 +150,7 @@ function rowToComment(row) {
 }
 
 /**
- * 获取帖子评论
+ * Fetch post comments
  */
 export async function fetchComments(postId) {
   if (USE_MOCK) return mock.fetchComments(postId)
@@ -164,12 +164,12 @@ export async function fetchComments(postId) {
 }
 
 /**
- * 发表评论
+ * Add a comment
  */
 export async function addComment(postId, text, anonymous = false) {
   if (USE_MOCK) return mock.addComment(postId, text, anonymous)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: null, error: new Error('未登录') }
+  if (!user) return { data: null, error: new Error('Not signed in') }
 
   const { data, error } = await supabase
     .from('comments')
