@@ -16,7 +16,7 @@
             <text class="btnTextPrimary">Download</text>
           </view>
           <view class="btn" :class="{ on: likedState }" role="button" @tap="onLike">
-            <text class="btnText">{{ likedState ? 'â™?Liked' : 'â™?Like' }}</text>
+            <text class="btnText">{{ likedState ? 'â™¥ Liked' : 'â™¥ Like' }}</text>
           </view>
         </view>
       </view>

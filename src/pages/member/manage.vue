@@ -86,7 +86,7 @@
           </view>
         </view>
         <view class="commit" role="button" @tap="commitAdd">
-          <text class="commitText">{{ saving ? 'Creatingâ€? : 'Create account' }}</text>
+          <text class="commitText">{{ saving ? 'Creatingâ€¦' : 'Create account' }}</text>
         </view>
       </view>
     </view>

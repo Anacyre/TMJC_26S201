@@ -128,7 +128,6 @@ import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { toast } from '@/composables/useToast'
-import { navTo, pageAnim } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 const { tasks, loading, toggleTaskDone, addTask, deleteTask, archiveTask } = useTasksStore()
@@ -164,7 +163,7 @@ function toggleDone(t) {
 }
 
 function openTask(t) {
-  navTo(`/pages/task/detail?id=${encodeURIComponent(t.id)}`, pageAnim.slide)
+  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}` })
 }
 
 function openCreate() {

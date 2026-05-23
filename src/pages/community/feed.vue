@@ -60,7 +60,7 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="sheetTitle">New post</text>
-        <textarea class="input area" v-model="draft.text" placeholder="Share something usefulâ€? placeholder-class="ph" />
+        <textarea class="input area" v-model="draft.text" placeholder="Share something usefulâ€¦" placeholder-class="ph" />
         <input class="input" v-model="draft.image" placeholder="Image URL (optional)" placeholder-class="ph" />
         <view class="anonRow" role="button" @tap="draft.anonymous = !draft.anonymous">
           <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>

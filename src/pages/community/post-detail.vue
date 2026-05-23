@@ -9,10 +9,10 @@
         <text class="content">{{ post.content || 'No content yet.' }}</text>
         <view class="actions">
           <view class="btn" :class="{ on: post.liked }" role="button" @tap="onToggleLike">
-            <text class="btnText">{{ post.liked ? `â™?Liked (${post.likesCount})` : `â™?Like (${post.likesCount || 0})` }}</text>
+            <text class="btnText">{{ post.liked ? `â™¥ Liked (${post.likesCount})` : `â™¥ Like (${post.likesCount || 0})` }}</text>
           </view>
           <view class="btn" :class="{ on: saved }" role="button" @tap="saved = !saved">
-            <text class="btnText">{{ saved ? 'â˜?Saved' : 'â˜?Save' }}</text>
+            <text class="btnText">{{ saved ? 'â˜… Saved' : 'â˜† Save' }}</text>
           </view>
         </view>
       </view>

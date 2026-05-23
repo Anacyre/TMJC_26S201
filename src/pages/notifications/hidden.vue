@@ -18,7 +18,7 @@
         </view>
         <view class="acts">
           <view class="iconBtn" role="button" @tap="restore(n.id)">
-            <text class="glyph">�?/text>
+            <text class="glyph">↺</text>
           </view>
           <view class="iconBtn danger" role="button" @tap="remove(n.id)">
             <text class="glyph">×</text>

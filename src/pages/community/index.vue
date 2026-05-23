@@ -12,7 +12,7 @@
         <view class="noticeBody">
           <text class="noticeTitle">Notices</text>
         </view>
-        <text class="noticeChev">â€?/text>
+        <text class="noticeChev">â?º</text>
       </view>
       <view v-if="isAdmin" class="manageBtn" role="button" @tap="openManage" aria-label="Manage members">
         <view class="mGlyph">
@@ -84,7 +84,7 @@
         <text class="sheetSub">A focused space for one topic.</text>
         <view class="field"><input class="input" v-model="draft.name" placeholder="Community name" placeholder-class="ph" /></view>
         <view class="field"><input class="input" v-model="draft.desc" placeholder="One-line description" placeholder-class="ph" /></view>
-        <view class="field"><input class="input" v-model="draft.icon" placeholder="Icon glyph (e.g. â—?" placeholder-class="ph" maxlength="2" /></view>
+        <view class="field"><input class="input" v-model="draft.icon" placeholder="Icon glyph (e.g. â??)" placeholder-class="ph" maxlength="2" /></view>
         <view class="create" role="button" @tap="createCommunity">Create</view>
       </view>
     </view>
@@ -117,7 +117,7 @@ const { publicFocusHoursLabel } = useFocusStore()
 const tab = ref('communities')
 const showAddCommunity = ref(false)
 const isAdmin = computed(() => isAdminMember(currentUser.value))
-const draft = ref({ name: '', desc: '', icon: 'â—? })
+const draft = ref({ name: '', desc: '', icon: 'â??' })
 
 function initials(name) {
   return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
@@ -148,10 +148,10 @@ function createCommunity() {
   addCommunity({
     name: draft.value.name.trim(),
     desc: draft.value.desc.trim() || 'A new class space.',
-    icon: draft.value.icon.trim() || 'â—?,
+    icon: draft.value.icon.trim() || 'â??',
   })
   showAddCommunity.value = false
-  draft.value = { name: '', desc: '', icon: 'â—? }
+  draft.value = { name: '', desc: '', icon: 'â??' }
 }
 </script>
 

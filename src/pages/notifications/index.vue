@@ -158,7 +158,7 @@
         </view>
 
         <view class="commit" :class="{ busy: publishing }" role="button" @tap="publish">
-          <text class="commitText">{{ publishing ? 'Publishingâ€? : 'Publish' }}</text>
+          <text class="commitText">{{ publishing ? 'Publishingâ€¦' : 'Publish' }}</text>
         </view>
       </view>
     </view>

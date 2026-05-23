@@ -6,7 +6,7 @@
       <view class="noticeStripMain">
         <text class="noticeStripLabel">Notices</text>
       </view>
-      <text class="noticeStripChev">â€?/text>
+      <text class="noticeStripChev">â€º</text>
     </view>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view v-if="!resourcesView.length" class="emptyWrap">

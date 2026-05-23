@@ -8,7 +8,7 @@
           <view class="dot" />
           <view class="brandText">
             <text class="brandTitle">26S201 Class OS</text>
-            <text class="brandSub">Tasks ? Community ? Study</text>
+            <text class="brandSub">Tasks - Community - Study</text>
           </view>
         </view>
 
@@ -35,8 +35,8 @@
         <view v-if="isPreview" class="previewBanner" role="button" @tap="useDemoAccount">
           <view class="previewDot" />
           <view class="previewText">
-            <text class="previewTitle">Preview Mode ? backend not connected</text>
-            <text class="previewSub">Tap to use the demo account ? test@class.com ? any password</text>
+            <text class="previewTitle">Preview Mode - backend not connected</text>
+            <text class="previewSub">Tap to use the demo account - test@class.com - any password</text>
           </view>
         </view>
 
@@ -44,7 +44,7 @@
           <view class="previewDot" />
           <view class="previewText">
             <text class="previewTitle">Class login</text>
-            <text class="previewSub">Use your username ? first-time password is 123456</text>
+            <text class="previewSub">Use your username - first-time password is 123456</text>
           </view>
         </view>
 
@@ -53,7 +53,7 @@
             <text class="label">{{ mode === 'login' ? 'Username or email' : 'Email' }}</text>
             <input
               class="input"
-              :placeholder="mode === 'login' ? 'xiong_chenyu  ?  or email' : 'you@example.com'"
+              :placeholder="mode === 'login' ? 'xiong_chenyu or email' : 'you@example.com'"
               placeholder-class="placeholder"
               v-model="account"
               @focus="focusKey = 'account'"
@@ -79,7 +79,7 @@
             <input
               class="input"
               password
-              placeholder="????????????????????????
+              placeholder="Enter password"
               placeholder-class="placeholder"
               v-model="password"
               @focus="focusKey = 'password'"
@@ -93,7 +93,7 @@
             <input
               class="input"
               password
-              placeholder="????????????????????????
+              placeholder="Enter password"
               placeholder-class="placeholder"
               v-model="password2"
               @focus="focusKey = 'password2'"

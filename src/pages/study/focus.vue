@@ -130,12 +130,12 @@
         <text class="sheetTitle">Custom duration</text>
         <text class="sheetSub">Choose how long you want to focus.</text>
         <view class="customRow">
-          <view class="adjust" role="button" @tap="adjustCustom(-5)"><text class="adjustText">âˆ?/text></view>
+          <view class="adjust" role="button" @tap="adjustCustom(-5)"><text class="adjustText">âˆ’</text></view>
           <view class="customNumWrap">
             <text class="customNum">{{ customMinutes }}</text>
             <text class="customUnit">min</text>
           </view>
-          <view class="adjust" role="button" @tap="adjustCustom(5)"><text class="adjustText">ï¼?/text></view>
+          <view class="adjust" role="button" @tap="adjustCustom(5)"><text class="adjustText">ï¼‹</text></view>
         </view>
         <view class="commit" role="button" @tap="commitCustom">
           <text class="commitText">Set duration</text>
@@ -201,7 +201,7 @@ const phaseLabel = computed(() => {
 })
 
 const statusLabel = computed(() => {
-  if (running.value) return 'Stay with it â€?breathe, look at the work, and continue.'
+  if (running.value) return 'Stay with it â€” breathe, look at the work, and continue.'
   if (remaining.value === 0) return 'Nice work. Take a few slow breaths.'
   return 'Pick a duration, then start when youâ€™re ready.'
 })
@@ -221,7 +221,7 @@ const weekMinutesLabel = computed(() => {
 
 const avgSessionLabel = computed(() => {
   const list = sessions.value
-  if (!list.length) return 'â€?
+  if (!list.length) return 'â€”'
   const total = list.reduce((acc, s) => acc + (s.minutes || 0), 0)
   return `${Math.round(total / list.length)}m`
 })
