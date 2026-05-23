@@ -146,7 +146,7 @@ async function commitAdd() {
   })
   await fetchMembers()
   addOpen.value = false
-  toast.added()
+  toast.show('Created · pwd 123456')
 }
 
 async function promote(m) {

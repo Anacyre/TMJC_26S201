@@ -2,6 +2,7 @@ import { computed, ref } from 'vue'
 
 const FOCUS_KEY = 'focus_sessions_v1'
 const FOCUS_PREFS_KEY = 'focus_prefs_v1'
+const FOCUS_ACTIVE_KEY = 'focus_active_v1'
 
 const WHITE_NOISE = [
   { id: 'silence', name: 'Silence' },
@@ -31,6 +32,27 @@ function loadPrefs() {
 }
 function savePrefs(value) {
   try { uni.setStorageSync(FOCUS_PREFS_KEY, value) } catch (e) {}
+}
+
+function loadActiveSession() {
+  try {
+    const raw = uni.getStorageSync(FOCUS_ACTIVE_KEY)
+    if (raw && typeof raw === 'object') return raw
+  } catch (e) {}
+  return null
+}
+
+function saveActiveSession(state) {
+  try {
+    uni.setStorageSync(FOCUS_ACTIVE_KEY, {
+      ...state,
+      updatedAt: new Date().toISOString(),
+    })
+  } catch (e) {}
+}
+
+function clearActiveSession() {
+  try { uni.removeStorageSync(FOCUS_ACTIVE_KEY) } catch (e) {}
 }
 
 const sessions = ref(loadSessions())
@@ -148,5 +170,8 @@ export function useFocusStore() {
     setVisibility,
     setDefaultMinutes,
     setSound,
+    loadActiveSession,
+    saveActiveSession,
+    clearActiveSession,
   }
 }

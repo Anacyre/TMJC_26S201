@@ -47,31 +47,47 @@
       <template v-else>
       <view v-if="pinnedList.length" class="pinSection">
         <text class="pinLabel">Important</text>
-        <NoticeCard
+        <SwipeRow
           v-for="n in pinnedList"
           :key="'p-' + n.id"
-          :notice="n"
-          :hiding="hidingId === n.id"
-          @open="onOpenCard(n)"
-          @planner="onPlanner(n)"
-          @important="onImportant(n)"
-          @hide="onHide(n)"
-        />
+          side="left"
+          :actions="[{ id: 'hide', icon: 'hide' }]"
+          commit-action="hide"
+          :context-items="[{ id: 'hide', label: 'Hide notice', icon: 'hide' }]"
+          @commit="onHide(n)"
+          @action="onHide(n)"
+        >
+          <NoticeCard
+            :notice="n"
+            :hiding="hidingId === n.id"
+            @open="onOpenCard(n)"
+            @planner="onPlanner(n)"
+            @important="onImportant(n)"
+          />
+        </SwipeRow>
       </view>
 
       <view v-if="restList.length" class="feedSection">
         <text v-if="pinnedList.length" class="pinLabel dim">All</text>
-        <NoticeCard
+        <SwipeRow
           v-for="n in restList"
           :key="n.id"
-          :id="'n-' + n.id"
-          :notice="n"
-          :hiding="hidingId === n.id"
-          @open="onOpenCard(n)"
-          @planner="onPlanner(n)"
-          @important="onImportant(n)"
-          @hide="onHide(n)"
-        />
+          side="left"
+          :actions="[{ id: 'hide', icon: 'hide' }]"
+          commit-action="hide"
+          :context-items="[{ id: 'hide', label: 'Hide notice', icon: 'hide' }]"
+          @commit="onHide(n)"
+          @action="onHide(n)"
+        >
+          <NoticeCard
+            :id="'n-' + n.id"
+            :notice="n"
+            :hiding="hidingId === n.id"
+            @open="onOpenCard(n)"
+            @planner="onPlanner(n)"
+            @important="onImportant(n)"
+          />
+        </SwipeRow>
       </view>
 
       <view v-if="!pinnedList.length && !restList.length" class="emptyWrap">
@@ -156,6 +172,7 @@ import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import NoticeCard from '@/components/NoticeCard.vue'
+import SwipeRow from '@/components/SwipeRow.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
@@ -267,7 +284,7 @@ function onPlanner(n) {
     noticeTitle: n.title,
   })
   setInPlanner(n.id, true)
-  toast.added()
+  toast.addedToPlanner()
 }
 
 function onImportant(n) {
@@ -279,7 +296,8 @@ function onHide(n) {
   setTimeout(() => {
     toggleHidden(n.id)
     hidingId.value = ''
-  }, 320)
+    toast.noticeHidden()
+  }, 280)
 }
 
 function openHidden() {

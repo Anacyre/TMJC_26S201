@@ -480,7 +480,6 @@ export async function login(email, password) {
   if (!trimmed) return { data: null, error: new Error('Please enter account') }
   let user = _state.authUsers.find((u) => u.email.toLowerCase() === trimmed)
   if (!user) {
-    // Preview mode: allow first-time sign-in with any account.
     const id = uid('usr')
     const display = trimmed.includes('@') ? trimmed.split('@')[0] : trimmed
     user = { id, email: trimmed, display_name: display || 'Guest' }
@@ -498,12 +497,22 @@ export async function login(email, password) {
     })
     persist()
   }
+  if (user.password && String(password || '') !== user.password) {
+    return { data: null, error: new Error('Incorrect password') }
+  }
   const session = {
     access_token: 'mock-token',
     user: { id: user.id, email: user.email, user_metadata: { display_name: user.display_name } },
   }
   setSession(session)
-  return { data: { user: session.user, session }, error: null }
+  return {
+    data: {
+      user: session.user,
+      session,
+      mustChangePassword: !!user.must_change_password,
+    },
+    error: null,
+  }
 }
 
 export async function register(email, password, displayName) {
@@ -611,6 +620,8 @@ export async function adminAddMember({ name, email, role = 'member' }) {
     id,
     email: cleanEmail || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@students.edu.sg`,
     display_name: cleanName,
+    password: '123456',
+    must_change_password: true,
   })
   _state.profiles.push({
     id,
@@ -624,7 +635,19 @@ export async function adminAddMember({ name, email, role = 'member' }) {
     avatar_url: '',
   })
   persist()
-  return { data: { id, name: cleanName }, error: null }
+  return { data: { id, name: cleanName, defaultPassword: '123456' }, error: null }
+}
+
+export async function changePassword(userId, newPassword) {
+  await tick()
+  const user = _state.authUsers.find((u) => u.id === userId)
+  if (!user) return { error: new Error('User not found') }
+  const next = String(newPassword || '').trim()
+  if (next.length < 6) return { error: new Error('Password must be at least 6 characters') }
+  user.password = next
+  user.must_change_password = false
+  persist()
+  return { error: null }
 }
 
 export async function adminSetRole(userId, role) {
@@ -690,6 +713,17 @@ export async function updateTask(taskId, payload) {
   row.updated_at = nowIso()
   persist()
   return { data: rowToTask(row), error: null }
+}
+
+export async function archiveTask(taskId) {
+  await tick()
+  const idx = _state.tasks.findIndex((t) => t.id === taskId)
+  if (idx < 0) return { data: null, error: new Error('Task not found') }
+  _state.tasks[idx].status = 'archived'
+  _state.tasks[idx].done = true
+  _state.tasks[idx].updated_at = nowIso()
+  persist()
+  return { data: rowToTask(_state.tasks[idx]), error: null }
 }
 
 export async function deleteTask(taskId) {

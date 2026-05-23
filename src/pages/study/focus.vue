@@ -150,7 +150,7 @@
 
 <script setup>
 import { computed, onBeforeUnmount, ref } from 'vue'
-import { onHide } from '@dcloudio/uni-app'
+import { onHide, onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import BottomNav from '@/components/BottomNav.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
@@ -168,14 +168,19 @@ const {
   setSound,
   setDefaultMinutes,
   sessions,
+  loadActiveSession,
+  saveActiveSession,
+  clearActiveSession,
 } = useFocusStore()
 
 const durations = [25, 50, 90]
 const noises = WHITE_NOISE_OPTIONS
 
-const selectedMinutes = ref(prefs.value.defaultMinutes || 25)
+const saved = loadActiveSession()
+const selectedMinutes = ref(saved?.selectedMinutes || prefs.value.defaultMinutes || 25)
 const totalSeconds = computed(() => selectedMinutes.value * 60)
-const remaining = ref(totalSeconds.value)
+const remaining = ref(saved?.remaining ?? selectedMinutes.value * 60)
+const elapsed = ref(saved?.elapsed ?? 0)
 const running = ref(false)
 const tickRef = ref(null)
 const customOpen = ref(false)
@@ -227,11 +232,33 @@ function barHeight(minutes) {
   return Math.max(6, Math.min(100, Math.round((minutes / max) * 100)))
 }
 
+function persistSession() {
+  saveActiveSession({
+    remaining: remaining.value,
+    selectedMinutes: selectedMinutes.value,
+    totalSeconds: totalSeconds.value,
+    elapsed: totalSeconds.value - remaining.value,
+    soundId: prefs.value.soundId,
+    running: false,
+  })
+}
+
+function restoreSession() {
+  const snap = loadActiveSession()
+  if (!snap) return
+  if (snap.selectedMinutes) selectedMinutes.value = snap.selectedMinutes
+  if (typeof snap.remaining === 'number') remaining.value = snap.remaining
+  if (typeof snap.elapsed === 'number') elapsed.value = snap.elapsed
+  if (snap.soundId) setSound(snap.soundId)
+}
+
 function selectDuration(d) {
   if (running.value) return
   selectedMinutes.value = d
   remaining.value = d * 60
+  elapsed.value = 0
   setDefaultMinutes(d)
+  persistSession()
 }
 
 function openCustom() {
@@ -250,13 +277,16 @@ function commitCustom() {
   }
   selectedMinutes.value = customMinutes.value
   remaining.value = customMinutes.value * 60
+  elapsed.value = 0
   setDefaultMinutes(customMinutes.value)
   customOpen.value = false
+  persistSession()
 }
 
 function tick() {
   if (!running.value) return
   remaining.value = Math.max(0, remaining.value - 1)
+  elapsed.value = totalSeconds.value - remaining.value
   if (remaining.value === 0) {
     completeSession()
   }
@@ -273,10 +303,12 @@ function togglePlay() {
 function start() {
   if (remaining.value <= 0) {
     remaining.value = totalSeconds.value
+    elapsed.value = 0
   }
   running.value = true
   if (tickRef.value) clearInterval(tickRef.value)
   tickRef.value = setInterval(tick, 1000)
+  persistSession()
 }
 
 function pause() {
@@ -285,11 +317,14 @@ function pause() {
     clearInterval(tickRef.value)
     tickRef.value = null
   }
+  persistSession()
 }
 
 function reset() {
   pause()
   remaining.value = totalSeconds.value
+  elapsed.value = 0
+  persistSession()
 }
 
 function completeSession() {
@@ -302,12 +337,16 @@ function completeSession() {
   })
   toast.saved()
   remaining.value = totalSeconds.value
+  elapsed.value = 0
+  clearActiveSession()
 }
 
 function pickNoise(id) {
   setSound(id)
+  persistSession()
 }
 
+onShow(() => restoreSession())
 onHide(() => pause())
 onBeforeUnmount(() => pause())
 </script>

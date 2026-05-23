@@ -31,7 +31,15 @@
 
         <view v-else class="list">
           <template v-for="t in filtered" :key="t.id">
-            <SwipeRow v-if="tab === 'completed'" @delete="deleteTaskRow(t.id)">
+            <SwipeRow
+              v-if="tab === 'completed'"
+              side="left"
+              :actions="taskSwipeActions"
+              commit-action="delete"
+              :context-items="taskContextItems"
+              @commit="deleteTaskRow(t.id)"
+              @action="onTaskSwipeAction(t.id, $event)"
+            >
               <view
                 class="card task tap"
                 :class="['st-' + t.status, { pressed: pressedKey === t.id }]"
@@ -92,7 +100,7 @@
         </view>
 
         <view v-if="tab === 'completed' && filtered.length" class="swipeHint">
-          <text class="swipeHintText">Swipe to delete</text>
+          <text class="swipeHintText">Swipe for delete · archive</text>
         </view>
 
         <view class="spacer" />
@@ -126,7 +134,16 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { tasks, loading, toggleTaskDone, addTask, deleteTask } = useTasksStore()
+const { tasks, loading, toggleTaskDone, addTask, deleteTask, archiveTask } = useTasksStore()
+
+const taskSwipeActions = [
+  { id: 'delete', icon: 'trash' },
+  { id: 'archive', icon: 'archive' },
+]
+const taskContextItems = [
+  { id: 'delete', label: 'Delete task', icon: 'trash', danger: true },
+  { id: 'archive', label: 'Archive task', icon: 'archive' },
+]
 
 const tab = ref('today')
 const pressedKey = ref('')
@@ -134,7 +151,7 @@ const createOpen = ref(false)
 const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', status: 'today', reminder: '', checklist: [] })
 
 const filtered = computed(() => {
-  if (tab.value === 'completed') return tasks.value.filter((x) => x.done)
+  if (tab.value === 'completed') return tasks.value.filter((x) => x.done && x.status !== 'archived')
   if (tab.value === 'upcoming') return tasks.value.filter((x) => !x.done && x.status === 'upcoming')
   return tasks.value.filter((x) => !x.done && (x.status === 'today' || x.status === 'overdue'))
 })
@@ -164,7 +181,17 @@ function createTask(payload) {
 
 function deleteTaskRow(id) {
   deleteTask(id)
-  toast.deleted()
+  toast.taskDeleted()
+}
+
+function archiveTaskRow(id) {
+  archiveTask(id)
+  toast.taskArchived()
+}
+
+function onTaskSwipeAction(id, actionId) {
+  if (actionId === 'archive') archiveTaskRow(id)
+  else deleteTaskRow(id)
 }
 </script>
 

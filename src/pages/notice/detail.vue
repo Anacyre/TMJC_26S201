@@ -109,7 +109,7 @@ function addToPlanner() {
     noticeTitle: notice.value.title,
   })
   setInPlanner(notice.value.id, true)
-  toast.added()
+  toast.addedToPlanner()
 }
 
 onLoad((query) => {

@@ -124,6 +124,40 @@
       </view>
     </view>
     <GlobalSearchOverlay />
+
+    <view class="overlay" :class="{ show: pwdChangeOpen }">
+      <view class="pwdSheet" @tap.stop>
+        <text class="pwdTitle">Set new password</text>
+        <text class="pwdSub">Required on first login.</text>
+        <view class="field" :class="{ focus: focusKey === 'newpwd' }">
+          <text class="label">New password</text>
+          <input
+            class="input"
+            password
+            v-model="newPassword"
+            placeholder="At least 6 characters"
+            placeholder-class="placeholder"
+            @focus="focusKey = 'newpwd'"
+            @blur="focusKey = ''"
+          />
+        </view>
+        <view class="field" :class="{ focus: focusKey === 'newpwd2' }">
+          <text class="label">Confirm password</text>
+          <input
+            class="input"
+            password
+            v-model="newPassword2"
+            placeholder="Repeat password"
+            placeholder-class="placeholder"
+            @focus="focusKey = 'newpwd2'"
+            @blur="focusKey = ''"
+          />
+        </view>
+        <view class="primary" :class="{ loading: pwdSaving }" role="button" @tap="submitPasswordChange">
+          <text class="primaryText">Update password</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -131,7 +165,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
-import { login, register, forgotPassword } from '@/api/auth'
+import { login, register, forgotPassword, changePassword } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { resolveAliasToEmail } from '@/composables/useMemberStore'
 import { toast } from '@/composables/useToast'
@@ -149,6 +183,10 @@ const password = ref('')
 const password2 = ref('')
 const rememberMe = ref(true)
 const loading = ref(false)
+const pwdChangeOpen = ref(false)
+const newPassword = ref('')
+const newPassword2 = ref('')
+const pwdSaving = ref(false)
 
 const isPreview = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true'
 
@@ -236,13 +274,18 @@ async function onPrimary() {
     if (mode.value === 'login') {
       const raw = account.value.trim()
       const resolvedEmail = raw.includes('@') ? raw : (resolveAliasToEmail(raw) || raw)
-      const { error } = await login(resolvedEmail, password.value)
+      const { data, error } = await login(resolvedEmail, password.value)
       if (error) {
         toast.show(error.message || 'Login failed')
         return
       }
-      toast.show('Logged in')
       await bootstrapData({ force: true })
+      if (data?.mustChangePassword) {
+        pwdChangeOpen.value = true
+        toast.show('Set a new password')
+        return
+      }
+      toast.show('Logged in')
       setTimeout(() => uni.navigateTo({ url: '/pages/index/index' }), 250)
     } else {
       const { error } = await register(account.value.trim(), password.value, displayName.value.trim())
@@ -258,6 +301,33 @@ async function onPrimary() {
     }
   } finally {
     loading.value = false
+  }
+}
+
+async function submitPasswordChange() {
+  if (pwdSaving.value) return
+  if (!newPassword.value || newPassword.value.length < 6) {
+    toast.show('Min 6 characters')
+    return
+  }
+  if (newPassword.value !== newPassword2.value) {
+    toast.show('Passwords do not match')
+    return
+  }
+  pwdSaving.value = true
+  try {
+    const { error } = await changePassword(newPassword.value)
+    if (error) {
+      toast.show(error.message || 'Could not update')
+      return
+    }
+    pwdChangeOpen.value = false
+    newPassword.value = ''
+    newPassword2.value = ''
+    toast.saved()
+    setTimeout(() => uni.navigateTo({ url: '/pages/index/index' }), 250)
+  } finally {
+    pwdSaving.value = false
   }
 }
 
@@ -714,5 +784,52 @@ onLoad(() => {
 .t-dark .footerRight {
   color: rgba(245, 247, 255, 0.40);
 }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: rgba(8, 12, 20, 0.38);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
+}
+.overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.pwdSheet {
+  width: 100%;
+  max-width: 680rpx;
+  padding: 32rpx 28rpx calc(32rpx + env(safe-area-inset-bottom));
+  border-radius: 28rpx 28rpx 0 0;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(20px);
+  transform: translateY(100%);
+  transition: transform 180ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.overlay.show .pwdSheet {
+  transform: translateY(0);
+}
+.t-dark .pwdSheet {
+  background: rgba(26, 29, 33, 0.94);
+}
+.pwdTitle {
+  font-size: 30rpx;
+  font-weight: 740;
+  color: rgba(16, 24, 40, 0.92);
+}
+.t-dark .pwdTitle { color: rgba(245, 247, 255, 0.92); }
+.pwdSub {
+  display: block;
+  margin-top: 6rpx;
+  margin-bottom: 20rpx;
+  font-size: 22rpx;
+  color: rgba(16, 24, 40, 0.52);
+}
+.t-dark .pwdSub { color: rgba(245, 247, 255, 0.48); }
 </style>
 

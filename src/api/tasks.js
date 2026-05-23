@@ -111,6 +111,20 @@ export async function deleteTask(taskId) {
 }
 
 /**
+ * Archive a completed task
+ */
+export async function archiveTask(taskId) {
+  if (USE_MOCK) return mock.archiveTask(taskId)
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({ status: 'archived', done: true, updated_at: new Date().toISOString() })
+    .eq('id', taskId)
+    .select()
+    .single()
+  return { data: data ? rowToTask(data) : null, error }
+}
+
+/**
  * 切换任务完成状态
  */
 export async function toggleTaskDone(taskId, currentDone) {

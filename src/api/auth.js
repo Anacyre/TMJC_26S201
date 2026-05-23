@@ -72,6 +72,19 @@ export async function forgotPassword(email) {
 }
 
 /**
+ * Change password (mock: admin-created accounts)
+ */
+export async function changePassword(newPassword) {
+  if (USE_MOCK) {
+    const { user } = await mock.getCurrentUser()
+    if (!user?.id) return { error: new Error('Not signed in') }
+    return mock.changePassword(user.id, newPassword)
+  }
+  const { error } = await supabase.auth.updateUser({ password: newPassword })
+  return { error }
+}
+
+/**
  * 监听登录状态变化
  * @param {Function} callback - (session) => void
  */

@@ -91,6 +91,14 @@ async function addTaskFromNotice({ noticeId, title, subject, deadline, descripti
   })
 }
 
+async function archiveTask(id) {
+  const { data, error } = await tasksApi.archiveTask(id)
+  if (!error && data) {
+    const idx = tasks.value.findIndex((x) => x.id === id)
+    if (idx >= 0) tasks.value[idx] = data
+  }
+}
+
 async function deleteTask(id) {
   const { error } = await tasksApi.deleteTask(id)
   if (!error) {
@@ -114,6 +122,7 @@ export function useTasksStore() {
     updateTask,
     addTask,
     addTaskFromNotice,
+    archiveTask,
     deleteTask,
   }
 }
