@@ -20,12 +20,16 @@ async function fetchMembers() {
   if (!error && data) {
     members.value = data.map((p) => ({
       id: p.id,
-      name: p.name,
+      username: p.username || '',
+      display_name: p.display_name || p.name || '',
+      name: p.display_name || p.name || '',
+      birthday: p.birthday || '',
       mbti: p.mbti || '',
       interests: p.interests || '',
       bio: p.bio || '',
       links: p.links || [],
-      role: p.role || 'member',
+      role: p.role || 'student',
+      is_admin: !!p.is_admin,
       email: p.email || '',
       avatar: p.avatar_url || '',
     }))

@@ -35,6 +35,9 @@ export const toast = {
   removed: () => show('Removed'),
   published: () => show('Published'),
   copied: () => show('Copied'),
+  memberAdded: () => show('Member added'),
+  loginSuccess: () => show('Logged in'),
+  rememberMeEnabled: () => show('Remember me on'),
 }
 
 export function useToast() {

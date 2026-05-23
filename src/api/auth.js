@@ -3,6 +3,8 @@ import * as mock from '@/lib/mockBackend'
 
 const USE_MOCK = mock.USE_MOCK
 
+export { resolveAccountToEmail, hasStoredSession } from '@/lib/mockBackend'
+
 /**
  * 用户登录
  * @param {string} email

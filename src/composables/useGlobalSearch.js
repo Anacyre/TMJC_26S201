@@ -4,6 +4,7 @@ import { useCommunityStore } from './useCommunityStore'
 import { useStudyStore } from './useStudyStore'
 import { useNotificationStore } from './useNotificationStore'
 import { useUserStore } from './useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 
 const RECENT_KEY = 'global_search_recent_v1'
 
@@ -87,7 +88,7 @@ export function useGlobalSearch() {
     communities.value.filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.desc, q.value))
   )
   const resultMembers = computed(() => {
-    const isAdmin = currentUser.value?.role === 'admin'
+    const isAdmin = isAdminMember(currentUser.value)
     return members.value
       .filter((x) => isAdmin || !isTestAccount(x.name))
       .filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.interests, q.value))

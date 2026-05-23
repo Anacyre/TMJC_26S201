@@ -27,16 +27,16 @@
             <view class="ava">{{ initials(m.name) }}</view>
             <view class="meta">
               <view class="nameLine">
-                <text class="name" :number-of-lines="1">{{ m.name }}</text>
-                <view v-if="m.role === 'admin'" class="badge admin"><text class="badgeText">ADMIN</text></view>
+                <text class="name" :number-of-lines="1">{{ m.display_name || m.name }}</text>
+                <view v-if="isAdminMember(m)" class="badge admin"><text class="badgeText">ADMIN</text></view>
                 <view v-if="isTestAccount(m.name)" class="badge test"><text class="badgeText">TEST</text></view>
               </view>
-              <text class="email" :number-of-lines="1">{{ m.email || '—' }}</text>
+              <text class="email" :number-of-lines="1">@{{ m.username || '—' }}</text>
             </view>
           </view>
           <view class="acts">
             <view
-              v-if="m.role !== 'admin'"
+              v-if="!isAdminMember(m)"
               class="actBtn"
               role="button"
               @tap="promote(m)"
@@ -66,24 +66,27 @@
     <view class="overlay" :class="{ show: addOpen }" @tap="addOpen = false">
       <view class="sheet" @tap.stop>
         <text class="sheetTitle">Add member</text>
-        <text class="sheetSub">Set their fixed account name (used in the database).</text>
         <view class="field">
-          <text class="fieldLabel">Fixed account name</text>
-          <input class="input" v-model="draft.name" placeholder="e.g. Jordan Lee" placeholder-class="ph" />
+          <text class="fieldLabel">Username</text>
+          <input class="input" v-model="draft.username" placeholder="e.g. xiong_chenyu" placeholder-class="ph" />
         </view>
         <view class="field">
-          <text class="fieldLabel">Email</text>
-          <input class="input" v-model="draft.email" placeholder="jordan@students.edu.sg" placeholder-class="ph" />
+          <text class="fieldLabel">Display name</text>
+          <input class="input" v-model="draft.display_name" placeholder="Full name" placeholder-class="ph" />
+        </view>
+        <view class="field">
+          <text class="fieldLabel">Email (optional)</text>
+          <input class="input" v-model="draft.email" placeholder="Auto-generated if empty" placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="fieldLabel">Role</text>
           <view class="segRole">
-            <view class="segItem" :class="{ on: draft.role === 'member' }" role="button" @tap="draft.role = 'member'"><text>Member</text></view>
+            <view class="segItem" :class="{ on: draft.role === 'student' }" role="button" @tap="draft.role = 'student'"><text>Student</text></view>
             <view class="segItem" :class="{ on: draft.role === 'admin' }" role="button" @tap="draft.role = 'admin'"><text>Admin</text></view>
           </view>
         </view>
         <view class="commit" role="button" @tap="commitAdd">
-          <text class="commitText">Create account</text>
+          <text class="commitText">{{ saving ? 'Creating…' : 'Create account' }}</text>
         </view>
       </view>
     </view>
@@ -102,16 +105,18 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
-import { adminAddMember, adminSetRole } from '@/lib/mockBackend'
+import { adminAddMember, adminSetRole } from '@/api/profile'
+import { isAdminMember, slugifyUsername } from '@/lib/classMembers'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { members, fetchMembers } = useCommunityStore()
 const { currentUser } = useUserStore()
-const isAdmin = computed(() => currentUser.value.role === 'admin')
+const isAdmin = computed(() => isAdminMember(currentUser.value))
 const tab = ref('members')
 const addOpen = ref(false)
-const draft = ref({ name: '', email: '', role: 'member' })
+const saving = ref(false)
+const draft = ref({ username: '', display_name: '', email: '', role: 'student' })
 
 function isTestAccount(name) {
   return String(name || '').trim().toLowerCase().startsWith('test')
@@ -120,9 +125,9 @@ function isTestAccount(name) {
 const all = computed(() => members.value || [])
 
 const filtered = computed(() => {
-  if (tab.value === 'admins') return all.value.filter((m) => m.role === 'admin')
+  if (tab.value === 'admins') return all.value.filter((m) => isAdminMember(m))
   if (tab.value === 'test') return all.value.filter((m) => isTestAccount(m.name))
-  return all.value.filter((m) => !isTestAccount(m.name) && m.role !== 'admin')
+  return all.value.filter((m) => !isTestAccount(m.name) && !isAdminMember(m))
 })
 
 function initials(name) {
@@ -130,23 +135,41 @@ function initials(name) {
 }
 
 function openAdd() {
-  draft.value = { name: '', email: '', role: 'member' }
+  draft.value = { username: '', display_name: '', email: '', role: 'student' }
   addOpen.value = true
 }
 
 async function commitAdd() {
-  if (!draft.value.name.trim()) {
-    toast.show('Name required')
+  if (saving.value) return
+  const username = slugifyUsername(draft.value.username || draft.value.display_name)
+  const display_name = String(draft.value.display_name || '').trim()
+  if (!username) {
+    toast.show('Username required')
     return
   }
-  await adminAddMember({
-    name: draft.value.name.trim(),
-    email: (draft.value.email || '').trim(),
-    role: draft.value.role,
-  })
-  await fetchMembers()
-  addOpen.value = false
-  toast.show('Created · pwd 123456')
+  if (!display_name) {
+    toast.show('Display name required')
+    return
+  }
+  saving.value = true
+  try {
+    const { error } = await adminAddMember({
+      username,
+      display_name,
+      email: (draft.value.email || '').trim(),
+      role: draft.value.role,
+      is_admin: draft.value.role !== 'student',
+    })
+    if (error) {
+      toast.show(error.message || 'Could not add member')
+      return
+    }
+    await fetchMembers()
+    addOpen.value = false
+    toast.memberAdded()
+  } finally {
+    saving.value = false
+  }
 }
 
 async function promote(m) {

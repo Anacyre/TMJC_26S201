@@ -99,10 +99,6 @@
           </template>
         </view>
 
-        <view v-if="tab === 'completed' && filtered.length" class="swipeHint">
-          <text class="swipeHintText">Swipe for delete · archive</text>
-        </view>
-
         <view class="spacer" />
       </view>
     </scroll-view>

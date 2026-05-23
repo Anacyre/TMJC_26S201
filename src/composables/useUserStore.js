@@ -1,11 +1,15 @@
 import { ref } from 'vue'
 import { getCurrentUser } from '@/api/auth'
 import { updateProfile as apiUpdateProfile } from '@/api/profile'
+import { isAdminMember } from '@/lib/classMembers'
 
 const currentUser = ref({
   id: '',
+  username: '',
   name: '',
-  role: 'member',
+  display_name: '',
+  role: 'student',
+  is_admin: false,
   mbti: '',
   interests: '',
   bio: '',
@@ -27,8 +31,11 @@ async function fetchCurrentUser() {
 
     currentUser.value = {
       id: user.id,
-      name: profile?.name || user.user_metadata?.display_name || '',
-      role: profile?.role || 'member',
+      username: profile?.username || '',
+      name: profile?.display_name || profile?.name || user.user_metadata?.display_name || '',
+      display_name: profile?.display_name || profile?.name || user.user_metadata?.display_name || '',
+      role: profile?.role || 'student',
+      is_admin: isAdminMember(profile),
       mbti: profile?.mbti || '',
       interests: profile?.interests || '',
       bio: profile?.bio || '',

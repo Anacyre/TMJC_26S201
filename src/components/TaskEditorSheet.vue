@@ -127,6 +127,7 @@ import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 import { toast } from '@/composables/useToast'
 
 const props = defineProps({
@@ -152,7 +153,7 @@ const emit = defineEmits(['update:modelValue', 'save'])
 const { themeClass } = useTheme()
 const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
-const isAdmin = computed(() => currentUser.value?.role === 'admin')
+const isAdmin = computed(() => isAdminMember(currentUser.value))
 
 const priorities = ['P1', 'P2', 'P3']
 const statuses = ['today', 'upcoming', 'overdue', 'completed']

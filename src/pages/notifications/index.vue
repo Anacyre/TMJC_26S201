@@ -184,6 +184,7 @@ import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 
 const { themeClass } = useTheme()
 const {
@@ -200,7 +201,7 @@ const {
 const { addTaskFromNotice } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
-const isAdmin = computed(() => currentUser.value.role === 'admin')
+const isAdmin = computed(() => isAdminMember(currentUser.value))
 
 const typeFilters = ['All', 'Homework', 'General', 'VIA', 'Events', 'Important']
 const subjectFilters = computed(() => ['All', ...tagNames.value.filter((n) => n !== 'General')])

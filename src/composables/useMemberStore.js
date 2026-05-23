@@ -1,6 +1,8 @@
 import { computed } from 'vue'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
+import { resolveAccountToEmail } from '@/api/auth'
 
 const ALIAS_KEY = 'login_alias_v1'
 
@@ -39,12 +41,15 @@ export function setQuickLoginAlias(userId, alias) {
 export function resolveAliasToEmail(input) {
   const value = String(input || '').trim().toLowerCase()
   if (!value) return ''
+  const fromAccount = resolveAccountToEmail(value)
+  if (fromAccount) return fromAccount
   const map = getAliasMap()
   for (const [userId, alias] of Object.entries(map)) {
     if (String(alias).toLowerCase() === value) {
       try {
-        const profiles = uni.getStorageSync('mock_backend_v1')?.authUsers || []
-        const u = profiles.find((p) => p.id === userId)
+        const state = uni.getStorageSync('mock_backend_v1')
+        const users = state?.authUsers || []
+        const u = users.find((p) => p.id === userId)
         if (u?.email) return u.email
       } catch (e) {}
     }
@@ -56,7 +61,7 @@ export function useMemberStore() {
   const { members, fetchMembers, addCommunity } = useCommunityStore()
   const { currentUser } = useUserStore()
 
-  const isAdmin = computed(() => currentUser.value.role === 'admin')
+  const isAdmin = computed(() => isAdminMember(currentUser.value))
 
   const visibleMembers = computed(() => {
     if (isAdmin.value) return members.value

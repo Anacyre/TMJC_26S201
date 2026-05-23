@@ -53,3 +53,13 @@ export async function updateProfile(userId, payload) {
     .single()
   return { data, error }
 }
+
+export async function adminAddMember(payload) {
+  if (USE_MOCK) return mock.adminAddMember(payload)
+  return { data: null, error: new Error('Admin add member is only available in preview mode') }
+}
+
+export async function adminSetRole(userId, role) {
+  if (USE_MOCK) return mock.adminSetRole(userId, role)
+  return { data: null, error: new Error('Admin set role is only available in preview mode') }
+}

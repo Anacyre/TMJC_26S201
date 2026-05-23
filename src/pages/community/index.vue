@@ -105,6 +105,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useMemberStore } from '@/composables/useMemberStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 import { useFocusStore } from '@/composables/useFocusStore'
 
 const { themeClass } = useTheme()
@@ -115,7 +116,7 @@ const { publicFocusHoursLabel } = useFocusStore()
 
 const tab = ref('communities')
 const showAddCommunity = ref(false)
-const isAdmin = computed(() => currentUser.value.role === 'admin')
+const isAdmin = computed(() => isAdminMember(currentUser.value))
 const draft = ref({ name: '', desc: '', icon: '◎' })
 
 function initials(name) {

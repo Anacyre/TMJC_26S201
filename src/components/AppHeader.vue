@@ -33,6 +33,7 @@ import { computed } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useUserStore } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import ClassLogo from '@/components/ClassLogo.vue'
 import BackButton from '@/components/BackButton.vue'
@@ -55,7 +56,7 @@ const initials = computed(() =>
     .slice(0, 2)
     .toUpperCase()
 )
-const isAdmin = computed(() => currentUser.value.role === 'admin')
+const isAdmin = computed(() => isAdminMember(currentUser.value))
 const resolvedShowAvatar = computed(() =>
   props.showAvatar == null ? props.navMode === 'brand' : props.showAvatar
 )

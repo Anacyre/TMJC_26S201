@@ -42,10 +42,10 @@
 
         <view class="form">
           <view class="field" :class="{ focus: focusKey === 'account' }">
-            <text class="label">{{ mode === 'login' ? 'Email or alias' : 'Email' }}</text>
+            <text class="label">{{ mode === 'login' ? 'Username or email' : 'Email' }}</text>
             <input
               class="input"
-              :placeholder="mode === 'login' ? 'alex@class.com  ·  or your alias' : 'you@example.com'"
+              :placeholder="mode === 'login' ? 'xiong_chenyu  ·  or email' : 'you@example.com'"
               placeholder-class="placeholder"
               v-model="account"
               @focus="focusKey = 'account'"
@@ -165,9 +165,10 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
-import { login, register, forgotPassword, changePassword } from '@/api/auth'
+import { login, register, forgotPassword, changePassword, resolveAccountToEmail } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { resolveAliasToEmail } from '@/composables/useMemberStore'
+import { loadRememberMeToggle, setRememberPref, tryRestoreSession } from '@/composables/useAuthSession'
 import { toast } from '@/composables/useToast'
 
 const THEME_KEY = 'ui_theme'
@@ -235,6 +236,12 @@ async function onForgot() {
   toast.show(error ? error.message : 'Reset sent')
 }
 
+function resolveLoginAccount(raw) {
+  const value = String(raw || '').trim()
+  if (!value) return ''
+  if (value.includes('@')) return value.toLowerCase()
+  return resolveAccountToEmail(value) || resolveAliasToEmail(value) || value.toLowerCase()
+}
 const ADMIN_DOMAIN = '@class.com'
 const STUDENT_DOMAIN = '@students.edu.sg'
 
@@ -247,7 +254,7 @@ function detectRole(email) {
 
 function validate() {
   const value = account.value.trim()
-  if (!value) return mode.value === 'register' ? 'Please enter your email' : 'Please enter your email or alias'
+  if (!value) return mode.value === 'register' ? 'Please enter your email' : 'Please enter username or email'
   if (mode.value === 'register' && !displayName.value.trim()) return 'Please enter your name'
   if (!password.value) return 'Please enter your password'
 
@@ -273,20 +280,22 @@ async function onPrimary() {
   try {
     if (mode.value === 'login') {
       const raw = account.value.trim()
-      const resolvedEmail = raw.includes('@') ? raw : (resolveAliasToEmail(raw) || raw)
+      const resolvedEmail = resolveLoginAccount(raw)
       const { data, error } = await login(resolvedEmail, password.value)
       if (error) {
         toast.show(error.message || 'Login failed')
         return
       }
+      setRememberPref({ enabled: rememberMe.value, account: raw })
       await bootstrapData({ force: true })
       if (data?.mustChangePassword) {
         pwdChangeOpen.value = true
         toast.show('Set a new password')
         return
       }
-      toast.show('Logged in')
-      setTimeout(() => uni.navigateTo({ url: '/pages/index/index' }), 250)
+      if (rememberMe.value) toast.rememberMeEnabled()
+      toast.loginSuccess()
+      setTimeout(() => uni.reLaunch({ url: '/pages/index/index' }), 250)
     } else {
       const { error } = await register(account.value.trim(), password.value, displayName.value.trim())
       if (error) {
@@ -325,19 +334,25 @@ async function submitPasswordChange() {
     newPassword.value = ''
     newPassword2.value = ''
     toast.saved()
-    setTimeout(() => uni.navigateTo({ url: '/pages/index/index' }), 250)
+    setRememberPref({ enabled: rememberMe.value, account: account.value.trim() })
+    setTimeout(() => uni.reLaunch({ url: '/pages/index/index' }), 250)
   } finally {
     pwdSaving.value = false
   }
 }
 
-onLoad(() => {
+onLoad(async () => {
   loadPersisted()
+  rememberMe.value = loadRememberMeToggle()
   const sys = uni.getSystemInfoSync?.()
   if (!uni.getStorageSync(THEME_KEY) && sys?.theme) {
     theme.value = sys.theme === 'dark' ? 'dark' : 'light'
   }
   persist()
+  const restored = await tryRestoreSession()
+  if (restored) {
+    uni.reLaunch({ url: '/pages/index/index' })
+  }
 })
 </script>
 

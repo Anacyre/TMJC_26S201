@@ -4,9 +4,18 @@
  * - Mirrors every exported function in src/api/*.js (same return shape, same field names).
  * - State is persisted to uni storage so a page refresh keeps your changes.
  * - Toggle on/off via `VITE_USE_MOCK` in `.env`.
- *
- * NOTE: Passwords are NOT checked in mock mode — any password works for a seeded account.
  */
+
+import {
+  buildRosterRecords,
+  createMemberRecords,
+  DEFAULT_MEMBER_PASSWORD,
+  isAdminMember,
+  memberEmail,
+  ROSTER_VERSION,
+  slugifyUsername,
+  CLASS_MEMBERS,
+} from '@/lib/classMembers'
 
 // ─── Flag ────────────────────────────────────────────────────────────
 export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true'
@@ -31,10 +40,11 @@ async function tick(ms = 60) { return new Promise((r) => setTimeout(r, ms)) }
 // ─── Seed data ───────────────────────────────────────────────────────
 function seedState() {
   const userId = 'usr_test_admin'
-  const peerA = 'usr_peer_a'
-  const peerB = 'usr_peer_b'
-  const peerC = 'usr_peer_c'
-  const peerD = 'usr_peer_d'
+  const rosterRecords = buildRosterRecords(() => uid('usr'))
+  const peerA = rosterRecords[0].profile.id
+  const peerB = rosterRecords[1].profile.id
+  const peerC = rosterRecords[2].profile.id
+  const peerD = rosterRecords[3].profile.id
 
   const subjMath = 'sub_math'
   const subjPhys = 'sub_phys'
@@ -63,48 +73,31 @@ function seedState() {
   const taskEcon  = 'tsk_econ_demand'
 
   return {
-    // —— Auth users (passwords ignored in mock) ——
+    roster_version: ROSTER_VERSION,
+    // —— Auth users ——
     authUsers: [
-      { id: userId, email: 'test@class.com', display_name: 'Alex Tan' },
-      { id: peerA, email: 'mei@students.edu.sg', display_name: 'Mei Lin' },
-      { id: peerB, email: 'ravi@students.edu.sg', display_name: 'Ravi Kumar' },
-      { id: peerC, email: 'jia@students.edu.sg', display_name: 'Jia Hui' },
-      { id: peerD, email: 'isaac@students.edu.sg', display_name: 'Isaac Wong' },
+      { id: userId, email: 'test@class.com', username: 'alex_tan', display_name: 'Alex Tan' },
+      ...rosterRecords.map((r) => r.auth),
     ],
 
     // —— Profiles ——
     profiles: [
       {
-        id: userId, name: 'Alex Tan', role: 'admin',
-        mbti: 'INTJ', interests: 'astrophysics, jazz piano, pour-over coffee',
+        id: userId,
+        username: 'alex_tan',
+        display_name: 'Alex Tan',
+        name: 'Alex Tan',
+        role: 'admin',
+        is_admin: true,
+        birthday: '',
+        mbti: 'INTJ',
+        interests: 'astrophysics, jazz piano, pour-over coffee',
         bio: 'Class rep for 26S201. Loves a good study sprint.',
         links: [{ label: 'Notion', url: 'https://notion.so' }],
-        birthday_visibility: 'Friends', avatar_url: '',
+        birthday_visibility: 'Friends',
+        avatar_url: '',
       },
-      {
-        id: peerA, name: 'Mei Lin', role: 'member',
-        mbti: 'ENFP', interests: 'oil painting, K-drama, volleyball',
-        bio: 'Likes long study cafes and short deadlines.',
-        links: [], birthday_visibility: 'Friends', avatar_url: '',
-      },
-      {
-        id: peerB, name: 'Ravi Kumar', role: 'member',
-        mbti: 'ISTP', interests: 'rock climbing, mech keyboards, F1',
-        bio: 'Will solve your physics problem at 2am.',
-        links: [], birthday_visibility: 'Class', avatar_url: '',
-      },
-      {
-        id: peerC, name: 'Jia Hui', role: 'member',
-        mbti: 'INFJ', interests: 'poetry, debate, hot pot',
-        bio: 'GP enjoyer. Mood: writing rebuttals.',
-        links: [], birthday_visibility: 'Friends', avatar_url: '',
-      },
-      {
-        id: peerD, name: 'Isaac Wong', role: 'member',
-        mbti: 'ESTP', interests: 'basketball, ramen reviews, esports',
-        bio: 'Captain of the corridor sprint team.',
-        links: [], birthday_visibility: 'Public', avatar_url: '',
-      },
+      ...rosterRecords.map((r) => r.profile),
     ],
 
     // —— Tasks (belong to test user) ——
@@ -351,6 +344,9 @@ let _state = safeGet(STORAGE_KEY) || null
 if (!_state) {
   _state = seedState()
   safeSet(STORAGE_KEY, _state)
+} else {
+  _state = ensureClassRoster(_state)
+  safeSet(STORAGE_KEY, _state)
 }
 
 let _session = safeGet(SESSION_KEY) || null
@@ -360,6 +356,42 @@ function setSession(value) {
 }
 
 function persist() { safeSet(STORAGE_KEY, _state) }
+
+function ensureClassRoster(state) {
+  if (state.roster_version === ROSTER_VERSION) return state
+
+  const demoIds = ['usr_peer_a', 'usr_peer_b', 'usr_peer_c', 'usr_peer_d']
+  state.authUsers = (state.authUsers || []).filter((u) => !demoIds.includes(u.id))
+  state.profiles = (state.profiles || []).filter((p) => !demoIds.includes(p.id))
+
+  const existingUsernames = new Set(
+    (state.profiles || []).map((p) => p.username).filter(Boolean)
+  )
+
+  for (const member of CLASS_MEMBERS) {
+    if (existingUsernames.has(member.username)) continue
+    const record = createMemberRecords(member, uid('usr'))
+    state.authUsers.push(record.auth)
+    state.profiles.push(record.profile)
+    existingUsernames.add(member.username)
+  }
+
+  for (const p of state.profiles || []) {
+    if (!p.display_name && p.name) p.display_name = p.name
+    if (!p.username && p.display_name) p.username = slugifyUsername(p.display_name)
+    if (p.is_admin === undefined) p.is_admin = isAdminMember(p)
+    if (!p.birthday) p.birthday = ''
+  }
+
+  for (const u of state.authUsers || []) {
+    const profile = state.profiles.find((p) => p.id === u.id)
+    if (!u.username && profile?.username) u.username = profile.username
+    if (!u.display_name && profile?.display_name) u.display_name = profile.display_name
+  }
+
+  state.roster_version = ROSTER_VERSION
+  return state
+}
 
 /** Reset the mock backend back to its seeded state (used for "Reset preview"). */
 export function resetMockBackend() {
@@ -371,6 +403,20 @@ export function resetMockBackend() {
 function currentUserId() { return _session?.user?.id || null }
 function findProfile(id) { return _state.profiles.find((p) => p.id === id) || null }
 function findAuthUser(id) { return _state.authUsers.find((u) => u.id === id) || null }
+
+export function hasStoredSession() {
+  return !!_session?.user?.id
+}
+
+export function resolveAccountToEmail(input) {
+  const trimmed = String(input || '').trim().toLowerCase()
+  if (!trimmed) return ''
+  if (trimmed.includes('@')) return trimmed
+  const byUsername = _state.authUsers.find((u) => u.username?.toLowerCase() === trimmed)
+  if (byUsername?.email) return byUsername.email
+  const byEmailPrefix = _state.authUsers.find((u) => u.email?.split('@')[0]?.toLowerCase() === trimmed)
+  return byEmailPrefix?.email || ''
+}
 
 // ─── Role inference (matches login.vue logic) ────────────────────────
 function detectRole(email) {
@@ -476,26 +522,16 @@ function rowToResource(row, likedSet = new Set()) {
 // ═════════════════════════════════════════════════════════════════════
 export async function login(email, password) {
   await tick()
-  const trimmed = (email || '').toLowerCase().trim()
+  const trimmed = String(email || '').trim().toLowerCase()
   if (!trimmed) return { data: null, error: new Error('Please enter account') }
-  let user = _state.authUsers.find((u) => u.email.toLowerCase() === trimmed)
+
+  const resolvedEmail = trimmed.includes('@') ? trimmed : (resolveAccountToEmail(trimmed) || trimmed)
+  let user = _state.authUsers.find((u) => u.email?.toLowerCase() === resolvedEmail)
+  if (!user && !trimmed.includes('@')) {
+    user = _state.authUsers.find((u) => u.username?.toLowerCase() === trimmed)
+  }
   if (!user) {
-    const id = uid('usr')
-    const display = trimmed.includes('@') ? trimmed.split('@')[0] : trimmed
-    user = { id, email: trimmed, display_name: display || 'Guest' }
-    _state.authUsers.unshift(user)
-    _state.profiles.unshift({
-      id,
-      name: display || 'Guest',
-      role: detectRole(trimmed),
-      mbti: '',
-      interests: 'exploring the preview app',
-      bio: 'Created automatically in preview mode.',
-      links: [],
-      birthday_visibility: 'Friends',
-      avatar_url: '',
-    })
-    persist()
+    return { data: null, error: new Error('Account not found') }
   }
   if (user.password && String(password || '') !== user.password) {
     return { data: null, error: new Error('Incorrect password') }
@@ -576,17 +612,21 @@ export async function getMembers() {
     const auth = findAuthUser(p.id)
     return {
       id: p.id,
-      name: p.name,
+      username: p.username || '',
+      display_name: p.display_name || p.name || '',
+      name: p.display_name || p.name || '',
+      birthday: p.birthday || '',
       mbti: p.mbti,
       interests: p.interests,
       bio: p.bio,
       links: p.links,
-      role: p.role || 'member',
+      role: p.role || 'student',
+      is_admin: !!p.is_admin,
       email: auth?.email || '',
       avatar_url: p.avatar_url,
     }
   })
-  data.sort((a, b) => a.name.localeCompare(b.name))
+  data.sort((a, b) => a.display_name.localeCompare(b.display_name))
   return { data, error: null }
 }
 
@@ -611,22 +651,45 @@ export async function updateProfile(userId, payload) {
 // ═════════════════════════════════════════════════════════════════════
 //  ADMIN — member management (mock only)
 // ═════════════════════════════════════════════════════════════════════
-export async function adminAddMember({ name, email, role = 'member' }) {
+export async function adminAddMember({ username, display_name, name, email, role = 'student', birthday = '', is_admin = false }) {
   await tick()
+  const cleanUsername = slugifyUsername(username || name || display_name)
+  const cleanDisplay = String(display_name || name || '').trim()
+  if (!cleanUsername || !/^[a-z0-9_]+$/.test(cleanUsername)) {
+    return { data: null, error: new Error('Username required (lowercase, underscores only)') }
+  }
+  if (!cleanDisplay) {
+    return { data: null, error: new Error('Display name required') }
+  }
+
+  const memberRole = role === 'admin' || role === 'teacher_admin' ? role : 'student'
+  const adminFlag = is_admin || memberRole === 'admin' || memberRole === 'teacher_admin'
+  const cleanEmail = String(email || '').trim().toLowerCase() || memberEmail(cleanUsername, memberRole)
+
+  if (_state.authUsers.some((u) => u.username === cleanUsername)) {
+    return { data: null, error: new Error('Username already exists') }
+  }
+  if (_state.authUsers.some((u) => u.email?.toLowerCase() === cleanEmail)) {
+    return { data: null, error: new Error('Email already exists') }
+  }
+
   const id = uid('usr')
-  const cleanName = String(name || '').trim() || 'New member'
-  const cleanEmail = String(email || '').trim().toLowerCase()
   _state.authUsers.push({
     id,
-    email: cleanEmail || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@students.edu.sg`,
-    display_name: cleanName,
-    password: '123456',
+    username: cleanUsername,
+    email: cleanEmail,
+    display_name: cleanDisplay,
+    password: DEFAULT_MEMBER_PASSWORD,
     must_change_password: true,
   })
   _state.profiles.push({
     id,
-    name: cleanName,
-    role: role === 'admin' ? 'admin' : 'member',
+    username: cleanUsername,
+    display_name: cleanDisplay,
+    name: cleanDisplay,
+    birthday: birthday || '',
+    role: memberRole,
+    is_admin: adminFlag,
     mbti: '',
     interests: '',
     bio: '',
@@ -635,7 +698,10 @@ export async function adminAddMember({ name, email, role = 'member' }) {
     avatar_url: '',
   })
   persist()
-  return { data: { id, name: cleanName, defaultPassword: '123456' }, error: null }
+  return {
+    data: { id, username: cleanUsername, display_name: cleanDisplay, defaultPassword: DEFAULT_MEMBER_PASSWORD },
+    error: null,
+  }
 }
 
 export async function changePassword(userId, newPassword) {
@@ -654,7 +720,8 @@ export async function adminSetRole(userId, role) {
   await tick()
   const idx = _state.profiles.findIndex((p) => p.id === userId)
   if (idx < 0) return { data: null, error: new Error('Profile not found') }
-  _state.profiles[idx].role = role === 'admin' ? 'admin' : 'member'
+  _state.profiles[idx].role = role === 'admin' ? 'admin' : role === 'teacher_admin' ? 'teacher_admin' : 'student'
+  _state.profiles[idx].is_admin = role === 'admin' || role === 'teacher_admin'
   persist()
   return { data: _state.profiles[idx], error: null }
 }
