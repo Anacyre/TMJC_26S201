@@ -24,8 +24,8 @@ export async function getMembers() {
   if (USE_MOCK) return mock.getMembers()
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, name, mbti, interests, bio, links, avatar_url')
-    .order('name')
+    .select('id, username, display_name, name, birthday, email, role, is_admin, mbti, interests, bio, links, avatar_url')
+    .order('display_name')
   return { data, error }
 }
 
@@ -56,10 +56,21 @@ export async function updateProfile(userId, payload) {
 
 export async function adminAddMember(payload) {
   if (USE_MOCK) return mock.adminAddMember(payload)
-  return { data: null, error: new Error('Admin add member is only available in preview mode') }
+  const { data, error } = await supabase.functions.invoke('admin-add-member', { body: payload })
+  if (error) return { data: null, error }
+  if (data?.error) return { data: null, error: new Error(data.error) }
+  return { data: data?.data ?? data, error: null }
 }
 
 export async function adminSetRole(userId, role) {
   if (USE_MOCK) return mock.adminSetRole(userId, role)
-  return { data: null, error: new Error('Admin set role is only available in preview mode') }
+  const isAdmin = role === 'admin' || role === 'teacher_admin'
+  const nextRole = isAdmin ? role : 'student'
+  const { data, error } = await supabase
+    .from('profiles')
+    .update({ role: nextRole, is_admin: isAdmin })
+    .eq('id', userId)
+    .select()
+    .single()
+  return { data, error }
 }

@@ -17,57 +17,72 @@ async function fetchTasks() {
   }
 }
 
+async function loadTaskById(taskId) {
+  if (!taskId) return { data: null, error: new Error('Missing task id') }
+  const cached = getTaskById(taskId)
+  if (cached) return { data: cached, error: null }
+
+  const { data, error } = await tasksApi.fetchTaskById(taskId)
+  if (!error && data) {
+    const idx = tasks.value.findIndex((x) => x.id === data.id)
+    if (idx >= 0) tasks.value[idx] = data
+    else tasks.value.unshift(data)
+  }
+  return { data, error }
+}
+
 // ─── 读取工具 ────────────────────────────────────────────────────
 
 function getTaskById(id) {
   return tasks.value.find((x) => x.id === id) || null
 }
 
+function upsertTask(task) {
+  if (!task?.id) return
+  const idx = tasks.value.findIndex((x) => x.id === task.id)
+  if (idx >= 0) tasks.value[idx] = task
+  else tasks.value.unshift(task)
+}
+
 // ─── 写操作（先本地更新再同步）──────────────────────────────────
 
 async function toggleTaskDone(id) {
   const target = getTaskById(id)
-  if (!target) return
+  if (!target) return { error: new Error('Task not found') }
   const { data, error } = await tasksApi.toggleTaskDone(id, target.done)
-  if (!error && data) {
-    const idx = tasks.value.findIndex((x) => x.id === id)
-    if (idx >= 0) tasks.value[idx] = data
-  }
+  if (!error && data) upsertTask(data)
+  return { data, error }
 }
 
 async function toggleChecklist(taskId, checklistId) {
   const { data, error } = await tasksApi.toggleChecklistItem(taskId, checklistId)
-  if (!error && data) {
-    const idx = tasks.value.findIndex((x) => x.id === taskId)
-    if (idx >= 0) tasks.value[idx] = data
-  }
+  if (!error && data) upsertTask(data)
+  return { data, error }
 }
 
 async function updateTask(taskId, payload) {
   const target = getTaskById(taskId)
-  if (!target) return
   const merged = {
-    title: payload.title?.trim() || target.title,
-    description: payload.description?.trim() ?? '',
-    deadline: payload.deadline?.trim() || 'Anytime',
-    subject: payload.subject?.trim() || 'General',
-    priority: payload.priority || 'P3',
-    status: payload.status || 'upcoming',
-    reminder: payload.reminder?.trim() || 'None',
-    done: payload.status === 'completed' ? true : !!payload.done,
-    checklist: payload.checklist || target.checklist,
+    title: payload.title?.trim() || target?.title || 'Untitled Task',
+    description: payload.description?.trim() ?? target?.description ?? '',
+    deadline: payload.deadline?.trim() || target?.deadline || 'Anytime',
+    subject: payload.subject?.trim() || target?.subject || 'General',
+    priority: payload.priority || target?.priority || 'P3',
+    status: payload.status || target?.status || 'today',
+    reminder: payload.reminder?.trim() || target?.reminder || 'None',
+    done: payload.status === 'completed' ? true : payload.done ?? target?.done ?? false,
+    checklist: payload.checklist ?? target?.checklist ?? [],
   }
   const { data, error } = await tasksApi.updateTask(taskId, merged)
-  if (!error && data) {
-    const idx = tasks.value.findIndex((x) => x.id === taskId)
-    if (idx >= 0) tasks.value[idx] = data
-  }
+  if (!error && data) upsertTask(data)
+  else if (error) console.error('[useTasksStore] updateTask:', error.message)
+  return { data, error }
 }
 
 async function addTask(payload) {
   const { data, error } = await tasksApi.createTask(payload)
   if (!error && data) {
-    tasks.value.unshift(data)
+    upsertTask(data)
     return data
   }
   if (error) console.error('[useTasksStore] addTask:', error.message)
@@ -75,7 +90,6 @@ async function addTask(payload) {
 }
 
 async function addTaskFromNotice({ noticeId, title, subject, deadline, description, noticeTitle }) {
-  // 幂等：同一通知不重复创建
   const existing = tasks.value.find((t) => t.sourceNoticeId === noticeId)
   if (existing) return existing
 
@@ -93,10 +107,8 @@ async function addTaskFromNotice({ noticeId, title, subject, deadline, descripti
 
 async function archiveTask(id) {
   const { data, error } = await tasksApi.archiveTask(id)
-  if (!error && data) {
-    const idx = tasks.value.findIndex((x) => x.id === id)
-    if (idx >= 0) tasks.value[idx] = data
-  }
+  if (!error && data) upsertTask(data)
+  return { data, error }
 }
 
 async function deleteTask(id) {
@@ -104,6 +116,7 @@ async function deleteTask(id) {
   if (!error) {
     tasks.value = tasks.value.filter((x) => x.id !== id)
   }
+  return { error }
 }
 
 // ─── 计算属性 ────────────────────────────────────────────────────
@@ -116,6 +129,7 @@ export function useTasksStore() {
     loading,
     tasksCountToday,
     fetchTasks,
+    loadTaskById,
     getTaskById,
     toggleTaskDone,
     toggleChecklist,

@@ -82,7 +82,8 @@ import { toast } from '@/composables/useToast'
 const { themeClass } = useTheme()
 const id = ref('')
 const editOpen = ref(false)
-const { getTaskById, toggleTaskDone, toggleChecklist, updateTask } = useTasksStore()
+const taskReady = ref(false)
+const { getTaskById, loadTaskById, toggleTaskDone, toggleChecklist, updateTask } = useTasksStore()
 const { getNotificationById } = useNotificationStore()
 
 const fallbackTask = {
@@ -98,7 +99,12 @@ const fallbackTask = {
   checklist: [],
   relatedNotice: null,
 }
-const task = computed(() => getTaskById(id.value) || fallbackTask)
+const task = computed(() => {
+  if (!id.value) return fallbackTask
+  return getTaskById(id.value) || fallbackTask
+})
+
+const isMissingTask = computed(() => taskReady.value && id.value && task.value.id === 'fallback')
 
 const relatedNoticeBlock = computed(() => {
   const t = task.value
@@ -124,13 +130,26 @@ function completeTask() {
   toast.updated()
 }
 
-function saveTask(payload) {
-  updateTask(task.value.id, payload)
+async function saveTask(payload) {
+  if (isMissingTask.value) {
+    toast.show('Task not found')
+    return
+  }
+  const { error } = await updateTask(task.value.id, payload)
+  if (error) {
+    toast.show(error.message || 'Could not save task')
+    return
+  }
   toast.saved()
+  editOpen.value = false
 }
 
-onLoad((query) => {
-  id.value = query?.id || ''
+onLoad(async (query) => {
+  id.value = decodeURIComponent(query?.id || '')
+  if (!id.value) return
+  const { error } = await loadTaskById(id.value)
+  taskReady.value = true
+  if (error) toast.show('Task not found')
 })
 </script>
 

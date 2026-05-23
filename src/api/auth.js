@@ -1,9 +1,42 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import { authLoginEmail, memberEmail } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
-export { resolveAccountToEmail, hasStoredSession } from '@/lib/mockBackend'
+export { hasStoredSession } from '@/lib/mockBackend'
+
+export function resolveAccountToEmail(input) {
+  if (USE_MOCK) return mock.resolveAccountToEmail(input)
+  return ''
+}
+
+export async function resolveAccountToEmailAsync(input) {
+  if (USE_MOCK) return mock.resolveAccountToEmail(input)
+  const trimmed = String(input || '').trim().toLowerCase()
+  if (!trimmed) return ''
+  if (trimmed.includes('@')) return trimmed
+
+  const { data } = await supabase
+    .from('profiles')
+    .select('email, role, username')
+    .ilike('username', trimmed)
+    .maybeSingle()
+  if (data?.role === 'teacher_admin') return authLoginEmail(data.username || trimmed, data.role)
+  if (data?.email) return data.email
+
+  for (const domain of ['@students.edu.sg', '@class.com']) {
+    const { data: byEmail } = await supabase
+      .from('profiles')
+      .select('email, role, username')
+      .eq('email', `${trimmed}${domain}`)
+      .maybeSingle()
+    if (byEmail?.role === 'teacher_admin') return authLoginEmail(byEmail.username || trimmed, byEmail.role)
+    if (byEmail?.email) return byEmail.email
+  }
+
+  return memberEmail(trimmed, 'student')
+}
 
 /**
  * 用户登录
@@ -14,7 +47,19 @@ export { resolveAccountToEmail, hasStoredSession } from '@/lib/mockBackend'
 export async function login(email, password) {
   if (USE_MOCK) return mock.login(email, password)
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-  return { data, error }
+  if (error) return { data, error }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('must_change_password')
+    .eq('id', data.user.id)
+    .maybeSingle()
+
+  const mustChangePassword =
+    profile?.must_change_password === true ||
+    data.user?.app_metadata?.must_change_password === true
+
+  return { data: { ...data, mustChangePassword }, error: null }
 }
 
 /**
@@ -82,8 +127,18 @@ export async function changePassword(newPassword) {
     if (!user?.id) return { error: new Error('Not signed in') }
     return mock.changePassword(user.id, newPassword)
   }
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { error: userError || new Error('Not signed in') }
+
   const { error } = await supabase.auth.updateUser({ password: newPassword })
-  return { error }
+  if (error) return { error }
+
+  await supabase
+    .from('profiles')
+    .update({ must_change_password: false })
+    .eq('id', user.id)
+
+  return { error: null }
 }
 
 /**

@@ -31,7 +31,7 @@
                 <view v-if="isAdminMember(m)" class="badge admin"><text class="badgeText">ADMIN</text></view>
                 <view v-if="isTestAccount(m.name)" class="badge test"><text class="badgeText">TEST</text></view>
               </view>
-              <text class="email" :number-of-lines="1">@{{ m.username || '—' }}</text>
+              <text v-if="displayMemberEmail(m)" class="email" :number-of-lines="1">{{ displayMemberEmail(m) }}</text>
             </view>
           </view>
           <view class="acts">
@@ -106,7 +106,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { adminAddMember, adminSetRole } from '@/api/profile'
-import { isAdminMember, slugifyUsername } from '@/lib/classMembers'
+import { isAdminMember, isTeacherMember, memberEmail, slugifyUsername } from '@/lib/classMembers'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
@@ -129,6 +129,11 @@ const filtered = computed(() => {
   if (tab.value === 'test') return all.value.filter((m) => isTestAccount(m.name))
   return all.value.filter((m) => !isTestAccount(m.name) && !isAdminMember(m))
 })
+
+function displayMemberEmail(m) {
+  if (isTeacherMember(m)) return ''
+  return m.email || memberEmail(m.username, m.role) || ''
+}
 
 function initials(name) {
   return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
@@ -180,7 +185,8 @@ async function promote(m) {
 
 async function stepDown() {
   await adminSetRole(currentUser.value.id, 'member')
-  currentUser.value.role = 'member'
+  currentUser.value.role = 'student'
+  currentUser.value.is_admin = false
   await fetchMembers()
   toast.updated()
 }

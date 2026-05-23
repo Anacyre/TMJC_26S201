@@ -16,7 +16,7 @@ export const CLASS_MEMBERS = [
   { username: 'sim_song_ze', display_name: 'Sim Song Ze', role: 'student', is_admin: false },
   { username: 'tan_sow_xuan', display_name: 'Tan Sow Xuan', role: 'student', is_admin: false },
   { username: 'chia_wen_hao', display_name: 'Chia Wen Hao', role: 'student', is_admin: false },
-  { username: 'glenn_tan_then_jing', display_name: 'Glenn Tan Theng Jing', role: 'student', is_admin: false },
+  { username: 'glenn_tan_theng_jing', display_name: 'Glenn Tan Theng Jing', role: 'student', is_admin: false },
   { username: 'suasin_jorge_axel_v', display_name: 'Suasin Jorge Axel V', role: 'student', is_admin: false },
   { username: 'grandhi_purna_shivani', display_name: 'Grandhi Purna Shivani', role: 'student', is_admin: false },
   { username: 'daniyal_amril_yusran', display_name: 'Daniyal Amril Yusran', role: 'student', is_admin: false },
@@ -51,9 +51,21 @@ export function slugifyUsername(value) {
     .replace(/_+/g, '_')
 }
 
-export function memberEmail(username, role) {
-  const domain = role === 'student' ? '@students.edu.sg' : '@class.com'
-  return `${username}${domain}`
+export function isTeacherMember(profileOrRole) {
+  if (!profileOrRole) return false
+  if (typeof profileOrRole === 'object') return profileOrRole.role === 'teacher_admin'
+  return profileOrRole === 'teacher_admin'
+}
+
+export function memberEmail(username, role = 'student') {
+  if (role === 'teacher_admin') return ''
+  return `${username}@students.edu.sg`
+}
+
+/** Auth-only login email; not shown in member list for teachers. */
+export function authLoginEmail(username, role = 'student') {
+  if (role === 'teacher_admin') return `${username}@class.com`
+  return `${username}@students.edu.sg`
 }
 
 export function isAdminMember(profileOrRole) {
@@ -69,12 +81,13 @@ export function isAdminMember(profileOrRole) {
  * @param {string} id
  */
 export function createMemberRecords(member, id) {
-  const email = memberEmail(member.username, member.role)
+  const loginEmail = authLoginEmail(member.username, member.role)
+  const profileEmail = memberEmail(member.username, member.role)
   return {
     auth: {
       id,
       username: member.username,
-      email,
+      email: loginEmail,
       display_name: member.display_name,
       password: DEFAULT_MEMBER_PASSWORD,
       must_change_password: true,
@@ -87,6 +100,7 @@ export function createMemberRecords(member, id) {
       birthday: member.birthday || '',
       role: member.role,
       is_admin: member.is_admin,
+      email: profileEmail,
       mbti: '',
       interests: '',
       bio: '',

@@ -5,6 +5,7 @@ import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useStudyStore } from '@/composables/useStudyStore'
 
 let _booting = null
+let _booted = false
 
 /**
  * Boot all data stores once there is a signed-in session.
@@ -14,11 +15,15 @@ let _booting = null
  */
 export function bootstrapData({ force = false } = {}) {
   if (_booting && !force) return _booting
+  if (_booted && !force) return Promise.resolve()
 
   _booting = (async () => {
     const userStore = useUserStore()
     await userStore.fetchCurrentUser()
-    if (!userStore.currentUser.value.id) return
+    if (!userStore.currentUser.value.id) {
+      _booted = false
+      return
+    }
 
     const tasksStore = useTasksStore()
     const noticesStore = useNotificationStore()
@@ -34,6 +39,7 @@ export function bootstrapData({ force = false } = {}) {
       studyStore.fetchSubjects(),
       studyStore.fetchResources(),
     ])
+    _booted = true
   })().finally(() => {
     _booting = null
   })

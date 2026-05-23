@@ -170,9 +170,14 @@ function openCreate() {
   createOpen.value = true
 }
 
-function createTask(payload) {
-  addTask(payload)
+async function createTask(payload) {
+  const created = await addTask(payload)
+  if (!created) {
+    toast.show('Could not create task')
+    return
+  }
   toast.added()
+  createOpen.value = false
 }
 
 function deleteTaskRow(id) {

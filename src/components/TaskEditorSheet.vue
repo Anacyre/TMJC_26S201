@@ -223,8 +223,13 @@ function syncFromTask() {
   }))
 }
 
-watch(() => props.task, syncFromTask, { immediate: true, deep: true })
-watch(() => props.modelValue, (v) => v && syncFromTask())
+// Only hydrate the form when the sheet opens — not on every store refresh.
+watch(() => props.modelValue, (open) => {
+  if (open) {
+    saving.value = false
+    syncFromTask()
+  }
+})
 
 function addChecklist() {
   form.checklist.push({ id: `new-${Date.now().toString(36)}`, text: '', done: false })
@@ -281,10 +286,6 @@ function submit() {
     reminder: buildReminderString(),
     checklist: form.checklist.filter((x) => x.text.trim()),
   })
-  setTimeout(() => {
-    saving.value = false
-    emit('update:modelValue', false)
-  }, 220)
 }
 </script>
 

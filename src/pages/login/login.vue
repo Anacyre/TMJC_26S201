@@ -165,7 +165,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
-import { login, register, forgotPassword, changePassword, resolveAccountToEmail } from '@/api/auth'
+import { login, register, forgotPassword, changePassword, resolveAccountToEmailAsync } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { resolveAliasToEmail } from '@/composables/useMemberStore'
 import { loadRememberMeToggle, setRememberPref, tryRestoreSession } from '@/composables/useAuthSession'
@@ -236,18 +236,17 @@ async function onForgot() {
   toast.show(error ? error.message : 'Reset sent')
 }
 
-function resolveLoginAccount(raw) {
+async function resolveLoginAccount(raw) {
   const value = String(raw || '').trim()
   if (!value) return ''
   if (value.includes('@')) return value.toLowerCase()
-  return resolveAccountToEmail(value) || resolveAliasToEmail(value) || value.toLowerCase()
+  const fromAccount = await resolveAccountToEmailAsync(value)
+  return fromAccount || resolveAliasToEmail(value) || value.toLowerCase()
 }
-const ADMIN_DOMAIN = '@class.com'
 const STUDENT_DOMAIN = '@students.edu.sg'
 
 function detectRole(email) {
   const e = (email || '').toLowerCase().trim()
-  if (e.endsWith(ADMIN_DOMAIN)) return 'admin'
   if (e.endsWith(STUDENT_DOMAIN)) return 'member'
   return null
 }
@@ -262,7 +261,7 @@ function validate() {
     if (password.value.length < 6) return 'Password must be at least 6 characters'
     if (password.value !== password2.value) return 'Passwords do not match'
     if (!detectRole(value)) {
-      return 'Email must end with @class.com (admin) or @students.edu.sg (student)'
+      return 'Email must end with @students.edu.sg'
     }
   }
   return ''
@@ -280,7 +279,7 @@ async function onPrimary() {
   try {
     if (mode.value === 'login') {
       const raw = account.value.trim()
-      const resolvedEmail = resolveLoginAccount(raw)
+      const resolvedEmail = await resolveLoginAccount(raw)
       const { data, error } = await login(resolvedEmail, password.value)
       if (error) {
         toast.show(error.message || 'Login failed')

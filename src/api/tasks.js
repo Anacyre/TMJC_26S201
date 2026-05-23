@@ -46,6 +46,24 @@ export async function fetchTasks(options = {}) {
 }
 
 /**
+ * 获取单个任务
+ */
+export async function fetchTaskById(taskId) {
+  if (USE_MOCK) return mock.fetchTaskById(taskId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('未登录') }
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .eq('user_id', user.id)
+    .maybeSingle()
+
+  return { data: data ? rowToTask(data) : null, error }
+}
+
+/**
  * 创建任务
  */
 export async function createTask(payload) {

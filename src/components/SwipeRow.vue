@@ -1,6 +1,10 @@
 <template>
   <view class="swipeWrap" :class="themeClass">
-    <view class="bg" :class="['side-' + side]">
+    <view
+      class="bg"
+      :class="['side-' + side, { 'bg-fade': snapBack }]"
+      :style="bgStyle"
+    >
       <view
         v-for="act in actions"
         :key="act.id"
@@ -49,9 +53,11 @@ const props = defineProps({
   },
   /** left = swipe right to reveal actions on left; right = swipe left to reveal on right */
   side: { type: String, default: 'left' },
-  threshold: { type: Number, default: 72 },
+  threshold: { type: Number, default: 0 },
   maxReveal: { type: Number, default: 0 },
-  commitThreshold: { type: Number, default: 120 },
+  /** Extra travel beyond reveal before commit fires */
+  commitTravel: { type: Number, default: 0 },
+  commitThreshold: { type: Number, default: 0 },
   /** Action id fired on full swipe */
   commitAction: { type: String, default: '' },
   contextItems: { type: Array, default: () => [] },
@@ -67,6 +73,21 @@ const revealWidth = computed(() => {
   return Math.max(72, props.actions.length * 64)
 })
 
+const openThreshold = computed(() => {
+  if (props.threshold > 0) return props.threshold
+  return Math.round(revealWidth.value * 0.38)
+})
+
+const extraCommitTravel = computed(() => {
+  if (props.commitTravel > 0) return props.commitTravel
+  if (props.commitThreshold > revealWidth.value) {
+    return props.commitThreshold - revealWidth.value
+  }
+  return Math.max(64, Math.round(revealWidth.value * 0.85))
+})
+
+const commitReleaseAt = computed(() => revealWidth.value + extraCommitTravel.value * 0.68)
+
 const startX = ref(0)
 const startY = ref(0)
 const dragging = ref(false)
@@ -80,6 +101,30 @@ const menuX = ref(0)
 const menuY = ref(0)
 
 const displayOffset = computed(() => baseOffset.value + dragOffset.value)
+
+/** 0 = hidden, 1 = fully visible — tracks swipe progress */
+const actionsOpacity = computed(() => {
+  const max = revealWidth.value
+  if (max <= 0) return 0
+  const progress = Math.min(1, Math.abs(displayOffset.value) / max)
+  // Ease-in so buttons emerge near the end of the reveal
+  return progress * progress
+})
+
+const bgStyle = computed(() => ({
+  opacity: Math.min(1, actionsOpacity.value + commitProgress.value * 0.25),
+  pointerEvents: actionsOpacity.value > 0.4 ? 'auto' : 'none',
+  transform: commitProgress.value > 0 ? `scale(${1 + commitProgress.value * 0.03})` : 'none',
+}))
+
+/** Progress into commit zone (0 = at reveal stop, 1 = full commit travel) */
+const commitProgress = computed(() => {
+  const reveal = revealWidth.value
+  const extra = extraCommitTravel.value
+  const total = Math.abs(displayOffset.value)
+  if (total <= reveal || extra <= 0) return 0
+  return Math.min(1, (total - reveal) / extra)
+})
 
 const menuItems = computed(() =>
   props.contextItems.length
@@ -99,18 +144,39 @@ function actStyle(act) {
   return {}
 }
 
-function clampOffset(raw) {
-  const max = revealWidth.value
+function rubberBand(over, limit) {
+  if (over <= 0) return 0
+  return limit * (1 - Math.exp(-over / (limit * 0.42)))
+}
+
+function clampOffset(rawTotal) {
+  const reveal = revealWidth.value
+  const extra = extraCommitTravel.value
+
   if (props.side === 'left') {
-    let next = raw
-    if (next < 0) next = Math.min(0, next * 0.15)
-    if (next > max) next = max + (next - max) * 0.2
-    return next
+    if (rawTotal <= 0) return rawTotal * 0.22
+    if (rawTotal <= reveal) {
+      const ratio = rawTotal / reveal
+      const follow = 0.72 + ratio * 0.28
+      return rawTotal * follow
+    }
+    const over = rawTotal - reveal
+    return reveal + rubberBand(over, extra)
   }
-  let next = raw
-  if (next > 0) next = Math.max(0, next * 0.15)
-  if (next < -max) next = -max + (next + max) * 0.2
-  return next
+
+  if (rawTotal >= 0) return rawTotal * 0.22
+  const abs = -rawTotal
+  if (abs <= reveal) {
+    const ratio = abs / reveal
+    const follow = 0.72 + ratio * 0.28
+    return -(abs * follow)
+  }
+  const over = abs - reveal
+  return -(reveal + rubberBand(over, extra))
+}
+
+function rawDragTotal(dx) {
+  return baseOffset.value + dx
 }
 
 function onTouchStart(e) {
@@ -124,6 +190,7 @@ function onTouchStart(e) {
   snapBack.value = false
   vanish.value = false
   menuOpen.value = false
+  dragOffset.value = 0
 }
 
 function onTouchMove(e) {
@@ -140,8 +207,8 @@ function onTouchMove(e) {
   }
 
   if (lockedAxis.value === 'x') {
-    const signed = props.side === 'left' ? dx : dx
-    dragOffset.value = clampOffset(signed)
+    const clamped = clampOffset(rawDragTotal(dx))
+    dragOffset.value = clamped - baseOffset.value
   }
 }
 
@@ -151,28 +218,35 @@ function onTouchEnd() {
   const total = displayOffset.value
   snapBack.value = true
 
-  const absTotal = Math.abs(total)
-  const max = revealWidth.value
+  const reveal = revealWidth.value
+  const commitAt = commitReleaseAt.value
 
-  if (props.side === 'left' && total >= props.commitThreshold) {
-    vanish.value = true
-    dragOffset.value = 0
-    setTimeout(() => emit('commit', commitId.value), 180)
-    return
-  }
-  if (props.side === 'right' && total <= -props.commitThreshold) {
-    vanish.value = true
-    dragOffset.value = 0
-    setTimeout(() => emit('commit', commitId.value), 180)
-    return
-  }
-
-  if (props.side === 'left' && total >= props.threshold) {
-    baseOffset.value = max
-  } else if (props.side === 'right' && total <= -props.threshold) {
-    baseOffset.value = -max
+  if (props.side === 'left') {
+    if (total >= commitAt) {
+      vanish.value = true
+      baseOffset.value = 0
+      dragOffset.value = 0
+      setTimeout(() => emit('commit', commitId.value), 180)
+      return
+    }
+    if (total >= openThreshold.value) {
+      baseOffset.value = reveal
+    } else {
+      baseOffset.value = 0
+    }
   } else {
-    baseOffset.value = 0
+    if (total <= -commitAt) {
+      vanish.value = true
+      baseOffset.value = 0
+      dragOffset.value = 0
+      setTimeout(() => emit('commit', commitId.value), 180)
+      return
+    }
+    if (total <= -openThreshold.value) {
+      baseOffset.value = -reveal
+    } else {
+      baseOffset.value = 0
+    }
   }
   dragOffset.value = 0
 }
@@ -209,6 +283,11 @@ function onMenuSelect(item) {
   align-items: stretch;
   border-radius: 26rpx;
   overflow: hidden;
+  opacity: 0;
+}
+.bg.bg-fade {
+  transition: opacity 160ms cubic-bezier(0.34, 1.2, 0.64, 1),
+    transform 160ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .bg.side-left {
   justify-content: flex-start;
@@ -317,7 +396,7 @@ function onMenuSelect(item) {
   transform: translateX(0);
 }
 .surface.snap {
-  transition: transform 160ms cubic-bezier(0.34, 1.2, 0.64, 1);
+  transition: transform 220ms cubic-bezier(0.32, 1.05, 0.48, 1);
 }
 .surface.vanish {
   transition: transform 150ms cubic-bezier(0.22, 0.61, 0.36, 1), opacity 150ms ease;

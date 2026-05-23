@@ -12,6 +12,7 @@ import {
   DEFAULT_MEMBER_PASSWORD,
   isAdminMember,
   memberEmail,
+  authLoginEmail,
   ROSTER_VERSION,
   slugifyUsername,
   CLASS_MEMBERS,
@@ -622,7 +623,7 @@ export async function getMembers() {
       links: p.links,
       role: p.role || 'student',
       is_admin: !!p.is_admin,
-      email: auth?.email || '',
+      email: p.role === 'teacher_admin' ? '' : (p.email || memberEmail(p.username, p.role)),
       avatar_url: p.avatar_url,
     }
   })
@@ -664,7 +665,8 @@ export async function adminAddMember({ username, display_name, name, email, role
 
   const memberRole = role === 'admin' || role === 'teacher_admin' ? role : 'student'
   const adminFlag = is_admin || memberRole === 'admin' || memberRole === 'teacher_admin'
-  const cleanEmail = String(email || '').trim().toLowerCase() || memberEmail(cleanUsername, memberRole)
+  const cleanEmail = String(email || '').trim().toLowerCase() || authLoginEmail(cleanUsername, memberRole)
+  const profileEmail = memberEmail(cleanUsername, memberRole)
 
   if (_state.authUsers.some((u) => u.username === cleanUsername)) {
     return { data: null, error: new Error('Username already exists') }
@@ -690,6 +692,7 @@ export async function adminAddMember({ username, display_name, name, email, role
     birthday: birthday || '',
     role: memberRole,
     is_admin: adminFlag,
+    email: profileEmail,
     mbti: '',
     interests: '',
     bio: '',
@@ -737,6 +740,15 @@ export async function fetchTasks(options = {}) {
   if (options.status) rows = rows.filter((t) => t.status === options.status)
   rows = [...rows].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   return { data: rows.map(rowToTask), error: null }
+}
+
+export async function fetchTaskById(taskId) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const row = _state.tasks.find((t) => t.id === taskId && t.user_id === userId)
+  if (!row) return { data: null, error: new Error('Task not found') }
+  return { data: rowToTask(row), error: null }
 }
 
 export async function createTask(payload) {
