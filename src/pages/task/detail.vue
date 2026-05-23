@@ -178,7 +178,7 @@ onLoad(async (query) => {
 .scroll {
   position: relative;
   z-index: 1;
-  height: calc(100vh - 110rpx);
+  height: calc(100vh - var(--shell-header-offset, 148rpx));
 }
 
 .safe {

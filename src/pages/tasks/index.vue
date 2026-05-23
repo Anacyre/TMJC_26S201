@@ -201,7 +201,7 @@ function onTaskSwipeAction(id, actionId) {
 .bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%), linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1)); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
 .safe { padding: 0 28rpx 200rpx; }
 
 .tabs { display: flex; gap: 8rpx; padding: 8rpx 0 18rpx; }

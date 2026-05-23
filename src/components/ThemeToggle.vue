@@ -1,7 +1,7 @@
 <template>
   <view
     class="themeBtn"
-    :class="[themeClass, { on: theme === 'dark', pressed }]"
+    :class="[themeClass, size, { on: theme === 'dark', pressed }]"
     role="button"
     @touchstart="pressed = true"
     @touchend="pressed = false"
@@ -19,6 +19,10 @@
 import { ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 
+defineProps({
+  size: { type: String, default: 'md' },
+})
+
 const { theme, themeClass, toggleTheme } = useTheme()
 const pressed = ref(false)
 const animating = ref(false)
@@ -34,16 +38,31 @@ function handleTap() {
 .themeBtn {
   width: 62rpx;
   height: 46rpx;
-  border-radius: 999rpx;
+  border-radius: 22rpx;
   display: flex;
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.62);
   border: 1rpx solid rgba(255, 255, 255, 0.55);
   backdrop-filter: blur(14px);
-  transition: background 150ms ease, border-color 150ms ease, transform 120ms cubic-bezier(0.34,1.2,0.64,1);
+  transition: background 150ms ease, border-color 150ms ease, transform 140ms cubic-bezier(0.34, 1.2, 0.64, 1);
   position: relative;
   overflow: hidden;
+}
+
+.themeBtn.lg {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 22rpx;
+}
+
+.themeBtn.lg .glyphWrap {
+  width: 30rpx;
+  height: 30rpx;
+}
+
+.themeBtn.lg .glyph {
+  font-size: 30rpx;
 }
 
 .t-dark.themeBtn {
@@ -52,7 +71,7 @@ function handleTap() {
 }
 
 .themeBtn.pressed {
-  transform: scale(0.97);
+  transform: scale(0.9);
 }
 
 .glyphWrap {

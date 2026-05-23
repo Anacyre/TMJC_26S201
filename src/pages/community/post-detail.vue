@@ -102,7 +102,7 @@ onLoad((q) => {
 .scroll {
   position: relative;
   z-index: 1;
-  height: calc(100vh - 110rpx);
+  height: calc(100vh - var(--shell-header-offset, 148rpx));
   padding: 4rpx 28rpx 40rpx;
 }
 .card {

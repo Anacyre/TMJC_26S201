@@ -364,7 +364,7 @@ onBeforeUnmount(() => pause())
     radial-gradient(800rpx 600rpx at 80% 40%, rgba(100, 160, 255, 0.08), transparent 65%),
     linear-gradient(180deg, #111315, #0e1014);
 }
-.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
 .safe { padding: 4rpx 28rpx 200rpx; display: flex; flex-direction: column; gap: 26rpx; }
 
 .hero {

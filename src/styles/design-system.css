@@ -34,6 +34,11 @@
   --weight-semibold: 680;
   --weight-bold: 740;
 
+  /* ── Shell chrome (header + bottom dock) ── */
+  --shell-bar-height: 116rpx;
+  --shell-bar-inset: 16rpx;
+  --shell-header-offset: calc(var(--shell-bar-height) + var(--shell-bar-inset) * 2 + env(safe-area-inset-top));
+
   /* ── Motion (haptic-style) ── */
   --motion-fast: 120ms;
   --motion-base: 150ms;

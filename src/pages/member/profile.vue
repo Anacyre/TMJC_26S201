@@ -11,10 +11,6 @@
           <text v-if="alias && isMe" class="alias">@{{ alias }}</text>
         </view>
         <text v-if="member.bio" class="bio">{{ member.bio }}</text>
-        <view v-if="isMe" class="ctaRow">
-          <view class="editBtn" role="button" @tap="editOpen = true"><text class="editText">Edit profile</text></view>
-          <view class="ghostBtn" role="button" @tap="aliasOpen = true"><text class="ghostText">Quick login alias</text></view>
-        </view>
       </view>
 
       <view v-if="isMe || focusVisible" class="section">
@@ -91,7 +87,25 @@
       <view v-if="memberLinks.length" class="section">
         <text class="sectionLabel">Links</text>
         <view class="card pad">
-          <text v-for="l in memberLinks" :key="l.label" class="link">{{ l.label }} · {{ l.url }}</text>
+          <text v-for="l in memberLinks" :key="l.label" class="link">{{ l.label }} � {{ l.url }}</text>
+        </view>
+      </view>
+
+      <view v-if="isMe" class="section">
+        <text class="sectionLabel">Account</text>
+        <view class="card pad accountCard">
+          <view class="accountRow tap" role="button" @tap="editOpen = true">
+            <text class="accountLabel">Edit profile</text>
+            <text class="accountChev">&gt;</text>
+          </view>
+          <view class="accountRow tap" role="button" @tap="aliasOpen = true">
+            <text class="accountLabel">Quick login alias</text>
+            <text class="accountChev">&gt;</text>
+          </view>
+          <view class="accountRow tap danger" role="button" @tap="confirmLogout">
+            <text class="accountLabel dangerText">Log out</text>
+            <text class="accountChev dangerText">&gt;</text>
+          </view>
         </view>
       </view>
 
@@ -112,7 +126,7 @@
         </view>
         <view class="field">
           <text class="fieldLabel">Interests</text>
-          <input class="input" v-model="draft.interests" placeholder="oil painting, jazz piano…" placeholder-class="ph" />
+          <input class="input" v-model="draft.interests" placeholder="oil painting, jazz piano..." placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="fieldLabel">Bio</text>
@@ -123,7 +137,7 @@
           <picker :range="visibilityOptions" :value="visibilityOptions.indexOf(draft.birthdayVisibility)" @change="onVisibilityChange">
             <view class="input picker">
               <text class="pickerText">{{ draft.birthdayVisibility }}</text>
-              <text class="chevText">▾</text>
+              <text class="chevText">v</text>
             </view>
           </picker>
         </view>
@@ -162,6 +176,8 @@ import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { getQuickLoginAlias, setQuickLoginAlias } from '@/composables/useMemberStore'
 import { toast } from '@/composables/useToast'
+import { logout } from '@/api/auth'
+import { clearAuthSession } from '@/composables/useAuthSession'
 
 const { themeClass } = useTheme()
 const { getMemberById } = useCommunityStore()
@@ -202,7 +218,7 @@ const weekMinutesLabel = computed(() => {
 
 const topSubjectLabel = computed(() => {
   const list = subjectDistribution.value
-  if (!list.length) return '—'
+  if (!list.length) return '-'
   return list[0].name
 })
 
@@ -214,14 +230,36 @@ function onVisibilityChange(e) {
   draft.value.birthdayVisibility = visibilityOptions[e.detail.value]
 }
 
-function saveProfile() {
-  updateProfile({
-    mbti: draft.value.mbti,
-    interests: draft.value.interests,
-    bio: draft.value.bio,
-    birthdayVisibility: draft.value.birthdayVisibility,
+async function saveProfile() {
+  try {
+    await updateProfile({
+      mbti: draft.value.mbti,
+      interests: draft.value.interests,
+      bio: draft.value.bio,
+      birthdayVisibility: draft.value.birthdayVisibility,
+    })
+    editOpen.value = false
+    toast.saved()
+  } catch (e) {
+    toast.error('Could not save profile')
+  }
+}
+
+function confirmLogout() {
+  uni.showModal({
+    title: 'Log out',
+    content: 'Sign out on this device?',
+    confirmText: 'Log out',
+    confirmColor: '#e5484d',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await logout()
+      } catch (e) {}
+      clearAuthSession()
+      uni.reLaunch({ url: '/pages/login/login' })
+    },
   })
-  editOpen.value = false
 }
 
 function saveAlias() {
@@ -288,7 +326,7 @@ onLoad((q) => { id.value = q?.id || currentUser.value.id })
 .page { min-height: 100vh; position: relative; overflow: hidden; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
-.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); padding: 4rpx 28rpx 60rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); padding: 4rpx 28rpx 60rpx; }
 
 .hero { padding: 22rpx 4rpx 18rpx; display: flex; flex-direction: column; gap: 8rpx; }
 .avatar { width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(46, 99, 255, 0.12); color: rgba(46, 99, 255, 0.96); font-size: 28rpx; font-weight: 760; }
@@ -313,6 +351,26 @@ onLoad((q) => { id.value = q?.id || currentUser.value.id })
 .ghostText { font-size: 20rpx; font-weight: 700; color: rgba(16, 24, 40, 0.72); }
 .t-dark .ghostText { color: rgba(245, 247, 255, 0.72); }
 .editBtn:active, .ghostBtn:active { transform: scale(0.96); }
+
+.accountCard { padding: 0; overflow: hidden; }
+.accountRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 22rpx 22rpx;
+  border-bottom: 1rpx solid rgba(16, 24, 40, 0.06);
+  transition: background 160ms ease, transform 140ms ease;
+}
+.t-dark .accountRow { border-bottom-color: rgba(255, 255, 255, 0.06); }
+.accountRow:last-child { border-bottom: none; }
+.accountRow.tap:active { transform: scale(0.99); background: rgba(46, 99, 255, 0.05); }
+.accountRow.danger.tap:active { background: rgba(229, 72, 77, 0.08); }
+.accountLabel { font-size: 22rpx; font-weight: 640; color: rgba(16, 24, 40, 0.82); }
+.t-dark .accountLabel { color: rgba(245, 247, 255, 0.82); }
+.accountChev { font-size: 22rpx; color: rgba(16, 24, 40, 0.28); font-weight: 300; }
+.t-dark .accountChev { color: rgba(245, 247, 255, 0.28); }
+.dangerText { color: rgba(229, 72, 77, 0.96) !important; }
+.t-dark .dangerText { color: rgba(255, 120, 120, 0.96) !important; }
 
 .section { margin-top: 22rpx; }
 .sectionHead { display: flex; align-items: center; justify-content: space-between; padding: 4rpx 4rpx 10rpx; }

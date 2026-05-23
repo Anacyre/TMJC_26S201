@@ -1,61 +1,65 @@
 <template>
-  <view class="wrap" :class="themeClass">
-    <view class="bg" />
-    <view class="row">
-      <view class="item" :class="{ active: active === 'tasks' }" role="button" @tap="go('tasks')">
-        <view class="iconWrap"><view class="icon iconTasks"><view class="line top" /><view class="line bottom" /></view></view>
-        <text class="label">Tasks</text>
-      </view>
-      <view class="item" :class="{ active: active === 'community' }" role="button" @tap="go('community')">
-        <view class="iconWrap"><view class="icon iconCommunity"><view class="dot a" /><view class="dot b" /><view class="bridge" /></view></view>
-        <text class="label">Community</text>
-      </view>
-      <view class="item homeItem" :class="{ active: active === 'home', bounce: bounceHome }" role="button" @tap="go('home')">
-        <view class="iconWrap homeIconWrap">
-          <view class="homeGlyph">
-            <view class="homeRoof" />
-            <view class="homeBase" />
-          </view>
+  <view class="dock" :class="themeClass">
+    <view class="bar">
+      <view
+        v-for="tab in tabs"
+        :key="tab.id"
+        class="slot"
+        :class="{ active: active === tab.id, pressed: pressed === tab.id }"
+        role="button"
+        :aria-label="tab.label"
+        @touchstart="pressed = tab.id"
+        @touchend="pressed = ''"
+        @touchcancel="pressed = ''"
+        @tap="go(tab.id)"
+      >
+        <view class="glyph" :class="'g-' + tab.id">
+          <template v-if="tab.id === 'tasks'">
+            <view class="line top" />
+            <view class="line bottom" />
+          </template>
+          <template v-else-if="tab.id === 'community'">
+            <view class="dot a" />
+            <view class="dot b" />
+            <view class="bridge" />
+          </template>
+          <template v-else-if="tab.id === 'home'">
+            <view class="roof" />
+            <view class="base" />
+          </template>
+          <template v-else-if="tab.id === 'study'">
+            <view class="sheet a" />
+            <view class="sheet b" />
+          </template>
+          <template v-else>
+            <view class="gridDot" />
+            <view class="gridDot" />
+            <view class="gridDot" />
+            <view class="gridDot" />
+          </template>
         </view>
-        <text class="label">Home</text>
-      </view>
-      <view class="item" :class="{ active: active === 'study' }" role="button" @tap="go('study')">
-        <view class="iconWrap"><view class="icon iconStudy"><view class="sheet a" /><view class="sheet b" /></view></view>
-        <text class="label">Study</text>
-      </view>
-      <view class="item" :class="{ active: active === 'other' }" role="button" @tap="go('other')">
-        <view class="iconWrap">
-          <view class="iconOther">
-            <view class="oDot" />
-            <view class="oDot" />
-            <view class="oDot" />
-          </view>
-        </view>
-        <text class="label">Other</text>
+        <view class="activeDot" />
       </view>
     </view>
   </view>
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { navTo, pageAnim } from '@/lib/navigation'
 
 const props = defineProps({ active: { type: String, default: 'home' } })
 const { themeClass } = useTheme()
-const bounceHome = ref(false)
+const pressed = ref('')
 
-watch(
-  () => props.active,
-  (v) => {
-    if (v === 'home' || v === 'tasks') {
-      bounceHome.value = true
-      setTimeout(() => (bounceHome.value = false), 160)
-    }
-  },
-  { immediate: true }
-)
+const tabs = [
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'community', label: 'Community' },
+  { id: 'home', label: 'Home' },
+  { id: 'study', label: 'Study' },
+  { id: 'other', label: 'Other' },
+]
 
 function go(key) {
   if (key === props.active) return
@@ -68,71 +72,190 @@ function go(key) {
 </script>
 
 <style scoped>
-.wrap { position: fixed; left: 16rpx; right: 16rpx; bottom: calc(16rpx + env(safe-area-inset-bottom)); z-index: 40; height: 116rpx; }
-.bg { position:absolute; inset:0; border-radius: 34rpx; background: rgba(255,255,255,.68); border:1rpx solid rgba(255,255,255,.55); box-shadow: 0 30rpx 80rpx rgba(12,20,40,.12); backdrop-filter: blur(16px); transition: background 240ms ease, border-color 240ms ease;}
-.t-dark .bg { background: rgba(26,29,33,.78); border-color: rgba(255,255,255,.06); box-shadow: 0 34rpx 100rpx rgba(0,0,0,.55);}
-.row { position:relative; height:100%; display:grid; grid-template-columns:repeat(5,1fr); align-items:center; justify-content:stretch; padding:10rpx 8rpx 14rpx;}
-.item { position: relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4rpx; min-height:0; opacity:.68; transition: opacity 150ms ease, transform 150ms cubic-bezier(0.34,1.2,0.64,1);}
-.item::before {
-  content: '';
+.dock {
+  position: fixed;
+  left: var(--shell-bar-inset, 16rpx);
+  right: var(--shell-bar-inset, 16rpx);
+  bottom: calc(var(--shell-bar-inset, 16rpx) + env(safe-area-inset-bottom));
+  z-index: 40;
+  height: var(--shell-bar-height, 116rpx);
+}
+
+.bar {
+  height: 100%;
+  border-radius: 34rpx;
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  align-items: center;
+  padding: 0 10rpx;
+  background: rgba(255, 255, 255, 0.68);
+  border: 1rpx solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 30rpx 80rpx rgba(12, 20, 40, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: background 240ms ease, border-color 240ms ease;
+}
+
+.t-dark .bar {
+  background: rgba(26, 29, 33, 0.78);
+  border-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 34rpx 100rpx rgba(0, 0, 0, 0.55);
+}
+
+.slot {
+  position: relative;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  opacity: 0.46;
+  transition: opacity 180ms ease, transform 140ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.slot.active {
+  opacity: 1;
+}
+
+.slot.pressed {
+  transform: scale(0.88);
+}
+
+.glyph {
+  position: relative;
+  width: 44rpx;
+  height: 40rpx;
+  transition: transform 200ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.slot.active .glyph {
+  transform: scale(1.08);
+}
+
+/* tasks */
+.g-tasks .line {
   position: absolute;
+  left: 0;
+  right: 0;
+  border-radius: 10rpx;
+  border: 2.4rpx solid rgba(16, 24, 40, 0.55);
+  transition: border-color 180ms ease;
+}
+.g-tasks .top { top: 2rpx; height: 10rpx; }
+.g-tasks .bottom { bottom: 2rpx; left: 6rpx; right: -6rpx; height: 10rpx; }
+
+/* community */
+.g-community .dot {
+  position: absolute;
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  border: 2.4rpx solid rgba(16, 24, 40, 0.55);
+  transition: border-color 180ms ease;
+}
+.g-community .a { left: 2rpx; top: 10rpx; }
+.g-community .b { right: 2rpx; top: 10rpx; }
+.g-community .bridge {
+  position: absolute;
+  left: 10rpx;
+  right: 10rpx;
+  top: 16rpx;
+  height: 2.4rpx;
+  background: rgba(16, 24, 40, 0.55);
+  transition: background 180ms ease;
+}
+
+/* home */
+.g-home .roof {
+  position: absolute;
+  top: 4rpx;
+  left: 50%;
+  width: 28rpx;
+  height: 16rpx;
+  margin-left: -14rpx;
+  border-top: 2.6rpx solid rgba(16, 24, 40, 0.55);
+  border-left: 2.6rpx solid rgba(16, 24, 40, 0.55);
+  border-right: 2.6rpx solid rgba(16, 24, 40, 0.55);
+  border-top-left-radius: 8rpx;
+  border-top-right-radius: 8rpx;
+  transition: border-color 180ms ease;
+}
+.g-home .base {
+  position: absolute;
+  bottom: 2rpx;
   left: 6rpx;
   right: 6rpx;
-  top: 4rpx;
-  bottom: 8rpx;
-  border-radius: 20rpx;
+  height: 14rpx;
+  border: 2.6rpx solid rgba(16, 24, 40, 0.55);
+  border-top: none;
+  border-bottom-left-radius: 6rpx;
+  border-bottom-right-radius: 6rpx;
+  transition: border-color 180ms ease;
+}
+
+/* study */
+.g-study .sheet {
+  position: absolute;
+  border-radius: 8rpx;
+  border: 2.4rpx solid rgba(16, 24, 40, 0.55);
+  transition: border-color 180ms ease;
+}
+.g-study .sheet.a { inset: 0 8rpx 6rpx 0; }
+.g-study .sheet.b { inset: 6rpx 0 0 8rpx; }
+
+/* other grid */
+.g-other {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6rpx;
+  width: 32rpx;
+  height: 32rpx;
+  margin: 4rpx auto 0;
+}
+.gridDot {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(16, 24, 40, 0.55);
+  transition: background 180ms ease;
+}
+
+.t-dark .g-tasks .line,
+.t-dark .g-community .dot,
+.t-dark .g-study .sheet,
+.t-dark .g-home .roof,
+.t-dark .g-home .base {
+  border-color: rgba(245, 247, 255, 0.58);
+}
+.t-dark .g-community .bridge { background: rgba(245, 247, 255, 0.58); }
+.t-dark .gridDot { background: rgba(245, 247, 255, 0.58); }
+
+.slot.active .g-tasks .line,
+.slot.active .g-community .dot,
+.slot.active .g-study .sheet,
+.slot.active .g-home .roof,
+.slot.active .g-home .base {
+  border-color: rgba(46, 99, 255, 0.95);
+}
+.slot.active .g-community .bridge { background: rgba(46, 99, 255, 0.95); }
+.slot.active .gridDot { background: rgba(46, 99, 255, 0.95); }
+
+.activeDot {
+  width: 8rpx;
+  height: 8rpx;
+  border-radius: 50%;
   background: transparent;
-  transition: background 160ms ease, box-shadow 160ms ease;
-  z-index: 0;
+  transform: scale(0);
+  transition: transform 200ms cubic-bezier(0.34, 1.2, 0.64, 1), background 180ms ease;
 }
-.item.active::before {
-  background: rgba(46,99,255,.14);
-  box-shadow: inset 0 0 0 1rpx rgba(46,99,255,.18);
+
+.slot.active .activeDot {
+  background: rgba(46, 99, 255, 0.95);
+  transform: scale(1);
 }
-.t-dark .item.active::before {
-  background: rgba(46,99,255,.18);
-  box-shadow: inset 0 0 0 1rpx rgba(120,160,255,.22);
+
+.t-dark .slot.active .activeDot {
+  background: rgba(170, 200, 255, 0.96);
 }
-.item:active { transform: scale(0.97);}
-.item.active { opacity:1; transform: translateY(-1rpx);}
-.iconWrap{width:100%;height:40rpx;display:flex;align-items:center;justify-content:center;transition:transform 260ms cubic-bezier(.2,.7,.1,1);position:relative;z-index:1;}
-.label { position: relative; z-index: 1; }
-.item.active .iconWrap{transform:scale(1.06)}
-.icon { position: relative; width: 28rpx; height: 24rpx; }
-.iconTasks .line { position:absolute; left: 0; right:0; border-radius: 9rpx; border: 2rpx solid rgba(16,24,40,.58);}
-.iconTasks .top { top: 1rpx; height: 8rpx;}
-.iconTasks .bottom { bottom: 1rpx; left: 4rpx; right: -4rpx; height: 8rpx;}
-.iconCommunity .dot { position:absolute; width: 12rpx; height: 12rpx; border-radius:50%; border:2rpx solid rgba(16,24,40,.58);}
-.iconCommunity .a { left: 2rpx; top: 6rpx;}
-.iconCommunity .b { right: 2rpx; top: 6rpx;}
-.iconCommunity .bridge { position:absolute; left: 8rpx; right: 8rpx; top: 10rpx; height: 2rpx; background: rgba(16,24,40,.58);}
-.iconStudy .sheet { position:absolute; border-radius: 7rpx; border:2rpx solid rgba(16,24,40,.58);}
-.iconStudy .sheet.a { inset: 0 6rpx 4rpx 0;}
-.iconStudy .sheet.b { inset: 4rpx 0 0 6rpx;}
-.t-dark .iconTasks .line,
-.t-dark .iconCommunity .dot,
-.t-dark .iconStudy .sheet { border-color: rgba(245,247,255,.62);}
-.t-dark .iconCommunity .bridge { background: rgba(245,247,255,.62);}
-.item.active .iconTasks .line,
-.item.active .iconCommunity .dot,
-.item.active .iconStudy .sheet { border-color: rgba(46,99,255,.92);}
-.item.active .iconCommunity .bridge { background: rgba(46,99,255,.92);}
-
-.iconOther { display: flex; align-items: center; gap: 4rpx; }
-.oDot { width: 5rpx; height: 5rpx; border-radius: 50%; background: rgba(16,24,40,.58); }
-.t-dark .oDot { background: rgba(245,247,255,.62); }
-.item.active .oDot { background: rgba(46,99,255,.92); }
-
-.label { font-size: 15rpx; color: rgba(16,24,40,.58); transition: color 260ms ease, opacity 260ms ease; line-height: 1.1; text-align:center;max-width:100%;}
-.item.active .label { color: rgba(46,99,255,.92); font-weight: 650; opacity:1;}
-.t-dark .label { color: rgba(245,247,255,.48); opacity:.92;}
-.t-dark .item.active .label { color: rgba(170,200,255,.96);}
-
-.homeIconWrap{width:38rpx;height:38rpx;border-radius:14rpx;background:rgba(46,99,255,.12);transition:background .22s ease;display:flex;align-items:center;justify-content:center;}
-.homeItem.active .homeIconWrap{background:rgba(46,99,255,.28)}
-.homeItem.bounce .homeIconWrap { animation: homeBounce 150ms cubic-bezier(0.34,1.2,0.64,1);}
-@keyframes homeBounce { 0% { transform: scale(1);} 50% { transform: scale(1.03);} 100% { transform: scale(1);} }
-.homeGlyph { position: relative; width: 20rpx; height: 20rpx; }
-.homeRoof { position: absolute; top: 0; left: 50%; width: 16rpx; height: 10rpx; margin-left: -8rpx; border-top: 2rpx solid rgba(46,99,255,.95); border-left: 2rpx solid rgba(46,99,255,.95); border-right: 2rpx solid rgba(46,99,255,.95); border-top-left-radius: 6rpx; border-top-right-radius: 6rpx; }
-.homeBase { position: absolute; bottom: 0; left: 2rpx; right: 2rpx; height: 8rpx; border: 2rpx solid rgba(46,99,255,.95); border-top: none; border-bottom-left-radius: 4rpx; border-bottom-right-radius: 4rpx; }
 </style>

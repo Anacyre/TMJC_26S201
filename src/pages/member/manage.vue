@@ -197,7 +197,7 @@ async function stepDown() {
 .bg { position: absolute; inset: 0; background: radial-gradient(1000rpx 700rpx at 50% 0%, rgba(40, 110, 255, 0.14), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1000rpx 700rpx at 50% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.safe { position: relative; z-index: 1; padding: 6rpx 28rpx 200rpx; display: flex; flex-direction: column; gap: 16rpx; min-height: calc(100vh - 110rpx); }
+.safe { position: relative; z-index: 1; padding: 6rpx 28rpx 200rpx; display: flex; flex-direction: column; gap: 16rpx; min-height: calc(100vh - var(--shell-header-offset, 148rpx)); }
 .lock { position: relative; z-index: 1; padding: 60rpx 28rpx; }
 
 .filters { display: flex; gap: 8rpx; padding: 6rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.06); }

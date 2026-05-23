@@ -108,7 +108,7 @@ function openFocus() { uni.navigateTo({ url: '/pages/study/focus', animationType
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); padding: 6rpx 28rpx 200rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); padding: 6rpx 28rpx 200rpx; }
 
 .focusEntry { display: flex; align-items: center; gap: 14rpx; padding: 20rpx 18rpx; border-radius: 28rpx; background: linear-gradient(135deg, rgba(80, 140, 255, 0.10), rgba(46, 99, 255, 0.04)); border: 1rpx solid rgba(46, 99, 255, 0.16); transition: transform 180ms ease, background 220ms ease; }
 .t-dark .focusEntry { background: linear-gradient(135deg, rgba(80, 140, 255, 0.18), rgba(46, 99, 255, 0.08)); border-color: rgba(120, 160, 255, 0.24); }

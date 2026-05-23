@@ -12,31 +12,27 @@
               <text class="h1">{{ greeting }}, {{ userName }}</text>
               <text class="sub">{{ todayText }}</text>
             </view>
-            <view class="modePill">
-              <view class="modeDot" />
-              <text class="modeText">{{ theme === 'dark' ? 'Dark' : 'Light' }}</text>
-            </view>
           </view>
 
           <view class="metrics">
             <view class="metric tap" role="button" @tap="openPlanner">
               <view class="metricNumRow">
                 <text class="metricNum">{{ todayTasksCount }}</text>
-                <text class="metricChev">›</text>
+                <text class="metricChev">&gt;</text>
               </view>
               <text class="metricLabel">tasks today</text>
             </view>
             <view class="metric tap" role="button" @tap="viewAllNotices">
               <view class="metricNumRow">
                 <text class="metricNum">{{ unreadNoticesCount }}</text>
-                <text class="metricChev">›</text>
+                <text class="metricChev">&gt;</text>
               </view>
               <text class="metricLabel">unread notices</text>
             </view>
             <view class="metric tap" role="button" @tap="openFocus">
               <view class="metricNumRow">
                 <text class="metricNum">{{ focusHoursDisplay }}</text>
-                <text class="metricChev">›</text>
+                <text class="metricChev">&gt;</text>
               </view>
               <text class="metricLabel">focused</text>
             </view>
@@ -81,7 +77,7 @@
 
         <view class="section">
           <view class="sectionHead">
-            <text class="sectionTitle">Today’s focus</text>
+            <text class="sectionTitle">Today???s focus</text>
             <text class="sectionLink" role="button" @tap="openPlanner">Open planner</text>
           </view>
 
@@ -178,7 +174,7 @@ import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 
-const { theme, themeClass } = useTheme()
+const { themeClass } = useTheme()
 const { tasks, toggleTaskDone } = useTasksStore()
 const { posts: communityPosts } = useCommunityStore()
 const { visibleNotifications } = useNotificationStore()
@@ -215,7 +211,7 @@ const todayText = computed(() => {
   const d = new Date()
   const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
   const m = d.toLocaleString('en-US', { month: 'short' })
-  return `${wk} · ${m} ${d.getDate()}`
+  return `${wk} ? ${m} ${d.getDate()}`
 })
 
 const todayTasksCount = computed(() => tasks.value.filter((x) => x.status === 'today' && !x.done).length)
@@ -263,7 +259,7 @@ onShow(() => { fetchCurrentUser() })
 .bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%), linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1)); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
 .safe { padding: 0 28rpx 200rpx; }
 
 .hero { padding-top: 4rpx; padding-bottom: 4rpx; }
@@ -273,12 +269,6 @@ onShow(() => { fetchCurrentUser() })
 .t-dark .h1 { color: rgba(245, 247, 255, 0.92); }
 .sub { font-size: 22rpx; color: rgba(16, 24, 40, 0.5); }
 .t-dark .sub { color: rgba(245, 247, 255, 0.5); }
-
-.modePill { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 14rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.5); border: 1rpx solid rgba(16, 24, 40, 0.04); }
-.t-dark .modePill { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.modeDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.7); }
-.modeText { font-size: 19rpx; color: rgba(16, 24, 40, 0.55); font-weight: 660; }
-.t-dark .modeText { color: rgba(245, 247, 255, 0.6); }
 
 .metrics { display: flex; gap: 10rpx; padding: 0 0 6rpx; }
 .metric { flex: 1; padding: 18rpx 18rpx; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }

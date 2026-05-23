@@ -28,7 +28,7 @@ const { themeClass } = useTheme()
 .page { min-height: 100vh; position: relative; overflow: hidden; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
-.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); padding: 6rpx 24rpx 40rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); padding: 6rpx 24rpx 40rpx; }
 .emptyWrap { padding: 60rpx 0; }
 .gap { height: 24rpx; }
 </style>
