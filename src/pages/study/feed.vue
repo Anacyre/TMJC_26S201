@@ -10,14 +10,22 @@
       <text class="noticeStripChev">›</text>
     </view>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <view v-for="r in resourcesView" :key="r.id" class="card" role="button" @tap="openDetail(r.id)">
-        <view class="head">
-          <text class="type">{{ r.type }}</text>
-          <text class="tag">{{ subject.name }}</text>
+      <view v-if="!resourcesView.length" class="emptyWrap">
+        <EmptyState
+          variant="resources"
+          title="No resources yet"
+          subtitle="Notes, slides and reference packs for this subject will land here."
+        />
+      </view>
+      <view v-else>
+        <view v-for="r in resourcesView" :key="r.id" class="card" role="button" @tap="openDetail(r.id)">
+          <view class="head">
+            <text class="type">{{ r.type }}</text>
+            <text class="tag">{{ subject.name }}</text>
+          </view>
+          <text class="title">{{ r.title }}</text>
+          <text class="meta">{{ r.uploaderName }} · {{ r.timeLabel }}</text>
         </view>
-        <text class="title">{{ r.title }}</text>
-        <text class="meta">{{ r.uploaderName }} · {{ r.timeLabel }}</text>
-        <view class="stats"><text>↓ {{ r.downloadsCount }}</text><text>♥ {{ r.likesCount }}</text></view>
       </view>
       <view class="gap" />
     </scroll-view>
@@ -30,6 +38,7 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
 const { themeClass } = useTheme()
@@ -85,5 +94,5 @@ onLoad((q) => { id.value = q?.id || 's1' })
 .noticeStrip{position:relative;z-index:2;margin:8rpx 28rpx 10rpx;padding:14rpx 16rpx;border-radius:20rpx;display:flex;align-items:center;justify-content:space-between;background:rgba(255,255,255,.7);border:1rpx solid rgba(16,24,40,.06)}.t-dark .noticeStrip{background:#1a1d21;border-color:rgba(255,255,255,.06)}.noticeStripLabel{font-size:22rpx;font-weight:720;color:rgba(16,24,40,.9)}.t-dark .noticeStripLabel{color:#f5f7fa}.noticeStripSub{display:block;margin-top:4rpx;font-size:18rpx;color:rgba(16,24,40,.5)}.t-dark .noticeStripSub{color:#9aa4b2}.noticeStripChev{font-size:28rpx;color:rgba(46,99,255,.9);font-weight:300}
 .scroll{position:relative;z-index:1;height:calc(100vh - 210rpx);padding:0 28rpx 40rpx}.card{margin-top:12rpx;padding:18rpx;border-radius:24rpx;background:rgba(255,255,255,.74);border:1rpx solid rgba(255,255,255,.6);box-shadow:0 16rpx 50rpx rgba(12,20,40,.08);transition:transform 180ms ease,background 220ms ease,border-color 220ms ease}.t-dark .card{background:#1a1d21;border-color:rgba(255,255,255,.06);box-shadow:0 18rpx 56rpx rgba(0,0,0,.36)}.card:active{transform:scale(.99)}
 .head{display:flex;justify-content:space-between;align-items:center;gap:10rpx}.type{font-size:18rpx;padding:4rpx 12rpx;border-radius:999rpx;background:rgba(16,24,40,.06);color:rgba(16,24,40,.7);font-weight:700;letter-spacing:.3rpx}.t-dark .type{background:rgba(255,255,255,.08);color:rgba(245,247,255,.78)}.tag{font-size:18rpx;padding:4rpx 12rpx;border-radius:999rpx;background:rgba(46,99,255,.12);color:rgba(46,99,255,.95)}.t-dark .tag{background:rgba(120,160,255,.16);color:rgba(170,200,255,.95)}
-.title{display:block;margin-top:12rpx;font-size:24rpx;font-weight:730;color:rgba(16,24,40,.92)}.t-dark .title{color:#f5f7fa}.meta{display:block;margin-top:8rpx;font-size:19rpx;color:rgba(16,24,40,.54)}.t-dark .meta{color:#9aa4b2}.stats{margin-top:12rpx;display:flex;gap:16rpx;font-size:19rpx;color:rgba(16,24,40,.6)}.t-dark .stats{color:rgba(245,247,255,.6)}.gap{height:24rpx}
+.title{display:block;margin-top:12rpx;font-size:24rpx;font-weight:730;color:rgba(16,24,40,.92)}.t-dark .title{color:#f5f7fa}.meta{display:block;margin-top:8rpx;font-size:19rpx;color:rgba(16,24,40,.54)}.t-dark .meta{color:#9aa4b2}.emptyWrap{padding:40rpx 0}.gap{height:24rpx}
 </style>

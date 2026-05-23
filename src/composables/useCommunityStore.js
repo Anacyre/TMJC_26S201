@@ -25,6 +25,8 @@ async function fetchMembers() {
       interests: p.interests || '',
       bio: p.bio || '',
       links: p.links || [],
+      role: p.role || 'member',
+      email: p.email || '',
       avatar: p.avatar_url || '',
     }))
   }

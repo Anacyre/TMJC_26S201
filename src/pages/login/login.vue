@@ -16,7 +16,6 @@
           <text class="themeToggleText">{{ theme === 'dark' ? 'Dark' : 'Light' }}</text>
           <view class="themeKnob" :class="{ on: theme === 'dark' }" />
         </view>
-      <view class="searchBtn" role="button" @tap="openSearch"><text class="searchBtnText">⌕</text></view>
       </view>
 
       <view class="card">
@@ -43,10 +42,10 @@
 
         <view class="form">
           <view class="field" :class="{ focus: focusKey === 'account' }">
-            <text class="label">{{ mode === 'login' ? 'Username or Email' : 'Email' }}</text>
+            <text class="label">{{ mode === 'login' ? 'Email or alias' : 'Email' }}</text>
             <input
               class="input"
-              :placeholder="mode === 'login' ? 'alex@26s201.edu' : 'you@example.com'"
+              :placeholder="mode === 'login' ? 'alex@class.com  ·  or your alias' : 'you@example.com'"
               placeholder-class="placeholder"
               v-model="account"
               @focus="focusKey = 'account'"
@@ -132,9 +131,9 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
-import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { login, register, forgotPassword } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
+import { resolveAliasToEmail } from '@/composables/useMemberStore'
 
 const THEME_KEY = 'ui_theme'
 const MODE_KEY = 'auth_mode'
@@ -142,7 +141,6 @@ const MODE_KEY = 'auth_mode'
 const theme = ref('light')
 const mode = ref('login')
 const focusKey = ref('')
-const { openSearch } = useGlobalSearch()
 
 const account = ref('')
 const displayName = ref('')
@@ -212,15 +210,15 @@ function detectRole(email) {
 }
 
 function validate() {
-  const email = account.value.trim()
-  if (!email) return 'Please enter your email'
+  const value = account.value.trim()
+  if (!value) return mode.value === 'register' ? 'Please enter your email' : 'Please enter your email or alias'
   if (mode.value === 'register' && !displayName.value.trim()) return 'Please enter your name'
   if (!password.value) return 'Please enter your password'
 
   if (mode.value === 'register') {
     if (password.value.length < 6) return 'Password must be at least 6 characters'
     if (password.value !== password2.value) return 'Passwords do not match'
-    if (!detectRole(email)) {
+    if (!detectRole(value)) {
       return 'Email must end with @class.com (admin) or @students.edu.sg (student)'
     }
   }
@@ -238,12 +236,14 @@ async function onPrimary() {
   loading.value = true
   try {
     if (mode.value === 'login') {
-      const { error } = await login(account.value.trim(), password.value)
+      const raw = account.value.trim()
+      const resolvedEmail = raw.includes('@') ? raw : (resolveAliasToEmail(raw) || raw)
+      const { error } = await login(resolvedEmail, password.value)
       if (error) {
         uni.showToast({ title: error.message || 'Login failed', icon: 'none' })
         return
       }
-      const role = detectRole(account.value)
+      const role = detectRole(resolvedEmail)
       uni.showToast({
         title: role === 'admin' ? 'Logged in as Admin' : 'Logged in',
         icon: 'none',
@@ -381,33 +381,6 @@ onLoad(() => {
 .t-dark .themeToggle {
   background: rgba(22, 28, 44, 0.55);
   border-color: rgba(255, 255, 255, 0.10);
-}
-
-.searchBtn {
-  width: 66rpx;
-  height: 48rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(12px);
-  margin-left: 10rpx;
-}
-
-.t-dark .searchBtn {
-  background: rgba(22, 28, 44, 0.55);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.searchBtnText {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.70);
-}
-
-.t-dark .searchBtnText {
-  color: rgba(245, 247, 255, 0.60);
 }
 
 .themeToggleText {

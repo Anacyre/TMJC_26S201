@@ -111,6 +111,20 @@
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "Events & Memories"
 			}
+		},
+		{
+			"path": "pages/study/focus",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Focus"
+			}
+		},
+		{
+			"path": "pages/member/manage",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Members"
+			}
 		}
 	],
 	"globalStyle": {

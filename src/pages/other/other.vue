@@ -1,24 +1,28 @@
 <template>
   <view class="page" :class="themeClass">
     <view class="bg" />
-    <AppHeader title="Other" nav-mode="back" :show-avatar="false" />
+    <AppHeader title="More" nav-mode="back" :show-avatar="false" />
 
     <view class="safe">
-      <view class="card pad">
-        <text class="title">Low-frequency tools</text>
-        <text class="sub">A calm place for settings and archives.</text>
+      <view class="hero">
+        <text class="kicker">Quiet corner</text>
+        <text class="title">A calm place for settings and archives.</text>
+      </view>
 
-        <view class="list">
-          <view v-for="x in entries" :key="x.key" class="row tap" @tap="openEntry(x)">
-            <view class="left">
-            <view class="icon"><text class="menuIcon">{{ x.icon }}</text></view>
-              <view class="text">
-                <text class="rowTitle">{{ x.title }}</text>
-                <text class="rowSub">{{ x.sub }}</text>
-              </view>
-            </view>
-            <text class="chev">›</text>
+      <view class="grid">
+        <view
+          v-for="x in entries"
+          :key="x.key"
+          class="tile"
+          :class="'g-' + x.key"
+          role="button"
+          @tap="openEntry(x)"
+        >
+          <view class="tileGlyph">
+            <component :is="x.glyph" />
           </view>
+          <text class="tileName">{{ x.title }}</text>
+          <text class="tileSub">{{ x.sub }}</text>
         </view>
       </view>
     </view>
@@ -29,7 +33,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { h, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/BottomNav.vue'
 import AppHeader from '@/components/AppHeader.vue'
@@ -38,22 +42,39 @@ import { useTheme } from '@/composables/useTheme'
 
 const { themeClass } = useTheme()
 
-const entries = ref([
-  { key: 'saved', title: 'Saved Items', sub: 'Bookmarks and quick access', icon: '⌁' },
-  { key: 'hidden', title: 'Hidden Notifications', sub: 'Restore hidden updates', icon: '⟂' },
-  { key: 'calendar', title: 'Calendar', sub: 'Schedule overview', icon: '▦' },
-  { key: 'appearance', title: 'Appearance', sub: 'Theme and visual style', icon: '◐' },
-  { key: 'memories', title: 'Events & Memories', sub: 'Timeline highlights', icon: '◷' },
-  { key: 'about', title: 'About', sub: 'Class Operating System info', icon: 'i' },
-])
-
-function back() {
-  uni.navigateBack()
+const glyphs = {
+  saved: () => h('view', { class: 'gWrap' }, [
+    h('view', { class: 'gBookmark' }),
+  ]),
+  hidden: () => h('view', { class: 'gWrap' }, [
+    h('view', { class: 'gEye' }, [h('view', { class: 'gEyeSlash' })]),
+  ]),
+  calendar: () => h('view', { class: 'gWrap' }, [
+    h('view', { class: 'gCal' }, [h('view', { class: 'gCalDot' }), h('view', { class: 'gCalDot' }), h('view', { class: 'gCalDot' }), h('view', { class: 'gCalDot' })]),
+  ]),
+  appearance: () => h('view', { class: 'gWrap' }, [
+    h('view', { class: 'gMoon' }),
+  ]),
+  memories: () => h('view', { class: 'gWrap' }, [
+    h('view', { class: 'gClock' }, [h('view', { class: 'gClockH' }), h('view', { class: 'gClockM' })]),
+  ]),
+  about: () => h('view', { class: 'gWrap' }, [
+    h('view', { class: 'gInfo' }, [h('view', { class: 'gInfoDot' }), h('view', { class: 'gInfoBar' })]),
+  ]),
 }
 
+const entries = ref([
+  { key: 'saved', title: 'Saved', sub: 'Bookmarks', glyph: glyphs.saved },
+  { key: 'hidden', title: 'Hidden', sub: 'Restore notices', glyph: glyphs.hidden },
+  { key: 'calendar', title: 'Calendar', sub: 'Month overview', glyph: glyphs.calendar },
+  { key: 'appearance', title: 'Appearance', sub: 'Theme & style', glyph: glyphs.appearance },
+  { key: 'memories', title: 'Memories', sub: 'Class moments', glyph: glyphs.memories },
+  { key: 'about', title: 'About', sub: 'Build info', glyph: glyphs.about },
+])
+
 function openEntry(x) {
-  if (x.key === 'memories') return uni.navigateTo({ url: '/pages/other/events-memories' })
-  if (x.key === 'hidden') return uni.navigateTo({ url: '/pages/notifications/hidden' })
+  if (x.key === 'memories') return uni.navigateTo({ url: '/pages/other/events-memories', animationType: 'slide-in-right', animationDuration: 220 })
+  if (x.key === 'hidden') return uni.navigateTo({ url: '/pages/notifications/hidden', animationType: 'slide-in-right', animationDuration: 220 })
   uni.showToast({ title: `${x.title} (demo)`, icon: 'none' })
 }
 
@@ -62,159 +83,65 @@ onShow(() => {})
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-}
-
-.bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
+.page { min-height: 100vh; position: relative; overflow: hidden; }
+.bg { position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%),
     radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%),
     linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1));
 }
-
 .t-dark .bg {
   background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%),
     radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%),
     linear-gradient(180deg, #111315, #0e1014);
 }
 
-.safe {
-  position: relative;
-  z-index: 1;
-  padding: 8rpx 28rpx 180rpx;
-}
+.safe { position: relative; z-index: 1; padding: 10rpx 28rpx 200rpx; }
 
-.card {
-  border-radius: 34rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.60);
-  box-shadow: 0 22rpx 70rpx rgba(12, 20, 40, 0.10);
-  backdrop-filter: blur(14px);
-}
+.hero { display: flex; flex-direction: column; gap: 8rpx; padding: 16rpx 4rpx 22rpx; }
+.kicker { font-size: 18rpx; font-weight: 720; color: rgba(46, 99, 255, 0.78); letter-spacing: 1rpx; text-transform: uppercase; }
+.t-dark .kicker { color: rgba(170, 200, 255, 0.85); }
+.title { font-size: 32rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); letter-spacing: -0.4rpx; max-width: 600rpx; line-height: 1.35; }
+.t-dark .title { color: rgba(245, 247, 255, 0.9); }
 
-.t-dark .card {
-  background: #1a1d21;
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 22rpx 70rpx rgba(0, 0, 0, 0.4);
-}
-
-.pad {
-  padding: 22rpx 22rpx;
-}
-
-.title {
-  font-size: 30rpx;
-  font-weight: 780;
-  color: rgba(16, 24, 40, 0.92);
-}
-
-.t-dark .title {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.sub {
-  margin-top: 8rpx;
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.56);
-}
-
-.t-dark .sub {
-  color: rgba(245, 247, 255, 0.50);
-}
-
-.list {
-  margin-top: 18rpx;
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14rpx 14rpx;
-  border-radius: 24rpx;
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; padding-top: 4rpx; }
+.tile {
+  padding: 24rpx 18rpx 20rpx;
+  border-radius: 28rpx;
   background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-  transition: transform 180ms ease;
+  border: 1rpx solid rgba(255, 255, 255, 0.46);
+  display: flex; flex-direction: column; gap: 4rpx;
+  transition: transform 200ms ease, background 220ms ease, border-color 220ms ease;
 }
+.t-dark .tile { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.tile:active { transform: scale(0.985); }
+.tileGlyph { width: 64rpx; height: 64rpx; border-radius: 22rpx; background: rgba(46, 99, 255, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
+.t-dark .tileGlyph { background: rgba(120, 160, 255, 0.14); }
+.tileName { font-size: 24rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.t-dark .tileName { color: rgba(245, 247, 255, 0.92); }
+.tileSub { font-size: 19rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .tileSub { color: rgba(245, 247, 255, 0.5); }
 
-.t-dark .row {
-  background: #23272d;
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-.tap:active {
-  transform: scale(0.985);
-}
-
-.left {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.icon {
-  width: 46rpx;
-  height: 46rpx;
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(46, 99, 255, 0.1);
-  border: 1rpx solid rgba(46, 99, 255, 0.18);
-}
-.t-dark .icon {
-  background: rgba(120, 160, 255, 0.16);
-  border-color: rgba(120, 160, 255, 0.22);
-}
-.t-dark .menuIcon {
-  color: rgba(170, 200, 255, 0.95);
-}
-
-.menuIcon {
-  font-size: 22rpx;
-  color: rgba(46, 99, 255, 0.95);
-}
-
-.text {
-  display: flex;
-  flex-direction: column;
-  gap: 4rpx;
-}
-
-.rowTitle {
-  font-size: 24rpx;
-  font-weight: 720;
-  color: rgba(16, 24, 40, 0.90);
-}
-
-.t-dark .rowTitle {
-  color: rgba(245, 247, 255, 0.90);
-}
-
-.rowSub {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.52);
-}
-
-.t-dark .rowSub {
-  color: rgba(245, 247, 255, 0.48);
-}
-
-.chev {
-  font-size: 30rpx;
-  color: rgba(16, 24, 40, 0.32);
-}
-
-.t-dark .chev {
-  color: rgba(245, 247, 255, 0.28);
-}
+.gWrap { position: relative; width: 32rpx; height: 32rpx; display: flex; align-items: center; justify-content: center; }
+.gBookmark { width: 16rpx; height: 22rpx; background: rgba(46, 99, 255, 0.92); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+.t-dark .gBookmark { background: rgba(170, 200, 255, 0.95); }
+.gEye { width: 26rpx; height: 16rpx; border: 1.6rpx solid rgba(46, 99, 255, 0.92); border-radius: 14rpx / 10rpx; position: relative; }
+.t-dark .gEye { border-color: rgba(170, 200, 255, 0.95); }
+.gEyeSlash { position: absolute; top: -4rpx; left: -2rpx; right: -2rpx; height: 1.6rpx; background: rgba(46, 99, 255, 0.92); transform: rotate(-22deg); border-radius: 999rpx; }
+.t-dark .gEyeSlash { background: rgba(170, 200, 255, 0.95); }
+.gCal { width: 26rpx; height: 26rpx; border: 1.6rpx solid rgba(46, 99, 255, 0.92); border-radius: 6rpx; display: grid; grid-template-columns: 1fr 1fr; gap: 2rpx; padding: 3rpx; }
+.t-dark .gCal { border-color: rgba(170, 200, 255, 0.95); }
+.gCalDot { background: rgba(46, 99, 255, 0.72); border-radius: 2rpx; }
+.t-dark .gCalDot { background: rgba(170, 200, 255, 0.85); }
+.gMoon { width: 22rpx; height: 22rpx; border-radius: 50%; background: transparent; box-shadow: inset 6rpx -3rpx 0 0 rgba(46, 99, 255, 0.92); }
+.t-dark .gMoon { box-shadow: inset 6rpx -3rpx 0 0 rgba(170, 200, 255, 0.95); }
+.gClock { width: 26rpx; height: 26rpx; border-radius: 50%; border: 1.6rpx solid rgba(46, 99, 255, 0.92); position: relative; }
+.t-dark .gClock { border-color: rgba(170, 200, 255, 0.95); }
+.gClockH, .gClockM { position: absolute; top: 50%; left: 50%; background: rgba(46, 99, 255, 0.92); border-radius: 999rpx; transform-origin: left center; }
+.t-dark .gClockH, .t-dark .gClockM { background: rgba(170, 200, 255, 0.95); }
+.gClockH { width: 8rpx; height: 1.8rpx; transform: translate(0, -50%) rotate(-90deg); }
+.gClockM { width: 10rpx; height: 1.8rpx; transform: translate(0, -50%) rotate(30deg); }
+.gInfo { width: 22rpx; height: 26rpx; display: flex; flex-direction: column; align-items: center; gap: 3rpx; }
+.gInfoDot { width: 4rpx; height: 4rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.92); }
+.gInfoBar { width: 4rpx; height: 14rpx; border-radius: 2rpx; background: rgba(46, 99, 255, 0.92); }
+.t-dark .gInfoDot, .t-dark .gInfoBar { background: rgba(170, 200, 255, 0.95); }
 </style>
-

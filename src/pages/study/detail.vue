@@ -20,15 +20,15 @@
           </view>
         </view>
       </view>
-      <view class="card pad">
+      <view class="card pad sub">
         <text class="sec">Comments</text>
-        <text class="comment">Great notes, very clear.</text>
-        <text class="comment">Thanks for sharing!</text>
-      </view>
-      <view class="card pad">
-        <text class="sec">Related resources</text>
-        <text class="comment">Physics Lab Report Template</text>
-        <text class="comment">Essay Structuring Playbook</text>
+        <view class="emptyInline">
+          <EmptyState
+            variant="posts"
+            title="No comments yet"
+            subtitle="Discussion threads on resources will appear here."
+          />
+        </view>
       </view>
       <view class="gap" />
     </scroll-view>
@@ -41,6 +41,7 @@ import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
 
@@ -241,15 +242,7 @@ onLoad((q) => {
 .t-dark .sec {
   color: rgba(245, 247, 255, 0.62);
 }
-.comment {
-  display: block;
-  margin-top: 12rpx;
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.82);
-}
-.t-dark .comment {
-  color: rgba(245, 247, 255, 0.82);
-}
+.emptyInline { padding: 8rpx 0; }
 .gap {
   height: 24rpx;
 }

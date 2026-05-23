@@ -7,7 +7,11 @@
       <text class="hint">Lower priority archive. Restore anytime.</text>
 
       <view v-if="!list.length" class="empty">
-        <text class="emptyText">Nothing hidden.</text>
+        <EmptyState
+          variant="notifications"
+          title="Nothing hidden"
+          subtitle="Anything you hide from the feed will be tucked away here."
+        />
       </view>
 
       <view v-for="n in list" :key="n.id" class="row">
@@ -35,6 +39,7 @@
 import { computed } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 

@@ -3,10 +3,25 @@ import { useTasksStore } from './useTasksStore'
 import { useCommunityStore } from './useCommunityStore'
 import { useStudyStore } from './useStudyStore'
 import { useNotificationStore } from './useNotificationStore'
+import { useUserStore } from './useUserStore'
+
+const RECENT_KEY = 'global_search_recent_v1'
 
 const open = ref(false)
 const query = ref('')
-const recent = ref(['ddl this week', 'homework', 'via meeting', 'boris'])
+
+function loadRecent() {
+  try {
+    const raw = uni.getStorageSync(RECENT_KEY)
+    if (Array.isArray(raw)) return raw.filter((x) => typeof x === 'string')
+  } catch (e) {}
+  return []
+}
+function persistRecent(list) {
+  try { uni.setStorageSync(RECENT_KEY, list) } catch (e) {}
+}
+
+const recent = ref(loadRecent())
 
 function includesText(value, q) {
   return String(value || '')
@@ -17,22 +32,40 @@ function includesText(value, q) {
 function commitRecent(value) {
   const v = String(value || '').trim()
   if (!v) return
-  if (recent.value.includes(v)) {
-    recent.value = [v, ...recent.value.filter((x) => x !== v)]
-    return
-  }
-  recent.value = [v, ...recent.value].slice(0, 6)
+  recent.value = [v, ...recent.value.filter((x) => x !== v)].slice(0, 6)
+  persistRecent(recent.value)
 }
 
-function openSearch(initial = '') {
-  query.value = initial
+function clearRecent() {
+  recent.value = []
+  persistRecent(recent.value)
+}
+
+function isString(value) {
+  return typeof value === 'string'
+}
+
+function openSearch(initial) {
+  query.value = isString(initial) ? initial : ''
   open.value = true
 }
 
-function closeSearch() {
-  if (query.value.trim()) commitRecent(query.value.trim())
+function closeSearch({ keepQuery = false } = {}) {
+  if (query.value && isString(query.value) && query.value.trim()) {
+    commitRecent(query.value.trim())
+  }
   open.value = false
-  query.value = ''
+  if (!keepQuery) {
+    query.value = ''
+  }
+}
+
+function setQuery(value) {
+  query.value = isString(value) ? value : ''
+}
+
+function isTestAccount(name) {
+  return String(name || '').trim().toLowerCase().startsWith('test')
 }
 
 export function useGlobalSearch() {
@@ -40,7 +73,8 @@ export function useGlobalSearch() {
   const { communities, members } = useCommunityStore()
   const { resources } = useStudyStore()
   const { visibleNotifications } = useNotificationStore()
-  const q = computed(() => query.value.trim().toLowerCase())
+  const { currentUser } = useUserStore()
+  const q = computed(() => (isString(query.value) ? query.value.trim().toLowerCase() : ''))
 
   const resultTasks = computed(() =>
     tasks.value.filter((x) => {
@@ -52,9 +86,12 @@ export function useGlobalSearch() {
   const resultCommunities = computed(() =>
     communities.value.filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.desc, q.value))
   )
-  const resultMembers = computed(() =>
-    members.value.filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.interests, q.value))
-  )
+  const resultMembers = computed(() => {
+    const isAdmin = currentUser.value?.role === 'admin'
+    return members.value
+      .filter((x) => isAdmin || !isTestAccount(x.name))
+      .filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.interests, q.value))
+  })
   const resultNotifications = computed(() =>
     visibleNotifications.value.filter((x) => !q.value || includesText(x.title, q.value) || includesText(x.type, q.value))
   )
@@ -74,5 +111,7 @@ export function useGlobalSearch() {
     openSearch,
     closeSearch,
     commitRecent,
+    clearRecent,
+    setQuery,
   }
 }

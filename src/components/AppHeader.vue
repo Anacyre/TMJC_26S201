@@ -1,20 +1,22 @@
 <template>
   <view class="header" :class="[themeClass, { back: navMode === 'back' }]">
     <view v-if="navMode === 'brand'" class="left brand" role="button" @tap="goHome">
-      <view class="logoDot" />
+      <ClassLogo size="md" />
       <text class="brandText">26S201</text>
     </view>
-    <view v-else class="left backBtn" role="button" @tap="goBack">
-      <text class="backChevron">‹</text>
-      <text class="backLabel">Back</text>
-    </view>
+    <BackButton v-else />
 
-    <text v-if="navMode === 'back'" class="title">{{ title }}</text>
+    <text v-if="navMode === 'back'" class="title" :number-of-lines="1">{{ title }}</text>
     <view v-else class="title spacer" />
 
     <view class="right">
       <view v-if="isAdmin" class="adminBadge"><text class="adminBadgeText">ADMIN</text></view>
-      <view class="iconBtn" role="button" @tap="openSearch"><text class="iconText">⌕</text></view>
+      <view class="iconBtn" role="button" @tap="onOpenSearch">
+        <view class="searchGlyph">
+          <view class="searchRing" />
+          <view class="searchHandle" />
+        </view>
+      </view>
       <ThemeToggle />
       <view
         v-if="resolvedShowAvatar"
@@ -32,6 +34,8 @@ import { useTheme } from '@/composables/useTheme'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useUserStore } from '@/composables/useUserStore'
 import ThemeToggle from '@/components/ThemeToggle.vue'
+import ClassLogo from '@/components/ClassLogo.vue'
+import BackButton from '@/components/BackButton.vue'
 
 const props = defineProps({
   title: { type: String, default: 'Dashboard' },
@@ -59,13 +63,8 @@ const resolvedShowAvatar = computed(() =>
 function goHome() {
   uni.navigateTo({ url: '/pages/index/index', animationType: 'fade-in', animationDuration: 200 })
 }
-function goBack() {
-  const pages = getCurrentPages ? getCurrentPages() : []
-  if (pages.length > 1) {
-    uni.navigateBack({ delta: 1 })
-  } else {
-    uni.reLaunch({ url: '/pages/index/index' })
-  }
+function onOpenSearch() {
+  openSearch()
 }
 function openProfile() {
   uni.navigateTo({
@@ -104,7 +103,7 @@ function openProfile() {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8rpx;
+  gap: 10rpx;
   border-radius: 999rpx;
   transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
 }
@@ -113,52 +112,17 @@ function openProfile() {
 }
 
 .brand {
-  padding: 10rpx 14rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-}
-.t-dark .brand {
-  background: rgba(255, 255, 255, 0.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.08);
-}
-.logoDot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #6aa6ff, #2e63ff);
-  box-shadow: 0 0 0 6rpx rgba(83, 147, 255, 0.18);
+  padding: 8rpx 16rpx 8rpx 10rpx;
+  background: transparent;
 }
 .brandText {
-  font-size: 20rpx;
+  font-size: 22rpx;
   font-weight: 740;
-  color: rgba(16, 24, 40, 0.86);
+  letter-spacing: 0.6rpx;
+  color: rgba(16, 24, 40, 0.78);
 }
 .t-dark .brandText {
-  color: rgba(245, 247, 255, 0.9);
-}
-
-.backBtn {
-  padding: 10rpx 14rpx 10rpx 10rpx;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
-}
-.t-dark .backBtn {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-.backChevron {
-  font-size: 30rpx;
-  font-weight: 300;
-  color: rgba(46, 99, 255, 0.95);
-  line-height: 1;
-  margin-top: -2rpx;
-}
-.backLabel {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.7);
-}
-.t-dark .backLabel {
-  color: rgba(245, 247, 255, 0.74);
+  color: rgba(245, 247, 255, 0.84);
 }
 
 .title {
@@ -206,13 +170,32 @@ function openProfile() {
 .iconBtn:active {
   transform: scale(0.94);
 }
-.iconText {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.72);
+.searchGlyph {
+  position: relative;
+  width: 22rpx;
+  height: 22rpx;
 }
-.t-dark .iconText {
-  color: rgba(245, 247, 255, 0.78);
+.searchRing {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  border: 1.5rpx solid rgba(16, 24, 40, 0.7);
 }
+.t-dark .searchRing { border-color: rgba(245, 247, 255, 0.78); }
+.searchHandle {
+  position: absolute;
+  bottom: 0rpx;
+  right: 0rpx;
+  width: 9rpx;
+  height: 1.6rpx;
+  background: rgba(16, 24, 40, 0.7);
+  border-radius: 999rpx;
+  transform: rotate(45deg);
+}
+.t-dark .searchHandle { background: rgba(245, 247, 255, 0.78); }
 
 .avatar {
   width: 48rpx;
@@ -244,13 +227,20 @@ function openProfile() {
 .adminBadge {
   padding: 6rpx 12rpx;
   border-radius: 999rpx;
-  background: linear-gradient(180deg, rgba(255, 184, 0, 0.95), rgba(255, 130, 0, 0.95));
-  box-shadow: 0 6rpx 16rpx rgba(255, 140, 0, 0.32);
+  background: rgba(46, 99, 255, 0.14);
+  border: 1rpx solid rgba(46, 99, 255, 0.22);
 }
 .adminBadgeText {
   font-size: 16rpx;
   font-weight: 800;
   letter-spacing: 0.8rpx;
-  color: rgba(255, 255, 255, 0.98);
+  color: rgba(46, 99, 255, 0.96);
+}
+.t-dark .adminBadge {
+  background: rgba(120, 160, 255, 0.18);
+  border-color: rgba(120, 160, 255, 0.32);
+}
+.t-dark .adminBadgeText {
+  color: rgba(170, 200, 255, 0.96);
 }
 </style>

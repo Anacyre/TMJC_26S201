@@ -3,17 +3,55 @@
     <view class="bg" />
     <AppHeader title="Study" nav-mode="back" :show-avatar="false" />
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <view class="grid">
+      <view class="focusEntry" role="button" @tap="openFocus">
+        <view class="focusGlyph">
+          <view class="ringO" />
+          <view class="ringI" />
+          <view class="needle" />
+        </view>
+        <view class="focusBody">
+          <text class="focusTitle">Focus space</text>
+          <text class="focusSub">A calm timer, white noise, weekly insight.</text>
+        </view>
+        <view class="focusStat">
+          <text class="focusStatNum">{{ focusHoursLabel }}</text>
+          <text class="focusStatLabel">focused</text>
+        </view>
+      </view>
+
+      <view class="sectionHead">
+        <text class="sectionTitle">Subjects</text>
+      </view>
+      <view v-if="!subjectsView.length" class="emptyWrap">
+        <EmptyState
+          variant="resources"
+          title="No subjects yet"
+          subtitle="Subjects appear here as resources are added."
+        />
+      </view>
+      <view v-else class="grid">
         <view v-for="s in subjectsView" :key="s.id" class="card" role="button" @tap="openSubject(s.id)">
           <view class="icon">{{ s.icon }}</view>
           <text class="name">{{ s.name }}</text>
-          <text class="meta">{{ s.filesCount }} files · {{ s.updatedLabel }}</text>
+          <text class="meta">{{ s.filesCount === 1 ? '1 file' : (s.filesCount + ' files') }} · {{ s.updatedLabel }}</text>
         </view>
       </view>
-      <view class="listHead"><text>Latest Resources</text></view>
-      <view v-for="r in latestResourcesView.slice(0,3)" :key="r.id" class="row" role="button" @tap="openResource(r.id)">
-        <text class="rTitle">{{ r.title }}</text>
-        <text class="rMeta">{{ r.type }} · {{ r.uploaderName }}</text>
+
+      <view class="sectionHead">
+        <text class="sectionTitle">Latest resources</text>
+      </view>
+      <view v-if="!latestResourcesView.length" class="emptyWrap">
+        <EmptyState
+          variant="resources"
+          title="No resources uploaded"
+          subtitle="Upload notes, slides, or reference packs from any subject page."
+        />
+      </view>
+      <view v-else>
+        <view v-for="r in latestResourcesView.slice(0,3)" :key="r.id" class="row" role="button" @tap="openResource(r.id)">
+          <text class="rTitle">{{ r.title }}</text>
+          <text class="rMeta">{{ r.type }} · {{ r.uploaderName }}</text>
+        </view>
       </view>
       <view class="gap" />
     </scroll-view>
@@ -27,10 +65,15 @@ import { computed } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
+import { useFocusStore } from '@/composables/useFocusStore'
+
 const { themeClass } = useTheme()
 const { subjects, latestResources } = useStudyStore()
+const { totalHoursLabel } = useFocusStore()
+const focusHoursLabel = computed(() => totalHoursLabel.value || '0m')
 
 function shortTimeLabel(iso) {
   if (!iso) return 'just now'
@@ -56,11 +99,61 @@ const latestResourcesView = computed(() => latestResources.value)
 
 function openSubject(id) { uni.navigateTo({ url: `/pages/study/feed?id=${id}`, animationType: 'pop-in', animationDuration: 240 }) }
 function openResource(id) { uni.navigateTo({ url: `/pages/study/detail?id=${id}`, animationType: 'slide-in-right', animationDuration: 220 }) }
+function openFocus() { uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 }) }
 </script>
 
 <style scoped>
-.page{min-height:100vh;position:relative;overflow:hidden}.bg{position:absolute;inset:0;background:radial-gradient(1200rpx 800rpx at 40% 0%,rgba(40,110,255,.16),transparent 60%),linear-gradient(180deg,#f8faff,#f1f4fa)}.t-dark .bg{background:radial-gradient(1200rpx 800rpx at 40% 0%,rgba(60,120,255,.14),transparent 58%),linear-gradient(180deg,#111315,#0e1014)}
-.scroll{position:relative;z-index:1;height:calc(100vh - 110rpx);padding:6rpx 28rpx 180rpx}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12rpx}.card{padding:18rpx;border-radius:24rpx;background:rgba(255,255,255,.74);border:1rpx solid rgba(255,255,255,.6);box-shadow:0 14rpx 44rpx rgba(12,20,40,.08);transition:transform 180ms ease,background 220ms ease,border-color 220ms ease}.t-dark .card{background:#1a1d21;border-color:rgba(255,255,255,.06);box-shadow:0 18rpx 52rpx rgba(0,0,0,.36)}.card:active{transform:scale(.985)}
-.icon{width:54rpx;height:54rpx;border-radius:16rpx;background:rgba(46,99,255,.12);display:flex;align-items:center;justify-content:center;color:rgba(46,99,255,.95);font-size:24rpx;font-weight:700}.t-dark .icon{background:rgba(120,160,255,.16);color:rgba(170,200,255,.96)}.name{display:block;margin-top:12rpx;font-size:24rpx;font-weight:730;color:rgba(16,24,40,.9)}.t-dark .name{color:#f5f7fa}.meta{display:block;margin-top:4rpx;font-size:19rpx;color:rgba(16,24,40,.54)}.t-dark .meta{color:#9aa4b2}
-.listHead{margin-top:18rpx;padding:8rpx 2rpx;font-size:21rpx;color:rgba(16,24,40,.58)}.t-dark .listHead{color:rgba(245,247,255,.58)}.row{margin-top:10rpx;padding:16rpx;border-radius:20rpx;background:rgba(255,255,255,.7);border:1rpx solid rgba(16,24,40,.04);transition:background 220ms ease,border-color 220ms ease}.t-dark .row{background:#1a1d21;border-color:rgba(255,255,255,.06)}.rTitle{font-size:22rpx;font-weight:700;color:rgba(16,24,40,.9)}.t-dark .rTitle{color:#f5f7fa}.rMeta{display:block;margin-top:6rpx;font-size:19rpx;color:rgba(16,24,40,.54)}.t-dark .rMeta{color:#9aa4b2}.gap{height:24rpx}
+.page { min-height: 100vh; position: relative; overflow: hidden; }
+.bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
+.t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
+
+.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); padding: 6rpx 28rpx 200rpx; }
+
+.focusEntry { display: flex; align-items: center; gap: 14rpx; padding: 20rpx 18rpx; border-radius: 28rpx; background: linear-gradient(135deg, rgba(80, 140, 255, 0.10), rgba(46, 99, 255, 0.04)); border: 1rpx solid rgba(46, 99, 255, 0.16); transition: transform 180ms ease, background 220ms ease; }
+.t-dark .focusEntry { background: linear-gradient(135deg, rgba(80, 140, 255, 0.18), rgba(46, 99, 255, 0.08)); border-color: rgba(120, 160, 255, 0.24); }
+.focusEntry:active { transform: scale(0.99); }
+
+.focusGlyph { position: relative; width: 56rpx; height: 56rpx; display: flex; align-items: center; justify-content: center; }
+.ringO { position: absolute; inset: 0; border-radius: 50%; border: 1.6rpx solid rgba(46, 99, 255, 0.72); }
+.ringI { position: absolute; inset: 16rpx; border-radius: 50%; border: 1.4rpx solid rgba(46, 99, 255, 0.5); }
+.needle { position: absolute; top: 50%; left: 50%; width: 20rpx; height: 2rpx; background: rgba(46, 99, 255, 0.95); border-radius: 999rpx; transform-origin: left center; transform: translate(0, -50%) rotate(-32deg); }
+.t-dark .ringO { border-color: rgba(170, 200, 255, 0.78); }
+.t-dark .ringI { border-color: rgba(170, 200, 255, 0.5); }
+.t-dark .needle { background: rgba(170, 200, 255, 0.95); }
+
+.focusBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.focusTitle { font-size: 24rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
+.t-dark .focusTitle { color: #f5f7fa; }
+.focusSub { font-size: 19rpx; color: rgba(16, 24, 40, 0.55); }
+.t-dark .focusSub { color: rgba(245, 247, 255, 0.55); }
+.focusStat { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; }
+.focusStatNum { font-size: 22rpx; font-weight: 740; color: rgba(46, 99, 255, 0.96); letter-spacing: -0.2rpx; }
+.t-dark .focusStatNum { color: rgba(170, 200, 255, 0.96); }
+.focusStatLabel { font-size: 17rpx; color: rgba(16, 24, 40, 0.48); }
+.t-dark .focusStatLabel { color: rgba(245, 247, 255, 0.45); }
+
+.sectionHead { margin-top: 24rpx; padding: 6rpx 4rpx 10rpx; }
+.sectionTitle { font-size: 22rpx; color: rgba(16, 24, 40, 0.58); font-weight: 660; }
+.t-dark .sectionTitle { color: rgba(245, 247, 255, 0.55); }
+
+.emptyWrap { padding: 24rpx 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
+.card { padding: 18rpx; border-radius: 24rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.card:active { transform: scale(0.985); }
+.icon { width: 50rpx; height: 50rpx; border-radius: 16rpx; background: rgba(46, 99, 255, 0.1); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: 22rpx; font-weight: 700; }
+.t-dark .icon { background: rgba(120, 160, 255, 0.14); color: rgba(170, 200, 255, 0.96); }
+.name { display: block; margin-top: 12rpx; font-size: 23rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.t-dark .name { color: #f5f7fa; }
+.meta { display: block; margin-top: 4rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .meta { color: rgba(245, 247, 255, 0.45); }
+
+.row { margin-top: 10rpx; padding: 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: background 220ms ease, border-color 220ms ease, transform 180ms ease; }
+.t-dark .row { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.row:active { transform: scale(0.99); }
+.rTitle { font-size: 22rpx; font-weight: 700; color: rgba(16, 24, 40, 0.9); }
+.t-dark .rTitle { color: #f5f7fa; }
+.rMeta { display: block; margin-top: 6rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .rMeta { color: rgba(245, 247, 255, 0.46); }
+.gap { height: 24rpx; }
 </style>

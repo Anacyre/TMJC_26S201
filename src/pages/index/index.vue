@@ -6,57 +6,114 @@
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
-        <view class="card tap" @tap="pressCard" :class="{ pressed: pressedKey === 'greeting' }">
-          <view class="cardHead">
-            <view class="cardTitleWrap">
+        <view class="hero">
+          <view class="heroHead">
+            <view class="heroText">
               <text class="h1">{{ greeting }}, {{ userName }}</text>
               <text class="sub">{{ todayText }}</text>
             </view>
-            <view class="pill">
-              <text class="pillText">{{ theme === 'dark' ? 'Dark' : 'Light' }}</text>
+            <view class="modePill">
+              <view class="modeDot" />
+              <text class="modeText">{{ theme === 'dark' ? 'Dark' : 'Light' }}</text>
             </view>
           </view>
 
           <view class="metrics">
-            <view class="metric">
-              <text class="metricNum">{{ todayTasksCount }}</text>
+            <view class="metric tap" role="button" @tap="openPlanner">
+              <view class="metricNumRow">
+                <text class="metricNum">{{ todayTasksCount }}</text>
+                <text class="metricChev">›</text>
+              </view>
               <text class="metricLabel">tasks today</text>
             </view>
-            <view class="metric">
-              <text class="metricNum">{{ unreadNoticesCount }}</text>
+            <view class="metric tap" role="button" @tap="viewAllNotices">
+              <view class="metricNumRow">
+                <text class="metricNum">{{ unreadNoticesCount }}</text>
+                <text class="metricChev">›</text>
+              </view>
               <text class="metricLabel">unread notices</text>
             </view>
+            <view class="metric tap" role="button" @tap="openFocus">
+              <view class="metricNumRow">
+                <text class="metricNum">{{ focusHoursDisplay }}</text>
+                <text class="metricChev">›</text>
+              </view>
+              <text class="metricLabel">focused</text>
+            </view>
           </view>
         </view>
 
         <view class="section">
           <view class="sectionHead">
-            <text class="sectionTitle">Notification preview</text>
-            <text class="sectionLink" @tap="viewAllNotices">View all notices</text>
+            <text class="sectionTitle">Recent notices</text>
+            <text class="sectionLink" role="button" @tap="viewAllNotices">All</text>
           </view>
 
-          <view class="card pad">
-            <view class="noticeGrid">
-              <view
-                v-for="n in notices"
-                :key="n.id"
-                class="noticeItem tap"
-                :class="{ pressed: pressedKey === 'notice:' + n.id }"
-                @touchstart="pressedKey = 'notice:' + n.id"
-                @touchend="pressedKey = ''"
-                @touchcancel="pressedKey = ''"
-                @tap="openNotice(n)"
-              >
-                <view class="noticeTop">
-                  <view class="tag" :class="'tag-' + n.tag.toLowerCase()">
-                    <text class="tagText">{{ n.tag }}</text>
-                  </view>
-                  <text class="time">{{ n.time }}</text>
+          <view v-if="!notices.length" class="emptyCard">
+            <EmptyState
+              variant="notifications"
+              title="No notices yet"
+              subtitle="Class updates from admins will appear here."
+            />
+          </view>
+          <view v-else class="noticeGrid">
+            <view
+              v-for="n in notices"
+              :key="n.id"
+              class="noticeItem tap"
+              :class="{ pressed: pressedKey === 'notice:' + n.id }"
+              @touchstart="pressedKey = 'notice:' + n.id"
+              @touchend="pressedKey = ''"
+              @touchcancel="pressedKey = ''"
+              @tap="openNotice(n)"
+            >
+              <view class="noticeTop">
+                <view class="tag" :class="'tag-' + (n.tag || '').toLowerCase()">
+                  <view class="tagDot" />
+                  <text class="tagText">{{ n.tag }}</text>
                 </view>
-                <text class="noticeTitle" :number-of-lines="2">{{ n.title }}</text>
-                <view class="noticeMeta">
-                  <text class="metaMuted">{{ n.subject }}</text>
-                  <text v-if="n.ddl" class="ddl">DDL {{ n.ddl }}</text>
+                <text v-if="n.ddl" class="ddl">{{ n.ddl }}</text>
+              </view>
+              <text class="noticeTitle" :number-of-lines="2">{{ n.title }}</text>
+              <text class="noticeSubject">{{ n.subject }}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="section">
+          <view class="sectionHead">
+            <text class="sectionTitle">Today’s focus</text>
+            <text class="sectionLink" role="button" @tap="openPlanner">Open planner</text>
+          </view>
+
+          <view v-if="!todayTasks.length" class="emptyCard">
+            <EmptyState
+              variant="tasks"
+              title="A clear day"
+              subtitle="No tasks scheduled for today."
+              action-label="Plan a task"
+              @action="openPlanner"
+            />
+          </view>
+          <view v-else class="taskList">
+            <view
+              v-for="t in todayTasks"
+              :key="t.id"
+              class="taskRow tap"
+              :class="[{ pressed: pressedKey === 'task:' + t.id }, 'st-' + t.status]"
+              @touchstart="pressedKey = 'task:' + t.id"
+              @touchend="pressedKey = ''"
+              @touchcancel="pressedKey = ''"
+              @tap="openTask(t)"
+            >
+              <view class="check" :class="{ on: t.done }" @tap.stop="toggleTask(t)">
+                <view class="checkDot" />
+              </view>
+              <view class="taskMain">
+                <text class="taskTitle" :class="{ done: t.done }" :number-of-lines="1">{{ t.title }}</text>
+                <view class="taskMeta">
+                  <text class="metaMuted">{{ t.deadline }}</text>
+                  <text class="state" :class="'state-' + t.status">{{ t.status }}</text>
                 </view>
               </view>
             </view>
@@ -65,63 +122,37 @@
 
         <view class="section">
           <view class="sectionHead">
-            <text class="sectionTitle">Upcoming tasks</text>
-            <text class="sectionLink" @tap="openPlanner">Open planner</text>
+            <text class="sectionTitle">Community</text>
+            <text class="sectionLink" role="button" @tap="exploreCommunity">Open</text>
           </view>
 
-          <view class="card pad">
-            <view class="taskList">
-              <view
-                v-for="t in tasks"
-                :key="t.id"
-                class="taskRow tap"
-                :class="[{ pressed: pressedKey === 'task:' + t.id }, 'st-' + t.status]"
-                @touchstart="pressedKey = 'task:' + t.id"
-                @touchend="pressedKey = ''"
-                @touchcancel="pressedKey = ''"
-                @tap="openTask(t)"
-              >
-                <view class="check" :class="{ on: t.done }" @tap.stop="toggleTask(t)">
-                  <view class="checkDot" />
-                </view>
-                <view class="taskMain">
-                  <text class="taskTitle" :class="{ done: t.done }" :number-of-lines="1">{{ t.title }}</text>
-                  <view class="taskMeta">
-                    <text class="metaMuted">{{ t.deadline }}</text>
-                    <text class="state" :class="'state-' + t.status">{{ t.status }}</text>
-                  </view>
-                </view>
+          <view v-if="!postRows.length" class="emptyCard">
+            <EmptyState
+              variant="posts"
+              title="No posts yet"
+              subtitle="Start a discussion in any community to see it here."
+              action-label="Explore"
+              @action="exploreCommunity"
+            />
+          </view>
+          <view v-else class="postList">
+            <view
+              v-for="p in postRows"
+              :key="p.id"
+              class="postRow tap"
+              :class="{ pressed: pressedKey === 'post:' + p.id }"
+              @touchstart="pressedKey = 'post:' + p.id"
+              @touchend="pressedKey = ''"
+              @touchcancel="pressedKey = ''"
+              @tap="openPost(p)"
+            >
+              <view class="postMain">
+                <text class="postTitle" :number-of-lines="1">{{ p.title }}</text>
+                <text class="metaMuted">{{ p.communityName }}</text>
               </view>
-            </view>
-          </view>
-        </view>
-
-        <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">Community activity</text>
-            <text class="sectionLink" @tap="exploreCommunity">Explore</text>
-          </view>
-
-          <view class="card pad">
-            <view class="postList">
-              <view
-                v-for="p in posts"
-                :key="p.id"
-                class="postRow tap"
-                :class="{ pressed: pressedKey === 'post:' + p.id }"
-                @touchstart="pressedKey = 'post:' + p.id"
-                @touchend="pressedKey = ''"
-                @touchcancel="pressedKey = ''"
-                @tap="openPost(p)"
-              >
-                <view class="postMain">
-                  <text class="postTitle" :number-of-lines="1">{{ p.title }}</text>
-                  <text class="metaMuted">{{ p.community }} · {{ p.replies }} replies</text>
-                </view>
-                <view class="likes">
-                  <text class="likesNum">{{ p.likes }}</text>
-                  <text class="likesLabel">likes</text>
-                </view>
+              <view class="postRight">
+                <text class="postBy" :number-of-lines="1">{{ p.author }}</text>
+                <text class="postReplies">{{ p.commentsCount }} replies</text>
               </view>
             </view>
           </view>
@@ -142,37 +173,39 @@ import { onLoad, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/BottomNav.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { useFocusStore } from '@/composables/useFocusStore'
 
 const { theme, themeClass } = useTheme()
 const { tasks, toggleTaskDone } = useTasksStore()
-const { members } = useCommunityStore()
+const { posts: communityPosts } = useCommunityStore()
 const { visibleNotifications } = useNotificationStore()
 const { currentUser, fetchCurrentUser } = useUserStore()
+const { totalHoursLabel } = useFocusStore()
 const userName = computed(() => currentUser.value.name || 'Guest')
 
 const pressedKey = ref('')
 
 const notices = computed(() =>
-  visibleNotifications.value.slice(0, 4).map((n, idx) => ({
+  visibleNotifications.value.slice(0, 4).map((n) => ({
     id: n.id,
     title: n.title,
     tag: n.type,
-    time: ['1h', '3h', 'Yesterday', '2d'][idx] || 'now',
     subject: n.subject,
-    ddl: n.deadline,
+    ddl: n.deadline ? `DDL ${n.deadline}` : '',
   }))
 )
 
-const posts = ref([
-  { id: 'p1', title: 'Best way to structure study sprints?', community: 'Study Lab', replies: 12, likes: 38 },
-  { id: 'p2', title: 'Anyone wants to pair on Chapter 6?', community: 'Math', replies: 7, likes: 22 },
-  { id: 'p3', title: 'Share your note templates (Notion/Obsidian)', community: 'Productivity', replies: 18, likes: 64 },
-])
+const todayTasks = computed(() =>
+  tasks.value.filter((x) => !x.done && (x.status === 'today' || x.status === 'overdue')).slice(0, 4)
+)
+
+const postRows = computed(() => communityPosts.value.slice(0, 3))
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -190,33 +223,18 @@ const todayText = computed(() => {
 
 const todayTasksCount = computed(() => tasks.value.filter((x) => x.status === 'today' && !x.done).length)
 const unreadNoticesCount = computed(() => visibleNotifications.value.filter((n) => !n.read).length)
-
-const initials = computed(() => {
-  const parts = (userName.value || '').trim().split(/\s+/).filter(Boolean)
-  const a = parts[0]?.[0] || '?'
-  const b = parts[1]?.[0] || ''
-  return (a + b).toUpperCase()
-})
-
-function toast(title) {
-  uni.showToast({ title, icon: 'none' })
-}
-
-function pressCard() {
-  pressedKey.value = 'greeting'
-  setTimeout(() => (pressedKey.value = ''), 160)
-}
+const focusHoursDisplay = computed(() => totalHoursLabel.value || '0m')
 
 function viewAllNotices() {
-  uni.navigateTo({ url: '/pages/notifications/index' })
+  uni.navigateTo({ url: '/pages/notifications/index', animationType: 'slide-in-right', animationDuration: 220 })
 }
 
 function openNotice(n) {
-  uni.navigateTo({ url: `/pages/notice/detail?id=${encodeURIComponent(n.id)}` })
+  uni.navigateTo({ url: `/pages/notice/detail?id=${encodeURIComponent(n.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
 }
 
 function openTask(t) {
-  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}` })
+  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
 }
 
 function toggleTask(t) {
@@ -224,828 +242,121 @@ function toggleTask(t) {
 }
 
 function openPlanner() {
-  uni.navigateTo({ url: '/pages/tasks/index' })
+  uni.navigateTo({ url: '/pages/tasks/index', animationType: 'slide-in-right', animationDuration: 220 })
 }
 
 function openPost(p) {
-  uni.navigateTo({ url: '/pages/community/post-detail?id=p1', animationType: 'slide-in-right', animationDuration: 220 })
+  uni.navigateTo({ url: `/pages/community/post-detail?id=${encodeURIComponent(p.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
 }
 
 function exploreCommunity() {
   uni.navigateTo({ url: '/pages/community/index', animationType: 'slide-in-right', animationDuration: 220 })
 }
 
+function openFocus() {
+  uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 })
+}
 
-onLoad(() => {
-  fetchCurrentUser()
-})
-
-onShow(() => {
-  fetchCurrentUser()
-})
+onLoad(() => { fetchCurrentUser() })
+onShow(() => { fetchCurrentUser() })
 </script>
 
 <style scoped>
-.page {
-  min-height: 100vh;
-  position: relative;
-  overflow: hidden;
-}
-
-.bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%),
-    radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%),
-    linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1));
-}
-
-.t-dark .bg {
-  background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%),
-    radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%),
-    linear-gradient(180deg, #111315, #0e1014);
-}
-
-.topbar {
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  padding: 36rpx 28rpx 18rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  padding: 12rpx 14rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(12px);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-}
-
-.t-dark .brand {
-  background: rgba(22, 28, 44, 0.55);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.dot {
-  width: 18rpx;
-  height: 18rpx;
-  border-radius: 50%;
-  background: linear-gradient(180deg, #6aa6ff, #2e63ff);
-  box-shadow: 0 0 0 7rpx rgba(83, 147, 255, 0.18);
-}
-
-.brandText {
-  display: flex;
-  flex-direction: column;
-  line-height: 1.15;
-}
-
-.brandTitle {
-  font-size: 24rpx;
-  font-weight: 720;
-  color: rgba(16, 24, 40, 0.92);
-}
-
-.t-dark .brandTitle {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.brandSub {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.52);
-}
-
-.t-dark .brandSub {
-  color: rgba(245, 247, 255, 0.50);
-}
-
-.topTitle {
-  opacity: 0.72;
-}
-
-.topTitleText {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.62);
-}
-
-.t-dark .topTitleText {
-  color: rgba(245, 247, 255, 0.52);
-}
-
-.topRight {
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-}
-
-.iconBtn {
-  width: 68rpx;
-  height: 48rpx;
-  border-radius: 999rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(12px);
-  transition: transform 180ms ease;
-}
-
-.t-dark .iconBtn {
-  background: rgba(22, 28, 44, 0.55);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.iconText {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.70);
-}
-
-.t-dark .iconText {
-  color: rgba(245, 247, 255, 0.60);
-}
-
-.avatar {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(46, 99, 255, 0.12);
-  border: 1rpx solid rgba(46, 99, 255, 0.18);
-  box-shadow: 0 16rpx 40rpx rgba(46, 99, 255, 0.12);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-}
-
-.t-dark .avatar {
-  background: rgba(46, 99, 255, 0.18);
-  box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.35);
-}
-
-.avatarText {
-  font-size: 22rpx;
-  font-weight: 760;
-  color: rgba(46, 99, 255, 0.98);
-}
-
-.scroll {
-  position: relative;
-  z-index: 1;
-  height: calc(100vh - 110rpx);
-}
-
-.safe {
-  padding: 0 28rpx 180rpx;
-}
-
-.card {
-  width: 100%;
-  border-radius: 34rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.60);
-  box-shadow: 0 22rpx 70rpx rgba(12, 20, 40, 0.10);
-  backdrop-filter: blur(14px);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
-}
-
-.t-dark .card {
-  background: #1a1d21;
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 22rpx 72rpx rgba(0, 0, 0, 0.4);
-}
-
-.pad {
-  padding: 22rpx 22rpx;
-}
-
-.tap:active {
-  transform: scale(0.985);
-}
-
-.pressed {
-  transform: scale(0.988);
-}
-
-.cardHead {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  padding: 26rpx 24rpx 16rpx;
-}
-
-.h1 {
-  font-size: 38rpx;
-  font-weight: 780;
-  color: rgba(16, 24, 40, 0.92);
-  letter-spacing: -0.5rpx;
-}
-
-.t-dark .h1 {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.sub {
-  margin-top: 6rpx;
-  font-size: 24rpx;
-  color: rgba(16, 24, 40, 0.60);
-}
-
-.t-dark .sub {
-  color: rgba(245, 247, 255, 0.54);
-}
-
-.pill {
-  padding: 10rpx 14rpx;
-  border-radius: 999rpx;
-  background: rgba(16, 24, 40, 0.06);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .pill {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.pillText {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.70);
-}
-
-.t-dark .pillText {
-  color: rgba(245, 247, 255, 0.62);
-}
-
-.metrics {
-  display: flex;
-  gap: 14rpx;
-  padding: 0 24rpx 22rpx;
-}
-
-.metric {
-  flex: 1;
-  padding: 18rpx 18rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .metric {
-  background: #23272d;
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-.metricNum {
-  font-size: 34rpx;
-  font-weight: 800;
-  color: rgba(16, 24, 40, 0.92);
-}
-
-.t-dark .metricNum {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.metricLabel {
-  margin-top: 4rpx;
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.56);
-}
-
-.t-dark .metricLabel {
-  color: rgba(245, 247, 255, 0.50);
-}
-
-.section {
-  margin-top: 22rpx;
-}
-
-.sectionHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6rpx 6rpx 12rpx;
-}
-
-.sectionTitle {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.58);
-}
-
-.t-dark .sectionTitle {
-  color: rgba(245, 247, 255, 0.50);
-}
-
-.sectionLink {
-  font-size: 22rpx;
-  color: rgba(46, 99, 255, 0.95);
-}
-
-.noticeGrid {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14rpx;
-}
-
-.noticeItem {
-  width: calc(50% - 7rpx);
-  padding: 16rpx 16rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-  transition: transform 180ms ease, box-shadow 180ms ease, border-color 180ms ease;
-}
-
-.t-dark .noticeItem {
-  background: #23272d;
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-.noticeTop {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 10rpx;
-}
-
-.tag {
-  padding: 6rpx 10rpx;
-  border-radius: 999rpx;
-  background: rgba(16, 24, 40, 0.06);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .tag {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.tagText {
-  font-size: 18rpx;
-  color: rgba(16, 24, 40, 0.70);
-}
-
-.t-dark .tagText {
-  color: rgba(245, 247, 255, 0.62);
-}
-
-.tag-homework {
-  border-color: rgba(46, 99, 255, 0.18);
-  background: rgba(46, 99, 255, 0.10);
-}
-.tag-via {
-  border-color: rgba(120, 160, 255, 0.18);
-  background: rgba(120, 160, 255, 0.10);
-}
-.tag-general {
-  border-color: rgba(16, 24, 40, 0.10);
-  background: rgba(16, 24, 40, 0.06);
-}
-
-.time {
-  font-size: 18rpx;
-  color: rgba(16, 24, 40, 0.46);
-}
-
-.t-dark .time {
-  color: rgba(245, 247, 255, 0.42);
-}
-
-.noticeTitle {
-  font-size: 24rpx;
-  font-weight: 720;
-  color: rgba(16, 24, 40, 0.90);
-}
-
-.t-dark .noticeTitle {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.noticeMeta {
-  margin-top: 10rpx;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10rpx;
-}
-
-.metaMuted {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.52);
-}
-
-.t-dark .metaMuted {
-  color: rgba(245, 247, 255, 0.48);
-}
-
-.ddl {
-  font-size: 20rpx;
-  color: rgba(46, 99, 255, 0.95);
-}
-
-.taskList {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.taskRow {
-  display: flex;
-  align-items: center;
-  gap: 14rpx;
-  padding: 14rpx 14rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .taskRow {
-  background: #23272d;
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-.check {
-  width: 42rpx;
-  height: 42rpx;
-  border-radius: 14rpx;
-  background: rgba(16, 24, 40, 0.06);
-  border: 1rpx solid rgba(16, 24, 40, 0.10);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.t-dark .check {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.12);
-}
-
-.checkDot {
-  width: 16rpx;
-  height: 16rpx;
-  border-radius: 6rpx;
-  background: rgba(16, 24, 40, 0.18);
-  transition: transform 160ms ease, background 160ms ease;
-}
-
-.check.on {
-  background: rgba(46, 99, 255, 0.14);
-  border-color: rgba(46, 99, 255, 0.18);
-}
-
-.check.on .checkDot {
-  transform: scale(1.05);
-  background: rgba(46, 99, 255, 0.95);
-}
-
-.taskMain {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-  min-width: 0;
-}
-
-.taskTitle {
-  font-size: 24rpx;
-  font-weight: 720;
-  color: rgba(16, 24, 40, 0.90);
-}
-
-.t-dark .taskTitle {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.taskTitle.done {
-  opacity: 0.5;
-  text-decoration: line-through;
-}
-
-.taskMeta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-}
-
-.state {
-  font-size: 18rpx;
-  padding: 6rpx 10rpx;
-  border-radius: 999rpx;
-  border: 1rpx solid rgba(16, 24, 40, 0.10);
-  background: rgba(16, 24, 40, 0.06);
-  color: rgba(16, 24, 40, 0.70);
-  text-transform: capitalize;
-}
-
-.t-dark .state {
-  border-color: rgba(255, 255, 255, 0.10);
-  background: rgba(245, 247, 255, 0.08);
-  color: rgba(245, 247, 255, 0.62);
-}
-
-.state-overdue {
-  border-color: rgba(255, 90, 90, 0.18);
-  background: rgba(255, 90, 90, 0.10);
-  color: rgba(210, 60, 60, 0.95);
-}
-
-.t-dark .state-overdue {
-  color: rgba(255, 170, 170, 0.90);
-}
-
-.state-today {
-  border-color: rgba(46, 99, 255, 0.18);
-  background: rgba(46, 99, 255, 0.10);
-  color: rgba(46, 99, 255, 0.95);
-}
-
-.postList {
-  display: flex;
-  flex-direction: column;
-  gap: 10rpx;
-}
-
-.postRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-  padding: 14rpx 14rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .postRow {
-  background: #23272d;
-  border-color: rgba(255, 255, 255, 0.04);
-}
-
-.postMain {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6rpx;
-}
-
-.postTitle {
-  font-size: 24rpx;
-  font-weight: 720;
-  color: rgba(16, 24, 40, 0.90);
-}
-
-.t-dark .postTitle {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.likes {
-  width: 108rpx;
-  padding: 10rpx 10rpx;
-  border-radius: 20rpx;
-  background: rgba(16, 24, 40, 0.05);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.t-dark .likes {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.likesNum {
-  font-size: 22rpx;
-  font-weight: 780;
-  color: rgba(16, 24, 40, 0.85);
-}
-
-.t-dark .likesNum {
-  color: rgba(245, 247, 255, 0.82);
-}
-
-.likesLabel {
-  font-size: 18rpx;
-  color: rgba(16, 24, 40, 0.50);
-}
-
-.t-dark .likesLabel {
-  color: rgba(245, 247, 255, 0.45);
-}
-
-.spacer {
-  height: 18rpx;
-}
-
-/* tabbar moved to `src/components/BottomNav.vue` */
-
-.overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 20;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 220ms ease;
-  background: rgba(10, 14, 26, 0.22);
-}
-
-.t-dark .overlay {
-  background: rgba(0, 0, 0, 0.45);
-}
-
-.overlay.show {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.overlaySheet {
-  position: absolute;
-  left: 22rpx;
-  right: 22rpx;
-  top: 88rpx;
-  bottom: 22rpx;
-  border-radius: 34rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.60);
-  backdrop-filter: blur(18px);
-  box-shadow: 0 34rpx 100rpx rgba(12, 20, 40, 0.20);
-  transform: translateY(14rpx) scale(0.985);
-  transition: transform 220ms ease;
-  overflow: hidden;
-}
-
-.t-dark .overlaySheet {
-  background: rgba(18, 24, 40, 0.62);
-  border-color: rgba(255, 255, 255, 0.10);
-  box-shadow: 0 40rpx 130rpx rgba(0, 0, 0, 0.55);
-}
-
-.overlay.show .overlaySheet {
-  transform: translateY(0) scale(1);
-}
-
-.searchBar {
-  display: flex;
-  align-items: center;
-  gap: 10rpx;
-  padding: 18rpx 18rpx;
-  margin: 18rpx 18rpx 0;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .searchBar {
-  background: rgba(10, 14, 26, 0.55);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.searchIcon {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.55);
-}
-
-.t-dark .searchIcon {
-  color: rgba(245, 247, 255, 0.50);
-}
-
-.searchInput {
-  flex: 1;
-  font-size: 26rpx;
-  color: rgba(16, 24, 40, 0.92);
-}
-
-.t-dark .searchInput {
-  color: rgba(245, 247, 255, 0.92);
-}
-
-.placeholder {
-  color: rgba(16, 24, 40, 0.35);
-}
-
-.t-dark .placeholder {
-  color: rgba(245, 247, 255, 0.28);
-}
-
-.clearBtn {
-  padding: 8rpx 12rpx;
-  border-radius: 999rpx;
-  background: rgba(16, 24, 40, 0.06);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .clearBtn {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.clearText {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.70);
-}
-
-.t-dark .clearText {
-  color: rgba(245, 247, 255, 0.62);
-}
-
-.overlayBody {
-  padding: 16rpx 18rpx 22rpx;
-  height: calc(100% - 110rpx);
-  overflow: hidden;
-}
-
-.overlaySection {
-  margin-top: 14rpx;
-}
-
-.overlayTitle {
-  padding: 8rpx 10rpx 10rpx;
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.56);
-}
-
-.t-dark .overlayTitle {
-  color: rgba(245, 247, 255, 0.50);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-  padding: 0 10rpx;
-}
-
-.chip {
-  padding: 10rpx 14rpx;
-  border-radius: 999rpx;
-  background: rgba(16, 24, 40, 0.06);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .chip {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.chipText {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.72);
-}
-
-.t-dark .chipText {
-  color: rgba(245, 247, 255, 0.62);
-}
-
-.resultGroup {
-  margin-top: 10rpx;
-  padding: 10rpx 10rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-
-.t-dark .resultGroup {
-  background: rgba(10, 14, 26, 0.55);
-  border-color: rgba(255, 255, 255, 0.10);
-}
-
-.groupTitle {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.55);
-  padding: 4rpx 6rpx 10rpx;
-}
-
-.t-dark .groupTitle {
-  color: rgba(245, 247, 255, 0.48);
-}
-
-.resultRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-  padding: 10rpx 6rpx;
-  border-radius: 18rpx;
-}
-
-.resultTitle {
-  flex: 1;
-  min-width: 0;
-  font-size: 22rpx;
-  font-weight: 680;
-  color: rgba(16, 24, 40, 0.90);
-}
-
-.t-dark .resultTitle {
-  color: rgba(245, 247, 255, 0.90);
-}
+.page { min-height: 100vh; position: relative; overflow: hidden; }
+.bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%), linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1)); }
+.t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%), linear-gradient(180deg, #111315, #0e1014); }
+
+.scroll { position: relative; z-index: 1; height: calc(100vh - 110rpx); }
+.safe { padding: 0 28rpx 200rpx; }
+
+.hero { padding-top: 4rpx; padding-bottom: 4rpx; }
+.heroHead { display: flex; align-items: flex-end; justify-content: space-between; padding: 20rpx 4rpx 18rpx; }
+.heroText { display: flex; flex-direction: column; gap: 6rpx; }
+.h1 { font-size: 40rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); letter-spacing: -0.5rpx; }
+.t-dark .h1 { color: rgba(245, 247, 255, 0.92); }
+.sub { font-size: 22rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .sub { color: rgba(245, 247, 255, 0.5); }
+
+.modePill { display: flex; align-items: center; gap: 8rpx; padding: 8rpx 14rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.5); border: 1rpx solid rgba(16, 24, 40, 0.04); }
+.t-dark .modePill { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.modeDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.7); }
+.modeText { font-size: 19rpx; color: rgba(16, 24, 40, 0.55); font-weight: 660; }
+.t-dark .modeText { color: rgba(245, 247, 255, 0.6); }
+
+.metrics { display: flex; gap: 10rpx; padding: 0 0 6rpx; }
+.metric { flex: 1; padding: 18rpx 18rpx; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.t-dark .metric { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.metric.tap:active { transform: scale(0.985); background: rgba(46, 99, 255, 0.06); border-color: rgba(46, 99, 255, 0.16); }
+.metricNumRow { display: flex; align-items: baseline; gap: 6rpx; justify-content: space-between; }
+.metricNum { font-size: 36rpx; font-weight: 780; color: rgba(16, 24, 40, 0.92); letter-spacing: -0.5rpx; }
+.t-dark .metricNum { color: rgba(245, 247, 255, 0.92); }
+.metricChev { font-size: 24rpx; color: rgba(16, 24, 40, 0.3); font-weight: 300; }
+.t-dark .metricChev { color: rgba(245, 247, 255, 0.3); }
+.metricLabel { display: block; margin-top: 4rpx; font-size: 19rpx; color: rgba(16, 24, 40, 0.52); }
+.t-dark .metricLabel { color: rgba(245, 247, 255, 0.48); }
+
+.section { margin-top: 22rpx; }
+.sectionHead { display: flex; align-items: center; justify-content: space-between; padding: 6rpx 4rpx 12rpx; }
+.sectionTitle { font-size: 22rpx; color: rgba(16, 24, 40, 0.6); font-weight: 660; }
+.t-dark .sectionTitle { color: rgba(245, 247, 255, 0.55); }
+.sectionLink { font-size: 21rpx; color: rgba(46, 99, 255, 0.95); font-weight: 640; }
+.t-dark .sectionLink { color: rgba(170, 200, 255, 0.95); }
+
+.emptyCard { padding: 8rpx 0; }
+.noticeGrid { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.noticeItem { width: calc(50% - 6rpx); padding: 16rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.t-dark .noticeItem { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.noticeItem.tap:active { transform: scale(0.985); }
+.noticeTop { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10rpx; gap: 8rpx; }
+.tag { display: inline-flex; align-items: center; gap: 6rpx; padding: 4rpx 10rpx; border-radius: 999rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.06); }
+.t-dark .tag { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.06); }
+.tagDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.42); }
+.t-dark .tagDot { background: rgba(245, 247, 255, 0.42); }
+.tag-homework { background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
+.tag-homework .tagDot { background: rgba(46, 99, 255, 0.95); }
+.tag-via { background: rgba(36, 160, 110, 0.10); border-color: rgba(36, 160, 110, 0.18); }
+.tag-via .tagDot { background: rgba(36, 160, 110, 0.95); }
+.tag-event, .tag-events { background: rgba(220, 140, 30, 0.12); border-color: rgba(220, 140, 30, 0.22); }
+.tag-event .tagDot, .tag-events .tagDot { background: rgba(220, 140, 30, 0.95); }
+.tagText { font-size: 17rpx; font-weight: 700; color: rgba(16, 24, 40, 0.72); }
+.t-dark .tagText { color: rgba(245, 247, 255, 0.7); }
+.ddl { font-size: 17rpx; color: rgba(46, 99, 255, 0.9); font-weight: 700; }
+.noticeTitle { font-size: 22rpx; font-weight: 700; color: rgba(16, 24, 40, 0.88); line-height: 1.35; }
+.t-dark .noticeTitle { color: rgba(245, 247, 255, 0.9); }
+.noticeSubject { display: block; margin-top: 8rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.45); }
+.t-dark .noticeSubject { color: rgba(245, 247, 255, 0.45); }
+
+.taskList { display: flex; flex-direction: column; gap: 10rpx; }
+.taskRow { display: flex; align-items: center; gap: 14rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.t-dark .taskRow { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.taskRow.tap:active { transform: scale(0.99); }
+.check { width: 38rpx; height: 38rpx; border-radius: 12rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; }
+.t-dark .check { background: rgba(245, 247, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
+.checkDot { width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.16); transition: transform 180ms ease, background 180ms ease; }
+.check.on { background: rgba(46, 99, 255, 0.14); border-color: rgba(46, 99, 255, 0.22); }
+.check.on .checkDot { background: rgba(46, 99, 255, 0.95); transform: scale(1.05); }
+.taskMain { flex: 1; display: flex; flex-direction: column; gap: 4rpx; min-width: 0; }
+.taskTitle { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.t-dark .taskTitle { color: rgba(245, 247, 255, 0.9); }
+.taskTitle.done { opacity: 0.5; text-decoration: line-through; }
+.taskMeta { display: flex; align-items: center; gap: 10rpx; justify-content: space-between; }
+.metaMuted { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .metaMuted { color: rgba(245, 247, 255, 0.45); }
+.state { font-size: 16rpx; padding: 4rpx 10rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
+.state-overdue { color: rgba(220, 55, 45, 0.96); background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
+.state-today { color: rgba(46, 99, 255, 0.96); background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
+
+.postList { display: flex; flex-direction: column; gap: 10rpx; }
+.postRow { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease; }
+.t-dark .postRow { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.postRow.tap:active { transform: scale(0.99); }
+.postMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
+.postTitle { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.t-dark .postTitle { color: rgba(245, 247, 255, 0.92); }
+.postRight { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; max-width: 200rpx; }
+.postBy { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .postBy { color: rgba(245, 247, 255, 0.5); }
+.postReplies { font-size: 17rpx; color: rgba(46, 99, 255, 0.9); font-weight: 660; }
+
+.spacer { height: 18rpx; }
 </style>

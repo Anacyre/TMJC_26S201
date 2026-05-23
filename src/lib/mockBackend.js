@@ -563,10 +563,20 @@ export async function getProfile(userId) {
 
 export async function getMembers() {
   await tick()
-  const data = _state.profiles.map((p) => ({
-    id: p.id, name: p.name, mbti: p.mbti, interests: p.interests,
-    bio: p.bio, links: p.links, avatar_url: p.avatar_url,
-  }))
+  const data = _state.profiles.map((p) => {
+    const auth = findAuthUser(p.id)
+    return {
+      id: p.id,
+      name: p.name,
+      mbti: p.mbti,
+      interests: p.interests,
+      bio: p.bio,
+      links: p.links,
+      role: p.role || 'member',
+      email: auth?.email || '',
+      avatar_url: p.avatar_url,
+    }
+  })
   data.sort((a, b) => a.name.localeCompare(b.name))
   return { data, error: null }
 }
@@ -587,6 +597,43 @@ export async function updateProfile(userId, payload) {
   _state.profiles[idx] = next
   persist()
   return { data: next, error: null }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  ADMIN — member management (mock only)
+// ═════════════════════════════════════════════════════════════════════
+export async function adminAddMember({ name, email, role = 'member' }) {
+  await tick()
+  const id = uid('usr')
+  const cleanName = String(name || '').trim() || 'New member'
+  const cleanEmail = String(email || '').trim().toLowerCase()
+  _state.authUsers.push({
+    id,
+    email: cleanEmail || `${cleanName.toLowerCase().replace(/\s+/g, '.')}@students.edu.sg`,
+    display_name: cleanName,
+  })
+  _state.profiles.push({
+    id,
+    name: cleanName,
+    role: role === 'admin' ? 'admin' : 'member',
+    mbti: '',
+    interests: '',
+    bio: '',
+    links: [],
+    birthday_visibility: 'Friends',
+    avatar_url: '',
+  })
+  persist()
+  return { data: { id, name: cleanName }, error: null }
+}
+
+export async function adminSetRole(userId, role) {
+  await tick()
+  const idx = _state.profiles.findIndex((p) => p.id === userId)
+  if (idx < 0) return { data: null, error: new Error('Profile not found') }
+  _state.profiles[idx].role = role === 'admin' ? 'admin' : 'member'
+  persist()
+  return { data: _state.profiles[idx], error: null }
 }
 
 // ═════════════════════════════════════════════════════════════════════
