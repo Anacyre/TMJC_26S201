@@ -77,18 +77,22 @@ function openProfile() {
   position: sticky;
   top: 0;
   z-index: 15;
-  padding: calc(var(--shell-bar-inset, 16rpx) + env(safe-area-inset-top)) var(--shell-bar-inset, 16rpx) 12rpx;
+  width: 100%;
+  padding-top: env(safe-area-inset-top);
 }
 
 .bar {
   height: var(--shell-bar-height, 116rpx);
-  border-radius: 34rpx;
+  width: 100%;
+  border-radius: 0;
   display: flex;
   align-items: center;
-  padding: 0 14rpx;
+  padding: 0 28rpx;
+  box-sizing: border-box;
   background: rgba(255, 255, 255, 0.68);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 30rpx 80rpx rgba(12, 20, 40, 0.12);
+  border: none;
+  border-bottom: 1rpx solid rgba(16, 24, 40, 0.06);
+  box-shadow: 0 12rpx 40rpx rgba(12, 20, 40, 0.06);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   transition: background 240ms ease, border-color 240ms ease;
@@ -96,8 +100,8 @@ function openProfile() {
 
 .t-dark .bar {
   background: rgba(26, 29, 33, 0.78);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 34rpx 100rpx rgba(0, 0, 0, 0.55);
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+  box-shadow: 0 12rpx 40rpx rgba(0, 0, 0, 0.35);
 }
 
 .side {

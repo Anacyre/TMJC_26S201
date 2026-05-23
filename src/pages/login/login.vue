@@ -127,7 +127,7 @@
       </view>
 
       <view class="footer">
-        <text class="footerLeft">? 2026 26S201 ? Class OS</text>
+        <text class="footerLeft">(c) 2026 26S201 - Class OS</text>
         <text class="footerRight">Theme: {{ theme }}</text>
       </view>
     </view>

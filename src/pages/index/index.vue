@@ -77,7 +77,7 @@
 
         <view class="section">
           <view class="sectionHead">
-            <text class="sectionTitle">Today???s focus</text>
+            <text class="sectionTitle">Today's focus</text>
             <text class="sectionLink" role="button" @tap="openPlanner">Open planner</text>
           </view>
 
@@ -211,7 +211,7 @@ const todayText = computed(() => {
   const d = new Date()
   const wk = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][d.getDay()]
   const m = d.toLocaleString('en-US', { month: 'short' })
-  return `${wk} ? ${m} ${d.getDate()}`
+  return `${wk}, ${m} ${d.getDate()}`
 })
 
 const todayTasksCount = computed(() => tasks.value.filter((x) => x.status === 'today' && !x.done).length)
