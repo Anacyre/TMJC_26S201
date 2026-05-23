@@ -10,7 +10,7 @@
       <text class="title" :class="{ dim: notice.read }">{{ notice.title }}</text>
       <view class="row">
         <text class="tag">{{ notice.subject }}</text>
-        <text v-if="notice.deadline" class="ddl">Due {{ notice.deadline }}</text>
+        <text v-if="notice.deadline" class="ddl">{{ notice.deadline }}</text>
       </view>
       <text class="preview" :class="{ dim: notice.read }">{{ notice.description }}</text>
       <text v-if="notice.attachment" class="attach">{{ notice.attachment }}</text>
@@ -59,7 +59,7 @@
           </view>
         </view>
       </view>
-      <text v-if="notice.inPlanner && !localHiding" class="plannerHint">In planner</text>
+      <text v-if="notice.inPlanner && !localHiding" class="plannerHint">Added</text>
     </view>
   </view>
 </template>
@@ -123,23 +123,23 @@ function onImportant() {
   flex-direction: row;
   align-items: stretch;
   gap: 12rpx;
-  margin-top: 12rpx;
-  padding: 16rpx 14rpx;
+  margin-top: 10rpx;
+  padding: 14rpx 14rpx;
   border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.76);
-  border: none;
-  box-shadow: 0 14rpx 44rpx rgba(12, 20, 40, 0.08);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
   transition: opacity 620ms ease, transform 620ms cubic-bezier(0.34, 1.1, 0.64, 1);
 }
 .t-dark.card {
-  background: rgba(26, 29, 33, 0.88);
-  box-shadow: 0 16rpx 48rpx rgba(0, 0, 0, 0.36);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 .card.unread {
-  box-shadow: 0 16rpx 50rpx rgba(46, 99, 255, 0.12);
+  border-color: rgba(46, 99, 255, 0.18);
 }
 .card.glow {
-  box-shadow: 0 16rpx 52rpx rgba(46, 99, 255, 0.14);
+  border-color: rgba(46, 99, 255, 0.22);
+  background: rgba(46, 99, 255, 0.04);
 }
 .card.hiding {
   opacity: 0;
@@ -152,8 +152,8 @@ function onImportant() {
   min-width: 0;
 }
 .title {
-  font-size: 24rpx;
-  font-weight: 740;
+  font-size: 22rpx;
+  font-weight: 720;
   color: rgba(16, 24, 40, 0.92);
 }
 .t-dark .title { color: rgba(245, 247, 255, 0.92); }

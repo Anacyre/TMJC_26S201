@@ -10,22 +10,19 @@
           <text class="time">{{ timeLabel }}</text>
         </view>
         <text class="title">{{ notice.title }}</text>
-        <text class="meta">Subject · {{ notice.subject || 'General' }} <text v-if="notice.deadline"> · DDL {{ notice.deadline }}</text></text>
+        <text class="meta">{{ notice.subject || 'General' }}<text v-if="notice.deadline"> · {{ notice.deadline }}</text></text>
 
         <view class="body">
           <text class="p">{{ notice.description || 'No description.' }}</text>
-          <text v-if="notice.attachment" class="p">Attachment: <text class="mono">{{ notice.attachment }}</text></text>
+          <text v-if="notice.attachment" class="p attach">{{ notice.attachment }}</text>
         </view>
 
         <view class="actions">
-          <view class="btn ghost" @tap="togglePinned">
+          <view class="btn ghost tap" @tap="togglePinned">
             <text class="btnText">{{ notice.important ? 'Unpin' : 'Pin' }}</text>
           </view>
-          <view class="btn primary" @tap="addToPlanner"><text class="btnTextPrimary">Add to planner</text></view>
-        </view>
-        <view class="actions">
-          <view class="btn ghost" @tap="hideNotice"><text class="btnText">Hide</text></view>
-          <view class="btn ghost" @tap="markAsRead"><text class="btnText">Mark as read</text></view>
+          <view class="btn primary tap" @tap="addToPlanner"><text class="btnTextPrimary">Add task</text></view>
+          <view class="btn ghost tap" @tap="hideNotice"><text class="btnText">Hide</text></view>
         </view>
       </view>
     </view>
@@ -145,20 +142,18 @@ onLoad((query) => {
 }
 
 .card {
-  border-radius: 30rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 22rpx 70rpx rgba(12, 20, 40, 0.1);
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
 }
 
 .t-dark .card {
-  background: #1a1d21;
+  background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 26rpx 90rpx rgba(0, 0, 0, 0.4);
 }
 
 .pad {
-  padding: 22rpx 22rpx;
+  padding: 18rpx 18rpx;
 }
 
 .head {
@@ -190,8 +185,8 @@ onLoad((query) => {
 }
 
 .title {
-  font-size: 30rpx;
-  font-weight: 780;
+  font-size: 26rpx;
+  font-weight: 740;
   color: rgba(16, 24, 40, 0.92);
 }
 
@@ -232,20 +227,21 @@ onLoad((query) => {
   color: rgba(245, 247, 255, 0.78);
 }
 
-.mono {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+.p.attach {
+  color: rgba(46, 99, 255, 0.88);
+  font-size: 20rpx;
 }
 
 .actions {
   margin-top: 16rpx;
   display: flex;
-  gap: 12rpx;
+  gap: 8rpx;
 }
 
 .btn {
   flex: 1;
-  height: 80rpx;
-  border-radius: 20rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;

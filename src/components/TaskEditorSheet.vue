@@ -4,7 +4,7 @@
     <view class="sheet" @tap.stop>
       <view class="grabber" />
       <view class="head">
-        <text class="title">{{ mode === 'create' ? 'New task' : 'Edit task' }}</text>
+        <text class="title">{{ mode === 'create' ? 'New task' : 'Edit' }}</text>
         <view class="close" role="button" @tap="emit('update:modelValue', false)">
           <view class="closeGlyph"><view /><view /></view>
         </view>
@@ -13,11 +13,11 @@
       <scroll-view class="body" scroll-y :show-scrollbar="false">
         <view class="field">
           <text class="label">Title</text>
-          <input class="input" v-model="form.title" placeholder="What needs to be done?" placeholder-class="placeholder" />
+          <input class="input" v-model="form.title" placeholder="Title" placeholder-class="placeholder" />
         </view>
         <view class="field">
           <text class="label">Description</text>
-          <textarea class="input area" v-model="form.description" placeholder="Add context, links, or notes..." placeholder-class="placeholder" />
+          <textarea class="input area" v-model="form.description" placeholder="Notes…" placeholder-class="placeholder" />
         </view>
 
         <view class="field">
@@ -29,7 +29,7 @@
             :can-create="isAdmin"
             kind="subject"
             @create="onCreateTag"
-            placeholder="Choose subject"
+            placeholder="Subject"
           />
         </view>
 
@@ -59,23 +59,17 @@
         </view>
 
         <view class="field">
-          <view class="labelRow">
-            <text class="label">Deadline</text>
-            <text class="labelHint">When it must be done</text>
-          </view>
+          <text class="label">Deadline</text>
           <DateField
             v-model="form.deadlineDate"
             mode="date"
-            placeholder="Pick a date"
+            placeholder="Date"
           />
         </view>
 
         <view class="field">
           <view class="reminderHead">
-            <view class="reminderLeft">
-              <text class="label noMargin">Reminder</text>
-              <text class="labelHint">When you want a nudge</text>
-            </view>
+            <text class="label noMargin">Reminder</text>
             <view class="toggle" :class="{ on: form.reminderOn }" role="button" @tap="toggleReminder">
               <view class="toggleKnob" />
             </view>
@@ -84,12 +78,12 @@
             <DateField
               v-model="form.reminderDate"
               mode="date"
-              placeholder="Reminder date"
+              placeholder="Date"
             />
             <DateField
               v-model="form.reminderTime"
               mode="time"
-              placeholder="Time (optional)"
+              placeholder="Time"
             />
           </view>
         </view>
@@ -102,8 +96,8 @@
               <text class="delText">−</text>
             </view>
           </view>
-          <view class="addCheck" role="button" @tap="addChecklist">
-            <text class="addCheckText">＋ Add step</text>
+          <view class="addCheck tap" role="button" @tap="addChecklist">
+            <text class="addCheckText">＋ Step</text>
           </view>
         </view>
 
@@ -112,7 +106,7 @@
 
       <view class="footer">
         <view class="save" :class="{ hit: saving }" role="button" @tap="submit">
-          <text class="saveText">{{ mode === 'create' ? 'Create task' : 'Save changes' }}</text>
+          <text class="saveText">{{ mode === 'create' ? 'Create' : 'Save' }}</text>
         </view>
       </view>
     </view>

@@ -357,7 +357,7 @@ function canDeleteNoise(n) {
 function onNoiseLongPress(n) {
   if (!canDeleteNoise(n)) return
   uni.showModal({
-    title: 'Remove this sound?',
+    title: 'Remove sound?',
     confirmText: 'Remove',
     success: async (res) => {
       if (!res.confirm) return

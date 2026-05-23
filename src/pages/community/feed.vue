@@ -15,8 +15,8 @@
       <view v-else-if="!visiblePostsView.length" class="emptyWrap">
         <EmptyState
           variant="posts"
-          title="No posts yet"
-          action-label="Create post"
+          title="No posts"
+          action-label="Post"
           @action="showCreate = true"
         />
       </view>
@@ -60,14 +60,14 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="sheetTitle">New post</text>
-        <textarea class="input area" v-model="draft.text" placeholder="Share something useful…" placeholder-class="ph" />
-        <input class="input" v-model="draft.image" placeholder="Image URL (optional)" placeholder-class="ph" />
-        <view class="anonRow" role="button" @tap="draft.anonymous = !draft.anonymous">
+        <textarea class="input area" v-model="draft.text" placeholder="Write something…" placeholder-class="ph" />
+        <input class="input" v-model="draft.image" placeholder="Image URL" placeholder-class="ph" />
+        <view class="anonRow tap" role="button" @tap="draft.anonymous = !draft.anonymous">
           <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>
-          <text class="anonText">Post anonymously</text>
+          <text class="anonText">Anonymous</text>
         </view>
-        <view class="commit" role="button" @tap="createPost">
-          <text class="commitText">Publish</text>
+        <view class="commit tap" role="button" @tap="createPost">
+          <text class="commitText">Post</text>
         </view>
       </view>
     </view>
@@ -165,14 +165,14 @@ onLoad((q) => { id.value = q?.id || 'c1' })
 
 .scroll { position: relative; z-index: 1; height: calc(100vh - 200rpx); padding: 0 28rpx 60rpx; }
 .emptyWrap { padding: 40rpx 0; }
-.card { margin-top: 12rpx; padding: 18rpx 18rpx 14rpx; border-radius: 24rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.card { margin-top: 10rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .tap:active { transform: scale(0.99); }
-.title { font-size: 24rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
-.t-dark .title { color: #f5f7fa; }
-.metaRow { margin-top: 8rpx; display: flex; align-items: center; gap: 8rpx; }
-.meta { font-size: 19rpx; color: rgba(16, 24, 40, 0.52); }
-.t-dark .meta { color: rgba(245, 247, 255, 0.5); }
+.title { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.t-dark .title { color: rgba(245, 247, 255, 0.92); }
+.metaRow { margin-top: 6rpx; display: flex; align-items: center; gap: 8rpx; }
+.meta { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .meta { color: rgba(245, 247, 255, 0.45); }
 .metaDot { font-size: 18rpx; color: rgba(16, 24, 40, 0.3); }
 .t-dark .metaDot { color: rgba(245, 247, 255, 0.3); }
 

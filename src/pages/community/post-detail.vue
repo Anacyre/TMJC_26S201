@@ -8,10 +8,10 @@
         <text class="meta">{{ post.anonymous ? 'Anonymous' : post.author }} · {{ postTimeLabel }}</text>
         <text class="content">{{ post.content || 'No content yet.' }}</text>
         <view class="actions">
-          <view class="btn" :class="{ on: post.liked }" role="button" @tap="onToggleLike">
-            <text class="btnText">{{ post.liked ? `♥ Liked (${post.likesCount})` : `♥ Like (${post.likesCount || 0})` }}</text>
+          <view class="btn tap" :class="{ on: post.liked }" role="button" @tap="onToggleLike">
+            <text class="btnText">{{ post.liked ? `♥ ${post.likesCount}` : `♥ ${post.likesCount || 0}` }}</text>
           </view>
-          <view class="btn" :class="{ on: saved }" role="button" @tap="saved = !saved">
+          <view class="btn tap" :class="{ on: saved }" role="button" @tap="saved = !saved">
             <text class="btnText">{{ saved ? '★ Saved' : '☆ Save' }}</text>
           </view>
         </view>
@@ -23,8 +23,8 @@
           <text class="cText">{{ c.text }}</text>
         </view>
         <view class="reply">
-          <input class="input" v-model="reply" placeholder="Write a reply..." placeholder-class="placeholder" />
-          <view class="send" role="button" @tap="send"><text class="sendText">Send</text></view>
+          <input class="input" v-model="reply" placeholder="Reply…" placeholder-class="placeholder" />
+          <view class="send tap" role="button" @tap="send"><text class="sendText">Send</text></view>
         </view>
       </view>
       <view class="gap" />
@@ -106,23 +106,21 @@ onLoad((q) => {
   padding: 4rpx 28rpx 40rpx;
 }
 .card {
-  margin-top: 12rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 22rpx 60rpx rgba(12, 20, 40, 0.1);
+  margin-top: 10rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
 }
 .t-dark .card {
-  background: #1a1d21;
+  background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 22rpx 60rpx rgba(0, 0, 0, 0.4);
 }
 .pad {
-  padding: 20rpx 22rpx;
+  padding: 16rpx 18rpx;
 }
 .title {
-  font-size: 30rpx;
-  font-weight: 760;
+  font-size: 26rpx;
+  font-weight: 740;
   color: rgba(16, 24, 40, 0.92);
 }
 .t-dark .title {
@@ -153,9 +151,9 @@ onLoad((q) => {
   gap: 10rpx;
 }
 .btn {
-  height: 64rpx;
-  padding: 0 18rpx;
-  border-radius: 18rpx;
+  height: 56rpx;
+  padding: 0 16rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   background: rgba(16, 24, 40, 0.05);

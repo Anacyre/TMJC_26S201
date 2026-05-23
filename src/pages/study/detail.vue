@@ -9,13 +9,13 @@
           <text class="time">{{ timeLabel }}</text>
         </view>
         <text class="title">{{ resource.title }}</text>
-        <text class="meta">Uploaded by {{ resource.uploaderName || 'Unknown' }}</text>
-        <view class="preview"><text class="previewText">File preview placeholder</text></view>
+        <text class="meta">{{ resource.uploaderName || 'Unknown' }}</text>
+        <view class="preview"><text class="previewText">Preview</text></view>
         <view class="actions">
-          <view class="btn primary" role="button" @tap="onDownload">
+          <view class="btn primary tap" role="button" @tap="onDownload">
             <text class="btnTextPrimary">Download</text>
           </view>
-          <view class="btn" :class="{ on: likedState }" role="button" @tap="onLike">
+          <view class="btn tap" :class="{ on: likedState }" role="button" @tap="onLike">
             <text class="btnText">{{ likedState ? '♥ Liked' : '♥ Like' }}</text>
           </view>
         </view>
@@ -25,8 +25,7 @@
         <view class="emptyInline">
           <EmptyState
             variant="posts"
-            title="No comments yet"
-            subtitle="Discussion threads on resources will appear here."
+            title="No comments"
           />
         </view>
       </view>
@@ -107,20 +106,18 @@ onLoad((q) => {
   padding: 4rpx 28rpx 40rpx;
 }
 .card {
-  margin-top: 12rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.6);
-  box-shadow: 0 16rpx 50rpx rgba(12, 20, 40, 0.08);
+  margin-top: 10rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
   transition: background 220ms ease, border-color 220ms ease;
 }
 .t-dark .card {
-  background: #1a1d21;
+  background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 22rpx 60rpx rgba(0, 0, 0, 0.4);
 }
 .pad {
-  padding: 20rpx 22rpx;
+  padding: 16rpx 18rpx;
 }
 .head {
   display: flex;
@@ -149,9 +146,9 @@ onLoad((q) => {
 }
 .title {
   display: block;
-  margin-top: 12rpx;
-  font-size: 30rpx;
-  font-weight: 760;
+  margin-top: 10rpx;
+  font-size: 26rpx;
+  font-weight: 740;
   color: rgba(16, 24, 40, 0.92);
 }
 .t-dark .title {
@@ -194,8 +191,8 @@ onLoad((q) => {
 }
 .btn {
   flex: 1;
-  height: 74rpx;
-  border-radius: 18rpx;
+  height: 64rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;

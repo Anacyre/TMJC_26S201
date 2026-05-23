@@ -27,24 +27,24 @@
       <view v-else-if="!subjectsView.length" class="emptyWrap">
         <EmptyState
           variant="resources"
-          title="No subjects yet"
+          title="No subjects"
         />
       </view>
       <view v-else class="grid">
         <view v-for="s in subjectsView" :key="s.id" class="card" role="button" @tap="openSubject(s.id)">
           <view class="icon">{{ s.icon }}</view>
           <text class="name">{{ s.name }}</text>
-          <text class="meta">{{ s.filesCount === 1 ? '1 file' : (s.filesCount + ' files') }} · {{ s.updatedLabel }}</text>
+          <text class="meta">{{ s.filesCount }} files · {{ s.updatedLabel }}</text>
         </view>
       </view>
 
       <view class="sectionHead">
-        <text class="sectionTitle">Latest resources</text>
+        <text class="sectionTitle">Recent</text>
       </view>
       <view v-if="!latestResourcesView.length" class="emptyWrap">
         <EmptyState
           variant="resources"
-          title="No resources uploaded"
+          title="No resources"
         />
       </view>
       <view v-else>
@@ -125,36 +125,34 @@ function openFocus() { uni.navigateTo({ url: '/pages/study/focus', animationType
 .focusBody { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
 .focusTitle { font-size: 24rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
 .t-dark .focusTitle { color: #f5f7fa; }
-.focusSub { font-size: 19rpx; color: rgba(16, 24, 40, 0.55); }
-.t-dark .focusSub { color: rgba(245, 247, 255, 0.55); }
 .focusStat { display: flex; flex-direction: column; align-items: flex-end; gap: 2rpx; }
 .focusStatNum { font-size: 22rpx; font-weight: 740; color: rgba(46, 99, 255, 0.96); letter-spacing: -0.2rpx; }
 .t-dark .focusStatNum { color: rgba(170, 200, 255, 0.96); }
 .focusStatLabel { font-size: 17rpx; color: rgba(16, 24, 40, 0.48); }
 .t-dark .focusStatLabel { color: rgba(245, 247, 255, 0.45); }
 
-.sectionHead { margin-top: 24rpx; padding: 6rpx 4rpx 10rpx; }
-.sectionTitle { font-size: 22rpx; color: rgba(16, 24, 40, 0.58); font-weight: 660; }
+.sectionHead { margin-top: 22rpx; padding: 6rpx 4rpx 12rpx; }
+.sectionTitle { font-size: 22rpx; color: rgba(16, 24, 40, 0.6); font-weight: 660; }
 .t-dark .sectionTitle { color: rgba(245, 247, 255, 0.55); }
 
-.emptyWrap { padding: 24rpx 0; }
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
-.card { padding: 18rpx; border-radius: 24rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.emptyWrap { padding: 16rpx 0; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; }
+.card { padding: 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .card:active { transform: scale(0.985); }
-.icon { width: 50rpx; height: 50rpx; border-radius: 16rpx; background: rgba(46, 99, 255, 0.1); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: 22rpx; font-weight: 700; }
+.icon { width: 44rpx; height: 44rpx; border-radius: 14rpx; background: rgba(46, 99, 255, 0.1); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: 20rpx; font-weight: 700; }
 .t-dark .icon { background: rgba(120, 160, 255, 0.14); color: rgba(170, 200, 255, 0.96); }
-.name { display: block; margin-top: 12rpx; font-size: 23rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
-.t-dark .name { color: #f5f7fa; }
+.name { display: block; margin-top: 10rpx; font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.t-dark .name { color: rgba(245, 247, 255, 0.9); }
 .meta { display: block; margin-top: 4rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
 .t-dark .meta { color: rgba(245, 247, 255, 0.45); }
 
-.row { margin-top: 10rpx; padding: 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: background 220ms ease, border-color 220ms ease, transform 180ms ease; }
+.row { margin-top: 10rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: background 220ms ease, border-color 220ms ease, transform 180ms ease; }
 .t-dark .row { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .row:active { transform: scale(0.99); }
 .rTitle { font-size: 22rpx; font-weight: 700; color: rgba(16, 24, 40, 0.9); }
-.t-dark .rTitle { color: #f5f7fa; }
-.rMeta { display: block; margin-top: 6rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .rMeta { color: rgba(245, 247, 255, 0.46); }
+.t-dark .rTitle { color: rgba(245, 247, 255, 0.9); }
+.rMeta { display: block; margin-top: 4rpx; font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .rMeta { color: rgba(245, 247, 255, 0.45); }
 .gap { height: 24rpx; }
 </style>

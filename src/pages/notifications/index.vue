@@ -53,7 +53,7 @@
           side="left"
           :actions="[{ id: 'hide', icon: 'hide' }]"
           commit-action="hide"
-          :context-items="[{ id: 'hide', label: 'Hide notice', icon: 'hide' }]"
+          :context-items="[{ id: 'hide', label: 'Hide', icon: 'hide' }]"
           @commit="onHide(n)"
           @action="onHide(n)"
         >
@@ -75,7 +75,7 @@
           side="left"
           :actions="[{ id: 'hide', icon: 'hide' }]"
           commit-action="hide"
-          :context-items="[{ id: 'hide', label: 'Hide notice', icon: 'hide' }]"
+          :context-items="[{ id: 'hide', label: 'Hide', icon: 'hide' }]"
           @commit="onHide(n)"
           @action="onHide(n)"
         >
@@ -93,7 +93,7 @@
       <view v-if="!pinnedList.length && !restList.length" class="emptyWrap">
         <EmptyState
           variant="notifications"
-          title="No notices yet"
+          title="No notices"
         />
       </view>
       </template>
@@ -110,7 +110,7 @@
     <view class="overlay" :class="{ show: showCreate }" @tap="showCreate = false">
       <view class="sheet" @tap.stop>
         <view class="grabber" />
-        <text class="sheetTitle">New notification</text>
+        <text class="sheetTitle">New notice</text>
 
         <view class="field">
           <text class="fieldLabel">Type</text>
@@ -154,11 +154,11 @@
 
         <view class="field">
           <text class="fieldLabel">Description</text>
-          <textarea class="input area" v-model="draft.description" placeholder="Details for the class..." placeholder-class="placeholder" />
+          <textarea class="input area" v-model="draft.description" placeholder="Details…" placeholder-class="placeholder" />
         </view>
 
-        <view class="commit" :class="{ busy: publishing }" role="button" @tap="publish">
-          <text class="commitText">{{ publishing ? 'Publishing…' : 'Publish' }}</text>
+        <view class="commit tap" :class="{ busy: publishing }" role="button" @tap="publish">
+          <text class="commitText">{{ publishing ? '…' : 'Publish' }}</text>
         </view>
       </view>
     </view>

@@ -45,18 +45,17 @@
           </view>
 
           <view v-if="relatedNoticeBlock" class="section">
-            <text class="sectionTitle">Source notice</text>
+            <text class="sectionTitle">Source</text>
             <view class="rel tap" @tap="openNotice(relatedNoticeBlock.id)" role="button">
               <text class="relTitle" :number-of-lines="1">{{ relatedNoticeBlock.title }}</text>
-              <text class="relSub">Open in feed</text>
             </view>
           </view>
         </view>
 
         <view class="bottomBar">
-          <view class="btn ghost" role="button" @tap="editOpen = true"><text class="btnText">Edit</text></view>
-          <view class="btn primary" role="button" @tap="completeTask">
-            <text class="btnTextPrimary">{{ task.done ? 'Completed' : 'Complete Task' }}</text>
+          <view class="btn ghost tap" role="button" @tap="editOpen = true"><text class="btnText">Edit</text></view>
+          <view class="btn primary tap" role="button" @tap="completeTask">
+            <text class="btnTextPrimary">{{ task.done ? 'Done' : 'Complete' }}</text>
           </view>
         </view>
 
@@ -187,21 +186,18 @@ onLoad(async (query) => {
 
 .card {
   width: 100%;
-  border-radius: 34rpx;
-  background: rgba(255, 255, 255, 0.74);
-  border: 1rpx solid rgba(255, 255, 255, 0.60);
-  box-shadow: 0 22rpx 70rpx rgba(12, 20, 40, 0.10);
-  backdrop-filter: blur(14px);
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
 }
 
 .t-dark .card {
-  background: #1a1d21;
+  background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 26rpx 90rpx rgba(0, 0, 0, 0.40);
 }
 
 .pad {
-  padding: 22rpx 22rpx;
+  padding: 18rpx 18rpx;
 }
 
 .head {
@@ -267,10 +263,10 @@ onLoad(async (query) => {
 }
 
 .title {
-  font-size: 40rpx;
-  font-weight: 840;
+  font-size: 28rpx;
+  font-weight: 740;
   color: rgba(16, 24, 40, 0.92);
-  letter-spacing: -0.6rpx;
+  letter-spacing: -0.4rpx;
 }
 
 .t-dark .title {
@@ -323,8 +319,8 @@ onLoad(async (query) => {
 
 .sectionTitle {
   font-size: 22rpx;
-  font-weight: 760;
-  color: rgba(16, 24, 40, 0.70);
+  font-weight: 660;
+  color: rgba(16, 24, 40, 0.6);
 }
 
 .t-dark .sectionTitle {
@@ -456,8 +452,8 @@ onLoad(async (query) => {
 
 .btn {
   flex: 1;
-  height: 84rpx;
-  border-radius: 22rpx;
+  height: 72rpx;
+  border-radius: 18rpx;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -488,8 +484,8 @@ onLoad(async (query) => {
 }
 
 .btnText {
-  font-size: 24rpx;
-  font-weight: 760;
+  font-size: 22rpx;
+  font-weight: 720;
   color: rgba(16, 24, 40, 0.72);
 }
 
@@ -498,8 +494,8 @@ onLoad(async (query) => {
 }
 
 .btnTextPrimary {
-  font-size: 24rpx;
-  font-weight: 820;
+  font-size: 22rpx;
+  font-weight: 720;
   color: rgba(255, 255, 255, 0.96);
 }
 

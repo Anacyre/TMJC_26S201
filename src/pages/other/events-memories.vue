@@ -6,8 +6,7 @@
       <view class="emptyWrap">
         <EmptyState
           variant="posts"
-          title="No memories yet"
-          subtitle="Class events, photos and highlights will gather here over time."
+          title="No memories"
         />
       </view>
       <view class="gap" />

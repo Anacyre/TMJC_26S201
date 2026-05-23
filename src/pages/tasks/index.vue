@@ -14,7 +14,7 @@
             <text class="tabText">Upcoming</text>
           </view>
           <view class="tab" :class="{ on: tab === 'completed' }" role="button" @tap="tab = 'completed'">
-            <text class="tabText">Completed</text>
+            <text class="tabText">Done</text>
           </view>
         </view>
 
@@ -24,7 +24,7 @@
           <EmptyState
             variant="tasks"
             :title="emptyTitle"
-            :action-label="tab !== 'completed' ? 'New task' : ''"
+            :action-label="tab !== 'completed' ? 'Add' : ''"
             @action="openCreate"
           />
         </view>
@@ -137,8 +137,8 @@ const taskSwipeActions = [
   { id: 'archive', icon: 'archive' },
 ]
 const taskContextItems = [
-  { id: 'delete', label: 'Delete task', icon: 'trash', danger: true },
-  { id: 'archive', label: 'Archive task', icon: 'archive' },
+  { id: 'delete', label: 'Delete', icon: 'trash', danger: true },
+  { id: 'archive', label: 'Archive', icon: 'archive' },
 ]
 
 const tab = ref('today')
@@ -153,9 +153,9 @@ const filtered = computed(() => {
 })
 
 const emptyTitle = computed(() => {
-  if (tab.value === 'completed') return 'No tasks yet'
-  if (tab.value === 'upcoming') return 'No upcoming tasks'
-  return 'No tasks today'
+  if (tab.value === 'completed') return 'No tasks'
+  if (tab.value === 'upcoming') return 'Nothing upcoming'
+  return 'Nothing today'
 })
 
 function toggleDone(t) {
@@ -213,37 +213,34 @@ function onTaskSwipeAction(id, actionId) {
 .tab.on .tabText { color: rgba(46, 99, 255, 0.96); font-weight: 740; }
 .t-dark .tab.on .tabText { color: rgba(170, 200, 255, 0.96); }
 
-.emptyWrap { padding: 32rpx 0 0; }
-.list { display: flex; flex-direction: column; gap: 12rpx; }
-.swipeHint { padding: 18rpx 0 6rpx; text-align: center; opacity: 0.5; }
-.swipeHintText { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .swipeHintText { color: rgba(245, 247, 255, 0.5); }
+.emptyWrap { padding: 24rpx 0 0; }
+.list { display: flex; flex-direction: column; gap: 10rpx; }
 
-.card { width: 100%; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: none; box-shadow: 0 14rpx 40rpx rgba(12, 20, 40, 0.06); transition: transform 150ms cubic-bezier(0.34,1.2,0.64,1), box-shadow 150ms ease; }
-.t-dark .card { background: rgba(255, 255, 255, 0.04); box-shadow: 0 18rpx 50rpx rgba(0, 0, 0, 0.32); }
+.card { width: 100%; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .tap:active { transform: scale(0.99); }
 .pressed { transform: scale(0.99); }
 
-.task { display: flex; gap: 14rpx; padding: 18rpx 18rpx; align-items: center; }
-.left { padding-top: 2rpx; }
-.check { width: 42rpx; height: 42rpx; border-radius: 14rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.task { display: flex; gap: 14rpx; padding: 14rpx 16rpx; align-items: center; }
+.left { padding-top: 0; }
+.check { width: 38rpx; height: 38rpx; border-radius: 12rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .check { background: rgba(245, 247, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
 .check:active { transform: scale(0.96); }
-.checkDot { width: 16rpx; height: 16rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.16); transition: transform 220ms ease, background 220ms ease; }
-.check.on { background: rgba(46, 99, 255, 0.16); border-color: rgba(46, 99, 255, 0.24); }
+.checkDot { width: 14rpx; height: 14rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.16); transition: transform 220ms ease, background 220ms ease; }
+.check.on { background: rgba(46, 99, 255, 0.14); border-color: rgba(46, 99, 255, 0.22); }
 .check.on .checkDot { background: rgba(46, 99, 255, 0.94); transform: scale(1.05); }
 
-.main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
 .row1 { display: flex; align-items: center; justify-content: space-between; gap: 10rpx; }
-.title { font-size: 26rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
+.title { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
 .t-dark .title { color: rgba(245, 247, 255, 0.92); }
-.title.done { opacity: 0.45; text-decoration: line-through; }
+.title.done { opacity: 0.5; text-decoration: line-through; }
 .prio { padding: 4rpx 10rpx; border-radius: 999rpx; background: transparent; border: 1rpx solid rgba(16, 24, 40, 0.06); }
 .t-dark .prio { border-color: rgba(255, 255, 255, 0.06); }
 .prio.p-P1 { background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
 .prio.p-P2 { background: rgba(255, 149, 0, 0.10); border-color: rgba(255, 149, 0, 0.18); }
 .prio.p-P3 { background: rgba(88, 86, 214, 0.10); border-color: rgba(88, 86, 214, 0.18); }
-.prioText { font-size: 17rpx; font-weight: 800; color: rgba(16, 24, 40, 0.62); }
+.prioText { font-size: 16rpx; font-weight: 800; color: rgba(16, 24, 40, 0.62); }
 .t-dark .prioText { color: rgba(245, 247, 255, 0.58); }
 .prio.p-P1 .prioText { color: rgba(220, 55, 45, 0.96); }
 .prio.p-P2 .prioText { color: rgba(180, 110, 20, 0.96); }
@@ -251,11 +248,11 @@ function onTaskSwipeAction(id, actionId) {
 .prio.p-P3 .prioText { color: rgba(88, 86, 214, 0.96); }
 
 .row2 { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
-.metaMuted { font-size: 19rpx; color: rgba(16, 24, 40, 0.52); }
-.t-dark .metaMuted { color: rgba(245, 247, 255, 0.46); }
+.metaMuted { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .metaMuted { color: rgba(245, 247, 255, 0.45); }
 .tag { padding: 4rpx 10rpx; border-radius: 999rpx; background: rgba(46, 99, 255, 0.08); border: 1rpx solid rgba(46, 99, 255, 0.16); }
-.tagText { font-size: 17rpx; font-weight: 700; color: rgba(46, 99, 255, 0.94); }
-.state { font-size: 17rpx; font-weight: 800; letter-spacing: 0.3rpx; text-transform: lowercase; padding: 4rpx 10rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
+.tagText { font-size: 16rpx; font-weight: 700; color: rgba(46, 99, 255, 0.94); }
+.state { font-size: 16rpx; font-weight: 700; padding: 4rpx 10rpx; border-radius: 999rpx; border: 1rpx solid transparent; }
 .state-overdue { color: rgba(255, 59, 48, 0.92); background: rgba(255, 59, 48, 0.10); border-color: rgba(255, 59, 48, 0.18); }
 .state-today { color: rgba(46, 99, 255, 0.92); background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.18); }
 .state-upcoming { color: rgba(16, 24, 40, 0.6); background: rgba(16, 24, 40, 0.06); border-color: rgba(16, 24, 40, 0.08); }

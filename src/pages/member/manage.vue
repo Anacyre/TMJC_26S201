@@ -7,7 +7,7 @@
       <EmptyState
         variant="members"
         title="Admins only"
-        subtitle="Member management is restricted to class admins."
+        subtitle="Restricted to admins."
       />
     </view>
 
@@ -20,7 +20,7 @@
 
       <scroll-view class="list" scroll-y :show-scrollbar="false">
         <view v-if="!filtered.length" class="emptyWrap">
-          <EmptyState variant="members" title="No accounts here yet" subtitle="Add a member to fill this list." />
+          <EmptyState variant="members" title="No accounts" />
         </view>
         <view v-for="m in filtered" :key="m.id" class="row">
           <view class="left">
@@ -41,7 +41,7 @@
               role="button"
               @tap="promote(m)"
             >
-              <text class="actText">Make admin</text>
+              <text class="actText">Admin</text>
             </view>
             <view
               v-else-if="m.id === currentUser.id"
@@ -58,7 +58,7 @@
       <view class="addBar">
         <view class="addBtn" role="button" @tap="openAdd">
           <view class="plus"><view /><view /></view>
-          <text class="addText">Add member</text>
+          <text class="addText">Add</text>
         </view>
       </view>
     </view>
@@ -68,15 +68,15 @@
         <text class="sheetTitle">Add member</text>
         <view class="field">
           <text class="fieldLabel">Username</text>
-          <input class="input" v-model="draft.username" placeholder="e.g. xiong_chenyu" placeholder-class="ph" />
+          <input class="input" v-model="draft.username" placeholder="username" placeholder-class="ph" />
         </view>
         <view class="field">
-          <text class="fieldLabel">Display name</text>
-          <input class="input" v-model="draft.display_name" placeholder="Full name" placeholder-class="ph" />
+          <text class="fieldLabel">Name</text>
+          <input class="input" v-model="draft.display_name" placeholder="Display name" placeholder-class="ph" />
         </view>
         <view class="field">
-          <text class="fieldLabel">Email (optional)</text>
-          <input class="input" v-model="draft.email" placeholder="Auto-generated if empty" placeholder-class="ph" />
+          <text class="fieldLabel">Email</text>
+          <input class="input" v-model="draft.email" placeholder="Optional" placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="fieldLabel">Role</text>
@@ -86,7 +86,7 @@
           </view>
         </view>
         <view class="commit" role="button" @tap="commitAdd">
-          <text class="commitText">{{ saving ? 'Creating…' : 'Create account' }}</text>
+          <text class="commitText">{{ saving ? '…' : 'Create' }}</text>
         </view>
       </view>
     </view>

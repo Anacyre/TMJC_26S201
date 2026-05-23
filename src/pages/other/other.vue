@@ -98,23 +98,21 @@ onShow(() => {})
 .title { font-size: 32rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); letter-spacing: -0.4rpx; max-width: 600rpx; line-height: 1.35; }
 .t-dark .title { color: rgba(245, 247, 255, 0.9); }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; padding-top: 4rpx; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; padding-top: 8rpx; }
 .tile {
-  padding: 24rpx 18rpx 20rpx;
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(255, 255, 255, 0.46);
-  display: flex; flex-direction: column; gap: 4rpx;
-  transition: transform 200ms ease, background 220ms ease, border-color 220ms ease;
+  padding: 20rpx 16rpx 18rpx;
+  border-radius: 22rpx;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
+  display: flex; flex-direction: column; gap: 2rpx;
+  transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
 }
 .t-dark .tile { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .tile:active { transform: scale(0.985); }
-.tileGlyph { width: 64rpx; height: 64rpx; border-radius: 22rpx; background: rgba(46, 99, 255, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; }
+.tileGlyph { width: 52rpx; height: 52rpx; border-radius: 16rpx; background: rgba(46, 99, 255, 0.08); display: flex; align-items: center; justify-content: center; margin-bottom: 10rpx; }
 .t-dark .tileGlyph { background: rgba(120, 160, 255, 0.14); }
-.tileName { font-size: 24rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
+.tileName { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.9); }
 .t-dark .tileName { color: rgba(245, 247, 255, 0.92); }
-.tileSub { font-size: 19rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .tileSub { color: rgba(245, 247, 255, 0.5); }
 
 .gWrap { position: relative; width: 32rpx; height: 32rpx; display: flex; align-items: center; justify-content: center; }
 .gBookmark { width: 16rpx; height: 22rpx; background: rgba(46, 99, 255, 0.92); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }

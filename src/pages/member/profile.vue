@@ -22,20 +22,20 @@
           <view class="focusTop">
             <view class="focusStat">
               <text class="focusNum">{{ totalHoursLabel }}</text>
-              <text class="focusLabel">All time</text>
+              <text class="focusLabel">Total</text>
             </view>
             <view class="focusStat">
               <text class="focusNum">{{ weekMinutesLabel }}</text>
-              <text class="focusLabel">This week</text>
+              <text class="focusLabel">Week</text>
             </view>
             <view class="focusStat">
               <text class="focusNum">{{ topSubjectLabel }}</text>
-              <text class="focusLabel">Top subject</text>
+              <text class="focusLabel">Top</text>
             </view>
           </view>
 
           <view class="chartHead">
-            <text class="chartLabel">Weekly focus</text>
+            <text class="chartLabel">Weekly</text>
           </view>
           <view class="weekRow">
             <view v-for="d in weekTotals" :key="d.key" class="bar">
@@ -47,7 +47,7 @@
           </view>
 
           <view class="chartHead">
-            <text class="chartLabel">Monthly trend</text>
+            <text class="chartLabel">Monthly</text>
           </view>
           <view class="monthRow">
             <view v-for="m in monthTrend" :key="m.key" class="monthBar">
@@ -57,7 +57,7 @@
           </view>
 
           <view v-if="subjectDistribution.length" class="chartHead">
-            <text class="chartLabel">Subject distribution</text>
+            <text class="chartLabel">Subjects</text>
           </view>
           <view v-if="subjectDistribution.length" class="distRow">
             <view v-for="(s, idx) in subjectDistribution.slice(0, 4)" :key="s.name" class="distLine">
@@ -70,7 +70,7 @@
           </view>
 
           <view v-if="isMe" class="visRow">
-            <text class="visLabel">Profile visibility</text>
+            <text class="visLabel">Visibility</text>
             <view class="vis">
               <view class="visChip" :class="{ on: prefs.visibility === 'public' }" role="button" @tap="setVisibility('public')"><text class="visText">Public</text></view>
               <view class="visChip" :class="{ on: prefs.visibility === 'private' }" role="button" @tap="setVisibility('private')"><text class="visText">Private</text></view>
@@ -87,7 +87,7 @@
       <view v-if="memberLinks.length" class="section">
         <text class="sectionLabel">Links</text>
         <view class="card pad">
-          <text v-for="l in memberLinks" :key="l.label" class="link">{{ l.label }} ù {{ l.url }}</text>
+          <text v-for="l in memberLinks" :key="l.label" class="link">{{ l.label }} ? {{ l.url }}</text>
         </view>
       </view>
 
@@ -95,16 +95,13 @@
         <text class="sectionLabel">Account</text>
         <view class="card pad accountCard">
           <view class="accountRow tap" role="button" @tap="editOpen = true">
-            <text class="accountLabel">Edit profile</text>
-            <text class="accountChev">&gt;</text>
+            <text class="accountLabel">Edit</text>
           </view>
           <view class="accountRow tap" role="button" @tap="aliasOpen = true">
-            <text class="accountLabel">Quick login alias</text>
-            <text class="accountChev">&gt;</text>
+            <text class="accountLabel">Alias</text>
           </view>
           <view class="accountRow tap danger" role="button" @tap="confirmLogout">
             <text class="accountLabel dangerText">Log out</text>
-            <text class="accountChev dangerText">&gt;</text>
           </view>
         </view>
       </view>
@@ -114,49 +111,47 @@
 
     <view class="overlay" :class="{ show: editOpen }" @tap="editOpen = false">
       <view class="sheet" @tap.stop>
-        <text class="sheetTitle">Edit profile</text>
-        <text class="sheetSub">Your fixed account name is set by admin and not editable.</text>
+        <text class="sheetTitle">Edit</text>
         <view class="lockField">
-          <text class="lockLabel">Fixed account name</text>
+          <text class="lockLabel">Name</text>
           <text class="lockValue">{{ currentUser.name }}</text>
         </view>
         <view class="field">
           <text class="fieldLabel">MBTI</text>
-          <input class="input" v-model="draft.mbti" placeholder="e.g. INTJ" placeholder-class="ph" />
+          <input class="input" v-model="draft.mbti" placeholder="INTJ" placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="fieldLabel">Interests</text>
-          <input class="input" v-model="draft.interests" placeholder="oil painting, jazz piano..." placeholder-class="ph" />
+          <input class="input" v-model="draft.interests" placeholder="Interests" placeholder-class="ph" />
         </view>
         <view class="field">
           <text class="fieldLabel">Bio</text>
-          <textarea class="input area" v-model="draft.bio" placeholder="A short line about you." placeholder-class="ph" />
+          <textarea class="input area" v-model="draft.bio" placeholder="Bio" placeholder-class="ph" />
         </view>
         <view class="field">
-          <text class="fieldLabel">Birthday visibility</text>
+          <text class="fieldLabel">Birthday</text>
           <TagSelect
             v-model="draft.birthdayVisibility"
             :options="visibilityOptions"
             kind="visibility"
-            placeholder="Who can see"
+            placeholder="Visibility"
           />
         </view>
-        <view class="saveBtn" role="button" @tap="saveProfile">
-          <text class="saveText">Save changes</text>
+        <view class="saveBtn tap" role="button" @tap="saveProfile">
+          <text class="saveText">Save</text>
         </view>
       </view>
     </view>
 
     <view class="overlay" :class="{ show: aliasOpen }" @tap="aliasOpen = false">
       <view class="sheet" @tap.stop>
-        <text class="sheetTitle">Quick login alias</text>
-        <text class="sheetSub">Only you can see this. Use it to sign in quickly instead of typing your email.</text>
+        <text class="sheetTitle">Alias</text>
         <view class="field">
           <text class="fieldLabel">Alias</text>
-          <input class="input" v-model="aliasDraft" placeholder="e.g. alex" placeholder-class="ph" maxlength="24" />
+          <input class="input" v-model="aliasDraft" placeholder="alex" placeholder-class="ph" maxlength="24" />
         </view>
-        <view class="saveBtn" role="button" @tap="saveAlias">
-          <text class="saveText">Save alias</text>
+        <view class="saveBtn tap" role="button" @tap="saveAlias">
+          <text class="saveText">Save</text>
         </view>
       </view>
     </view>

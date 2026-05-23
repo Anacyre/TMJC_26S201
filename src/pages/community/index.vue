@@ -4,17 +4,21 @@
     <AppHeader />
 
     <view class="topRow">
-      <view class="noticeEntry" role="button" @tap="openNotifications">
+      <view class="noticeEntry tap" role="button" @tap="openNotifications">
         <view class="noticeGlyph">
           <view class="ring" />
           <view class="bell" />
         </view>
         <view class="noticeBody">
           <text class="noticeTitle">Notices</text>
+          <text class="noticeSub">{{ unreadCount }} unread</text>
         </view>
-        <text class="noticeChev">&gt;</text>
+        <view class="noticeStat">
+          <text class="noticeNum">{{ unreadCount }}</text>
+          <text class="noticeChev">&gt;</text>
+        </view>
       </view>
-      <view v-if="isAdmin" class="manageBtn" role="button" @tap="openManage" aria-label="Manage members">
+      <view v-if="isAdmin" class="manageBtn tap" role="button" @tap="openManage" aria-label="Manage">
         <view class="mGlyph">
           <view class="mDot" />
           <view class="mDot" />
@@ -24,8 +28,8 @@
     </view>
 
     <view class="tabs">
-      <view class="seg" :class="{ on: tab === 'communities' }" role="button" @tap="tab = 'communities'"><text>Communities</text></view>
-      <view class="seg" :class="{ on: tab === 'members' }" role="button" @tap="tab = 'members'"><text>Members</text></view>
+      <view class="seg tap" :class="{ on: tab === 'communities' }" role="button" @tap="tab = 'communities'"><text>Spaces</text></view>
+      <view class="seg tap" :class="{ on: tab === 'members' }" role="button" @tap="tab = 'members'"><text>Members</text></view>
     </view>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
@@ -36,7 +40,7 @@
         <view v-if="!communities.length" class="emptyWrap">
           <EmptyState
             variant="posts"
-            title="No spaces yet"
+            title="No spaces"
           />
         </view>
         <view v-for="c in communities" :key="c.id" class="card" role="button" @tap="openFeed(c.id)">
@@ -55,7 +59,7 @@
         <view v-if="!visibleMembers.length" class="emptyFull">
           <EmptyState
             variant="members"
-            title="No members yet"
+            title="No members"
           />
         </view>
         <view v-for="m in visibleMembers" :key="m.id" class="mCard" role="button" @tap="openMember(m.id)">
@@ -63,9 +67,9 @@
           <text class="mName">{{ m.name }}</text>
           <view class="mMetaRow">
             <text v-if="m.mbti" class="mMbti">{{ m.mbti }}</text>
-            <text v-if="focusHoursFor(m.id)" class="mFocus">{{ focusHoursFor(m.id) }} focused</text>
+            <text v-if="focusHoursFor(m.id)" class="mFocus">{{ focusHoursFor(m.id) }}</text>
           </view>
-          <text class="mInterests" :number-of-lines="1">{{ m.interests || 'No interests added.' }}</text>
+          <text v-if="m.interests" class="mInterests" :number-of-lines="1">{{ m.interests }}</text>
         </view>
       </view>
       <view class="gap" />
@@ -80,12 +84,11 @@
 
     <view class="overlay" :class="{ show: showAddCommunity }" @tap="showAddCommunity = false">
       <view class="sheet" @tap.stop>
-        <text class="sheetTitle">New community</text>
-        <text class="sheetSub">A focused space for one topic.</text>
-        <view class="field"><input class="input" v-model="draft.name" placeholder="Community name" placeholder-class="ph" /></view>
-        <view class="field"><input class="input" v-model="draft.desc" placeholder="One-line description" placeholder-class="ph" /></view>
-        <view class="field"><input class="input" v-model="draft.icon" placeholder="Icon glyph (e.g. #)" placeholder-class="ph" maxlength="2" /></view>
-        <view class="create" role="button" @tap="createCommunity">Create</view>
+        <text class="sheetTitle">New space</text>
+        <view class="field"><input class="input" v-model="draft.name" placeholder="Name" placeholder-class="ph" /></view>
+        <view class="field"><input class="input" v-model="draft.desc" placeholder="Description" placeholder-class="ph" /></view>
+        <view class="field"><input class="input" v-model="draft.icon" placeholder="Icon" placeholder-class="ph" maxlength="2" /></view>
+        <view class="create tap" role="button" @tap="createCommunity">Create</view>
       </view>
     </view>
     <BottomNav active="community" />
@@ -107,12 +110,16 @@ import { useMemberStore } from '@/composables/useMemberStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { isAdminMember } from '@/lib/classMembers'
 import { useFocusStore } from '@/composables/useFocusStore'
+import { useNotificationStore } from '@/composables/useNotificationStore'
 
 const { themeClass } = useTheme()
 const { communities, loading, addCommunity } = useCommunityStore()
 const { visibleMembers } = useMemberStore()
 const { currentUser } = useUserStore()
 const { publicFocusHoursLabel } = useFocusStore()
+const { visibleNotifications } = useNotificationStore()
+
+const unreadCount = computed(() => visibleNotifications.value.filter((n) => !n.read).length)
 
 const tab = ref('communities')
 const showAddCommunity = ref(false)
@@ -160,68 +167,75 @@ function createCommunity() {
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.topRow { position: relative; z-index: 2; display: flex; align-items: center; gap: 10rpx; padding: 6rpx 28rpx 0; }
-.noticeEntry { flex: 1; display: flex; align-items: center; gap: 12rpx; padding: 14rpx 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.62); transition: transform 180ms ease, background 220ms ease; }
-.t-dark .noticeEntry { background: rgba(255, 255, 255, 0.04); }
-.noticeEntry:active { transform: scale(0.99); }
-.noticeGlyph { width: 38rpx; height: 38rpx; display: flex; align-items: center; justify-content: center; position: relative; }
-.noticeGlyph .ring { position: absolute; inset: 0; border-radius: 50%; background: rgba(46, 99, 255, 0.12); }
-.noticeGlyph .bell { width: 14rpx; height: 14rpx; border-radius: 14rpx 14rpx 4rpx 4rpx; background: rgba(46, 99, 255, 0.95); position: relative; }
-.noticeGlyph .bell::after { content: ''; position: absolute; bottom: -4rpx; left: 50%; width: 4rpx; height: 4rpx; margin-left: -2rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.95); }
-.noticeBody { display: flex; flex-direction: column; gap: 2rpx; flex: 1; min-width: 0; }
-.noticeTitle { font-size: 22rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
-.t-dark .noticeTitle { color: #f5f7fa; }
-.noticeSub { font-size: 18rpx; color: rgba(16, 24, 40, 0.48); }
-.t-dark .noticeSub { color: rgba(245, 247, 255, 0.46); }
-.noticeChev { font-size: 26rpx; color: rgba(46, 99, 255, 0.9); font-weight: 300; padding-left: 4rpx; }
+.topRow { position: relative; z-index: 2; display: flex; align-items: stretch; gap: 10rpx; padding: 8rpx 28rpx 0; }
+.noticeEntry { flex: 1; display: flex; align-items: center; gap: 16rpx; padding: 22rpx 20rpx; border-radius: 26rpx; background: linear-gradient(135deg, rgba(80, 140, 255, 0.14), rgba(46, 99, 255, 0.06)); border: 1rpx solid rgba(46, 99, 255, 0.22); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.t-dark .noticeEntry { background: linear-gradient(135deg, rgba(80, 140, 255, 0.22), rgba(46, 99, 255, 0.10)); border-color: rgba(120, 160, 255, 0.28); }
+.noticeEntry:active { transform: scale(0.985); background: rgba(46, 99, 255, 0.12); }
+.noticeGlyph { width: 56rpx; height: 56rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; position: relative; }
+.noticeGlyph .ring { position: absolute; inset: 0; border-radius: 50%; background: rgba(46, 99, 255, 0.18); }
+.t-dark .noticeGlyph .ring { background: rgba(120, 160, 255, 0.22); }
+.noticeGlyph .bell { width: 18rpx; height: 18rpx; border-radius: 18rpx 18rpx 5rpx 5rpx; background: rgba(46, 99, 255, 0.95); position: relative; }
+.t-dark .noticeGlyph .bell { background: rgba(170, 200, 255, 0.96); }
+.noticeGlyph .bell::after { content: ''; position: absolute; bottom: -5rpx; left: 50%; width: 5rpx; height: 5rpx; margin-left: -2.5rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.95); }
+.t-dark .noticeGlyph .bell::after { background: rgba(170, 200, 255, 0.96); }
+.noticeBody { display: flex; flex-direction: column; gap: 4rpx; flex: 1; min-width: 0; }
+.noticeTitle { font-size: 28rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); letter-spacing: -0.3rpx; }
+.t-dark .noticeTitle { color: rgba(245, 247, 255, 0.92); }
+.noticeSub { font-size: 19rpx; color: rgba(46, 99, 255, 0.78); font-weight: 660; }
+.t-dark .noticeSub { color: rgba(170, 200, 255, 0.78); }
+.noticeStat { display: flex; align-items: baseline; gap: 6rpx; flex-shrink: 0; }
+.noticeNum { font-size: 36rpx; font-weight: 780; color: rgba(46, 99, 255, 0.96); letter-spacing: -0.5rpx; }
+.t-dark .noticeNum { color: rgba(170, 200, 255, 0.96); }
+.noticeChev { font-size: 24rpx; color: rgba(46, 99, 255, 0.5); font-weight: 300; }
+.t-dark .noticeChev { color: rgba(170, 200, 255, 0.5); }
 
-.manageBtn { width: 64rpx; height: 64rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.06); transition: transform 180ms ease, background 220ms ease; }
+.manageBtn { width: 72rpx; align-self: stretch; min-height: 72rpx; border-radius: 26rpx; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease; }
 .t-dark .manageBtn { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
 .manageBtn:active { transform: scale(0.94); }
 .mGlyph { display: flex; align-items: center; gap: 5rpx; }
 .mDot { width: 6rpx; height: 6rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.6); }
 .t-dark .mDot { background: rgba(245, 247, 255, 0.6); }
 
-.tabs { position: relative; z-index: 2; margin: 14rpx 28rpx 0; padding: 6rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.06); border-radius: 22rpx; display: flex; }
+.tabs { position: relative; z-index: 2; margin: 14rpx 28rpx 0; padding: 4rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); border-radius: 22rpx; display: flex; }
 .t-dark .tabs { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.seg { flex: 1; height: 62rpx; border-radius: 16rpx; display: flex; align-items: center; justify-content: center; font-size: 22rpx; color: rgba(16, 24, 40, 0.65); transition: background 220ms ease, color 220ms ease; }
-.t-dark .seg { color: rgba(245, 247, 255, 0.7); }
-.seg.on { background: rgba(46, 99, 255, 0.14); color: rgba(46, 99, 255, 0.96); }
+.seg { flex: 1; height: 58rpx; border-radius: 18rpx; display: flex; align-items: center; justify-content: center; font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.55); transition: background 220ms ease, color 220ms ease, transform 180ms ease; }
+.t-dark .seg { color: rgba(245, 247, 255, 0.55); }
+.seg.on { background: rgba(46, 99, 255, 0.12); color: rgba(46, 99, 255, 0.96); font-weight: 740; }
 .t-dark .seg.on { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 176rpx); padding: 14rpx 28rpx 200rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 196rpx); padding: 14rpx 28rpx 200rpx; }
 .list { display: flex; flex-direction: column; gap: 12rpx; }
 .emptyWrap, .emptyFull { padding: 32rpx 12rpx; }
 .emptyFull { grid-column: span 2; }
 
-.card { padding: 18rpx; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.card { padding: 16rpx 18rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.card:active { transform: scale(0.99); }
+.card:active { transform: scale(0.985); }
 .row { display: flex; align-items: center; gap: 14rpx; }
-.icon { width: 56rpx; height: 56rpx; border-radius: 18rpx; background: rgba(46, 99, 255, 0.10); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: 26rpx; font-weight: 720; }
+.icon { width: 50rpx; height: 50rpx; border-radius: 16rpx; background: rgba(46, 99, 255, 0.10); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.95); font-size: 24rpx; font-weight: 720; }
 .t-dark .icon { background: rgba(120, 160, 255, 0.14); color: rgba(170, 200, 255, 0.96); }
 .meta { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4rpx; }
-.name { font-size: 24rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
-.t-dark .name { color: #f5f7fa; }
-.desc { font-size: 20rpx; color: rgba(16, 24, 40, 0.52); }
-.t-dark .desc { color: rgba(245, 247, 255, 0.5); }
-.enterDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.7); }
+.name { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.t-dark .name { color: rgba(245, 247, 255, 0.92); }
+.desc { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .desc { color: rgba(245, 247, 255, 0.45); }
+.enterDot { width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.6); }
 
-.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12rpx; }
-.mCard { padding: 18rpx; border-radius: 26rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); display: flex; flex-direction: column; gap: 6rpx; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10rpx; }
+.mCard { padding: 16rpx; border-radius: 22rpx; background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); display: flex; flex-direction: column; gap: 4rpx; transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
 .t-dark .mCard { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.mCard:active { transform: scale(0.99); }
-.mAvatar { width: 54rpx; height: 54rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.14); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.96); font-size: 20rpx; font-weight: 760; margin-bottom: 6rpx; }
+.mCard:active { transform: scale(0.985); }
+.mAvatar { width: 48rpx; height: 48rpx; border-radius: 50%; background: rgba(46, 99, 255, 0.14); display: flex; align-items: center; justify-content: center; color: rgba(46, 99, 255, 0.96); font-size: 18rpx; font-weight: 760; margin-bottom: 4rpx; }
 .t-dark .mAvatar { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
-.mName { font-size: 23rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
-.t-dark .mName { color: #f5f7fa; }
-.mMetaRow { display: flex; align-items: center; gap: 10rpx; flex-wrap: wrap; }
-.mMbti { font-size: 18rpx; color: rgba(46, 99, 255, 0.9); font-weight: 720; letter-spacing: 0.4rpx; }
+.mName { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.t-dark .mName { color: rgba(245, 247, 255, 0.92); }
+.mMetaRow { display: flex; align-items: center; gap: 8rpx; flex-wrap: wrap; }
+.mMbti { font-size: 17rpx; color: rgba(46, 99, 255, 0.9); font-weight: 700; }
 .t-dark .mMbti { color: rgba(170, 200, 255, 0.95); }
-.mFocus { font-size: 18rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .mFocus { color: rgba(245, 247, 255, 0.5); }
-.mInterests { font-size: 19rpx; color: rgba(16, 24, 40, 0.52); margin-top: 4rpx; }
-.t-dark .mInterests { color: rgba(245, 247, 255, 0.5); }
+.mFocus { font-size: 17rpx; color: rgba(16, 24, 40, 0.45); }
+.t-dark .mFocus { color: rgba(245, 247, 255, 0.45); }
+.mInterests { font-size: 18rpx; color: rgba(16, 24, 40, 0.48); margin-top: 2rpx; }
+.t-dark .mInterests { color: rgba(245, 247, 255, 0.45); }
 
 .gap { height: 24rpx; }
 
