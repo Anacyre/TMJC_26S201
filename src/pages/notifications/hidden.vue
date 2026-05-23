@@ -34,6 +34,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -42,9 +43,13 @@ import { useNotificationStore } from '@/composables/useNotificationStore'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { hiddenNotifications, unhide, removeNotification } = useNotificationStore()
+const { hiddenNotifications, unhide, removeNotification, fetchNotifications } = useNotificationStore()
 
 const list = computed(() => hiddenNotifications.value)
+
+onShow(() => {
+  fetchNotifications()
+})
 
 function restore(id) {
   unhide(id)
@@ -75,7 +80,7 @@ function remove(id) {
 .scroll {
   position: relative;
   z-index: 1;
-  height: calc(100vh - 200rpx);
+  height: calc(100vh - var(--shell-header-offset));
   padding: 12rpx 24rpx 40rpx;
 }
 .hint {

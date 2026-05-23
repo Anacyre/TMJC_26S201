@@ -4,14 +4,53 @@ import * as notificationsApi from '@/api/notifications'
 const notifications = ref([])
 const loading = ref(false)
 
+const HIDDEN_CACHE_KEY = 'notice_hidden_cache_v1'
+
+function hiddenCacheKey(userId) {
+  return userId ? `${HIDDEN_CACHE_KEY}_${userId}` : HIDDEN_CACHE_KEY
+}
+
+function loadHiddenSet(userId = '') {
+  try {
+    const raw = uni.getStorageSync(hiddenCacheKey(userId))
+    return new Set(Array.isArray(raw) ? raw : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function saveHiddenSet(set, userId = '') {
+  try {
+    uni.setStorageSync(hiddenCacheKey(userId), [...set])
+  } catch {}
+}
+
+function mergeHiddenFromCache(list, userId = '') {
+  const hiddenSet = loadHiddenSet(userId)
+  const merged = list.map((n) => ({
+    ...n,
+    hidden: !!n.hidden || hiddenSet.has(n.id),
+  }))
+
+  for (const n of merged) {
+    if (n.hidden) hiddenSet.add(n.id)
+    else hiddenSet.delete(n.id)
+  }
+  saveHiddenSet(hiddenSet, userId)
+  return merged
+}
+
 // ─── 数据获取 ────────────────────────────────────────────────────
 
 async function fetchNotifications() {
   loading.value = true
   try {
-    const { data, error } = await notificationsApi.fetchNotifications()
-    if (!error) notifications.value = data
-    else console.error('[useNotificationStore] fetchNotifications:', error.message)
+    const { data, error, userId } = await notificationsApi.fetchNotifications()
+    if (!error) {
+      notifications.value = mergeHiddenFromCache(data, userId || '')
+    } else {
+      console.error('[useNotificationStore] fetchNotifications:', error.message)
+    }
   } finally {
     loading.value = false
   }
@@ -30,6 +69,13 @@ function _patchLocal(id, patch) {
   if (idx >= 0) Object.assign(notifications.value[idx], patch)
 }
 
+function _rememberHidden(id, hidden, userId = '') {
+  const hiddenSet = loadHiddenSet(userId)
+  if (hidden) hiddenSet.add(id)
+  else hiddenSet.delete(id)
+  saveHiddenSet(hiddenSet, userId)
+}
+
 async function markRead(id) {
   _patchLocal(id, { read: true })
   await notificationsApi.markRead(id)
@@ -38,20 +84,29 @@ async function markRead(id) {
 async function toggleImportant(id) {
   const item = getNotificationById(id)
   if (!item) return
-  _patchLocal(id, { important: !item.important })
-  await notificationsApi.toggleImportant(id, item.important)
+  const wasImportant = item.important
+  _patchLocal(id, { important: !wasImportant })
+  await notificationsApi.toggleImportant(id, wasImportant)
 }
 
 async function toggleHidden(id) {
   const item = getNotificationById(id)
   if (!item) return
-  _patchLocal(id, { hidden: !item.hidden })
-  await notificationsApi.toggleHidden(id, item.hidden)
+  const wasHidden = item.hidden
+  const nextHidden = !wasHidden
+  _patchLocal(id, { hidden: nextHidden })
+  const { userId } = await notificationsApi.setHidden(id, nextHidden)
+  _rememberHidden(id, nextHidden, userId || '')
+}
+
+async function setHidden(id, hidden) {
+  _patchLocal(id, { hidden: !!hidden })
+  const { userId } = await notificationsApi.setHidden(id, hidden)
+  _rememberHidden(id, !!hidden, userId || '')
 }
 
 async function unhide(id) {
-  _patchLocal(id, { hidden: false })
-  await notificationsApi.toggleHidden(id, true)
+  await setHidden(id, false)
 }
 
 async function setInPlanner(id, value) {
@@ -94,6 +149,7 @@ export function useNotificationStore() {
     toggleImportant,
     setInPlanner,
     toggleHidden,
+    setHidden,
     unhide,
     removeNotification,
     addNotification,

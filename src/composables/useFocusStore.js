@@ -1,16 +1,16 @@
 import { computed, ref } from 'vue'
+import {
+  mergeNoiseLibrary,
+  loadLocalSounds,
+  saveLocalSounds,
+  pickAndBuildSoundRecord,
+  BUILTIN_NOISES,
+} from '@/lib/focusNoise'
+import * as focusSoundsApi from '@/api/focusSounds'
 
 const FOCUS_KEY = 'focus_sessions_v1'
 const FOCUS_PREFS_KEY = 'focus_prefs_v1'
 const FOCUS_ACTIVE_KEY = 'focus_active_v1'
-
-const WHITE_NOISE = [
-  { id: 'silence', name: 'Silence' },
-  { id: 'rain', name: 'Rain' },
-  { id: 'cafe', name: 'Cafe' },
-  { id: 'wind', name: 'Wind' },
-  { id: 'brown', name: 'Brown noise' },
-]
 
 function loadSessions() {
   try {
@@ -57,6 +57,56 @@ function clearActiveSession() {
 
 const sessions = ref(loadSessions())
 const prefs = ref(loadPrefs())
+const noiseLibrary = ref(mergeNoiseLibrary())
+
+async function refreshNoiseLibrary(userId = '') {
+  const { data: shared } = await focusSoundsApi.fetchSharedSounds()
+  const local = loadLocalSounds(userId)
+  noiseLibrary.value = mergeNoiseLibrary({ shared: shared || [], local })
+  ensureValidSoundId()
+}
+
+function getNoiseById(id) {
+  return noiseLibrary.value.find((n) => n.id === id) || null
+}
+
+function ensureValidSoundId() {
+  if (!noiseLibrary.value.some((n) => n.id === prefs.value.soundId)) {
+    prefs.value = { ...prefs.value, soundId: 'silence' }
+    savePrefs(prefs.value)
+  }
+}
+
+async function addLocalNoise(userId) {
+  const record = await pickAndBuildSoundRecord({ source: 'local', userId })
+  const list = loadLocalSounds(userId)
+  list.unshift(record)
+  saveLocalSounds(userId, list)
+  await refreshNoiseLibrary(userId)
+  setSound(record.id)
+  return record
+}
+
+async function removeLocalNoise(userId, id) {
+  const list = loadLocalSounds(userId).filter((s) => s.id !== id)
+  saveLocalSounds(userId, list)
+  if (prefs.value.soundId === id) setSound('silence')
+  await refreshNoiseLibrary(userId)
+}
+
+async function addSharedNoise(userId) {
+  const record = await pickAndBuildSoundRecord({ source: 'shared', userId })
+  await focusSoundsApi.addSharedSound(record)
+  await refreshNoiseLibrary(userId)
+  setSound(record.id)
+  return record
+}
+
+async function removeSharedNoise(userId, id) {
+  await focusSoundsApi.removeSharedSound(id)
+  if (prefs.value.soundId === id) setSound('silence')
+  await refreshNoiseLibrary(userId)
+}
 
 function recordSession({ minutes, subject = 'Focus', soundId = 'silence' }) {
   if (!minutes || minutes < 1) return null
@@ -153,12 +203,14 @@ const publicFocusHoursLabel = computed(() =>
   prefs.value.visibility === 'private' ? '' : totalHoursLabel.value
 )
 
-export const WHITE_NOISE_OPTIONS = WHITE_NOISE
+/** @deprecated use noiseLibrary */
+export const WHITE_NOISE_OPTIONS = BUILTIN_NOISES
 
 export function useFocusStore() {
   return {
     sessions,
     prefs,
+    noiseLibrary,
     totalMinutes,
     totalHoursLabel,
     publicFocusHoursLabel,
@@ -170,6 +222,12 @@ export function useFocusStore() {
     setVisibility,
     setDefaultMinutes,
     setSound,
+    getNoiseById,
+    refreshNoiseLibrary,
+    addLocalNoise,
+    removeLocalNoise,
+    addSharedNoise,
+    removeSharedNoise,
     loadActiveSession,
     saveActiveSession,
     clearActiveSession,

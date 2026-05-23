@@ -44,7 +44,7 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { getNotificationById, markRead, toggleImportant, toggleHidden, setInPlanner } = useNotificationStore()
+const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner } = useNotificationStore()
 const { addTaskFromNotice } = useTasksStore()
 const id = ref('')
 const fallback = {
@@ -89,7 +89,7 @@ function togglePinned() {
 
 function hideNotice() {
   if (!notice.value?.id) return
-  toggleHidden(notice.value.id)
+  setHidden(notice.value.id, true)
   toast.hidden()
   setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
 }

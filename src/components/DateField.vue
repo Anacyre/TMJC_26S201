@@ -1,44 +1,49 @@
 <template>
   <view class="dateField" :class="themeClass">
-    <picker
-      :mode="mode"
-      :value="pickerValue"
-      :start="start"
-      :end="end"
-      :fields="fields"
-      @change="onChange"
-    >
-      <view class="control">
-        <view class="left">
-          <view class="iconWrap">
-            <view v-if="mode === 'date'" class="cal">
-              <view class="calBar" />
-              <view class="calDot a" />
-              <view class="calDot b" />
-              <view class="calDot c" />
-            </view>
-            <view v-else class="clock">
-              <view class="hand" />
-            </view>
+    <view class="control tap" role="button" @tap="pickerOpen = true">
+      <view class="left">
+        <view class="iconWrap">
+          <view v-if="mode === 'date'" class="cal">
+            <view class="calBar" />
+            <view class="calDot a" />
+            <view class="calDot b" />
+            <view class="calDot c" />
           </view>
-          <view class="textCol">
-            <text v-if="label" class="label">{{ label }}</text>
-            <text class="value" :class="{ placeholder: !modelValue }">
-              {{ displayValue }}
-            </text>
+          <view v-else class="clock">
+            <view class="hand" />
           </view>
         </view>
+        <view class="textCol">
+          <text v-if="label" class="label">{{ label }}</text>
+          <text class="value" :class="{ placeholder: !modelValue }">
+            {{ displayValue }}
+          </text>
+        </view>
+      </view>
+      <view class="right">
         <view v-if="modelValue && clearable" class="clearBtn" role="button" catch:tap="onClear" @tap.stop="onClear">
           <text class="clearText">×</text>
         </view>
+        <view class="chev"><text class="chevText">&gt;</text></view>
       </view>
-    </picker>
+    </view>
+
+    <DatePickerSheet
+      :open="pickerOpen"
+      :mode="mode"
+      :selected="modelValue"
+      :start="start"
+      :end="end"
+      @close="pickerOpen = false"
+      @pick="onPick"
+    />
   </view>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
+import DatePickerSheet from '@/components/DatePickerSheet.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -55,20 +60,19 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'change', 'clear'])
 
 const { themeClass } = useTheme()
-
-const pickerValue = computed(() => {
-  if (props.modelValue) return props.modelValue
-  if (props.mode === 'time') {
-    const d = new Date()
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  }
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-})
+const pickerOpen = ref(false)
 
 const displayValue = computed(() => {
   if (!props.modelValue) return props.placeholder
-  if (props.mode === 'time') return props.modelValue
+  if (props.mode === 'time') {
+    const [h, m] = props.modelValue.split(':')
+    const hour = Number(h)
+    const minute = Number(m)
+    if (Number.isNaN(hour) || Number.isNaN(minute)) return props.modelValue
+    const suffix = hour >= 12 ? 'PM' : 'AM'
+    const hour12 = hour % 12 || 12
+    return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`
+  }
   const parts = props.modelValue.split('-')
   if (parts.length < 3) return props.modelValue
   const [y, m, d] = parts
@@ -79,8 +83,7 @@ const displayValue = computed(() => {
   return `${weekdays[date.getDay()]} · ${months[date.getMonth()]} ${date.getDate()}`
 })
 
-function onChange(e) {
-  const value = e.detail.value
+function onPick(value) {
   emit('update:modelValue', value)
   emit('change', value)
 }
@@ -106,12 +109,13 @@ function onClear() {
   border-radius: 22rpx;
   background: rgba(255, 255, 255, 0.78);
   border: 1rpx solid rgba(16, 24, 40, 0.08);
-  transition: border-color 200ms ease, background 200ms ease;
+  transition: border-color 200ms ease, background 200ms ease, transform 140ms ease;
 }
 .t-dark .control {
   background: #23272d;
   border-color: rgba(255, 255, 255, 0.08);
 }
+.control.tap:active { transform: scale(0.99); }
 
 .left {
   display: flex;
@@ -119,6 +123,13 @@ function onClear() {
   gap: 12rpx;
   flex: 1;
   min-width: 0;
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
 }
 
 .iconWrap {
@@ -219,4 +230,15 @@ function onClear() {
   line-height: 1;
 }
 .t-dark .clearText { color: rgba(245, 247, 255, 0.6); }
+
+.chev {
+  width: 30rpx;
+  height: 30rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.45;
+}
+.chevText { font-size: 22rpx; color: rgba(16, 24, 40, 0.55); font-weight: 300; }
+.t-dark .chevText { color: rgba(245, 247, 255, 0.55); }
 </style>

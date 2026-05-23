@@ -134,12 +134,12 @@
         </view>
         <view class="field">
           <text class="fieldLabel">Birthday visibility</text>
-          <picker :range="visibilityOptions" :value="visibilityOptions.indexOf(draft.birthdayVisibility)" @change="onVisibilityChange">
-            <view class="input picker">
-              <text class="pickerText">{{ draft.birthdayVisibility }}</text>
-              <text class="chevText">v</text>
-            </view>
-          </picker>
+          <TagSelect
+            v-model="draft.birthdayVisibility"
+            :options="visibilityOptions"
+            kind="visibility"
+            placeholder="Who can see"
+          />
         </view>
         <view class="saveBtn" role="button" @tap="saveProfile">
           <text class="saveText">Save changes</text>
@@ -170,6 +170,7 @@ import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
@@ -224,10 +225,6 @@ const topSubjectLabel = computed(() => {
 
 function initials(name) {
   return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
-
-function onVisibilityChange(e) {
-  draft.value.birthdayVisibility = visibilityOptions[e.detail.value]
 }
 
 async function saveProfile() {

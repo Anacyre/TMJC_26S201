@@ -6,118 +6,111 @@
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
 
-        <view class="hero">
-          <text class="hint">{{ statusLabel }}</text>
+        <view class="stage">
+          <view
+            v-if="showReset"
+            class="resetDot tap"
+            role="button"
+            aria-label="Reset"
+            @tap="reset"
+          />
 
           <view class="ringStack">
             <view class="ringBg" />
-            <view
-              class="ringFill"
-              :style="ringStyle"
-            />
-            <view class="centerCol">
-              <text class="timer">{{ timerDisplay }}</text>
-              <text class="kickerMuted">{{ phaseLabel }}</text>
-            </view>
-          </view>
+            <view class="ringFill" :style="ringStyle" />
 
-          <view class="durationRow">
             <view
-              v-for="d in durations"
-              :key="d"
-              class="chip"
-              :class="{ on: !running && selectedMinutes === d }"
-              role="button"
-              @tap="selectDuration(d)"
+              class="centerCol"
+              :class="{ editable: canEditDuration }"
+              @touchstart.stop="onDragStart"
+              @touchmove.stop.prevent="onDragMove"
+              @touchend.stop="onDragEnd"
+              @touchcancel.stop="onDragEnd"
             >
-              <text class="chipText">{{ d }}m</text>
-            </view>
-            <view class="chip" :class="{ on: customOpen }" role="button" @tap="openCustom">
-              <text class="chipText">Custom</text>
-            </view>
-          </view>
-
-          <view class="controls">
-            <view class="ctlGhost" role="button" @tap="reset"><text class="ctlGhostText">Reset</text></view>
-            <view class="ctlPrimary" :class="{ pause: running }" role="button" @tap="togglePlay">
-              <view class="ctlGlyph">
-                <view v-if="!running" class="triangle" />
-                <view v-else class="pauseGlyph"><view /><view /></view>
+              <view v-if="canEditDuration" class="digitRow">
+                <input
+                  class="minField"
+                  type="number"
+                  :value="minuteDraft"
+                  maxlength="3"
+                  @input="onMinuteInput"
+                  @blur="onMinuteBlur"
+                  @tap.stop
+                />
+                <text class="sep">:</text>
+                <text class="secField">00</text>
               </view>
-              <text class="ctlPrimaryText">{{ running ? 'Pause' : (remaining < totalSeconds ? 'Resume' : 'Start') }}</text>
+              <text v-else class="timer">{{ timerDisplay }}</text>
             </view>
-          </view>
-        </view>
 
-        <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">White noise</text>
-            <text class="sectionSub">A calm sound layer.</text>
-          </view>
-          <view class="noiseRow">
             <view
-              v-for="n in noises"
-              :key="n.id"
-              class="noise"
-              :class="{ on: prefs.soundId === n.id }"
+              class="playOrb tap"
+              :class="{ pause: running }"
               role="button"
-              @tap="pickNoise(n.id)"
+              :aria-label="running ? 'Pause' : 'Start'"
+              @tap="togglePlay"
             >
-              <view class="noiseGlyph" :class="'g-' + n.id"><view class="dot" /></view>
-              <text class="noiseText">{{ n.name }}</text>
+              <view v-if="!running" class="playGlyph" />
+              <view v-else class="pauseGlyph"><view /><view /></view>
             </view>
           </view>
         </view>
 
-        <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">This week</text>
-            <text class="sectionSub">Minutes focused per day.</text>
-          </view>
-          <view class="card pad">
-            <view class="weekRow">
-              <view v-for="d in weekTotals" :key="d.key" class="bar">
-                <view class="barTrack">
-                  <view class="barFill" :style="{ height: barHeight(d.minutes) + '%' }" />
+        <view class="bottomDock">
+          <scroll-view class="noiseScroll" scroll-x :show-scrollbar="false" enhanced>
+            <view class="noiseTrack">
+              <view
+                v-for="n in noiseLibrary"
+                :key="n.id"
+                class="noiseChip tap"
+                :class="{ on: prefs.soundId === n.id, deletable: canDeleteNoise(n) }"
+                role="button"
+                :aria-label="n.name"
+                @tap="pickNoise(n.id)"
+                @longpress="onNoiseLongPress(n)"
+              >
+                <view class="orbWrap">
+                  <view
+                    class="orb"
+                    :class="{ muted: n.id === 'silence' }"
+                    :style="orbStyle(n)"
+                  />
+                  <view v-if="prefs.soundId === n.id" class="selRing" />
+                  <view v-if="n.source === 'local'" class="localDot" />
+                  <view v-if="n.source === 'shared'" class="sharedDot" />
                 </view>
-                <text class="barLabel">{{ d.label.slice(0, 1) }}</text>
+              </view>
+
+              <view
+                class="noiseChip tap add"
+                role="button"
+                aria-label="Add local sound"
+                @tap="addLocalSound"
+                @longpress="onAddLongPress"
+              >
+                <view class="orbWrap">
+                  <view class="orb addOrb">
+                    <view class="plusBar h" />
+                    <view class="plusBar v" />
+                  </view>
+                </view>
               </view>
             </view>
-            <view class="weekStats">
-              <view class="statBlock">
-                <text class="statNum">{{ totalHoursLabel }}</text>
-                <text class="statLabel">All time</text>
-              </view>
-              <view class="statBlock">
-                <text class="statNum">{{ weekMinutesLabel }}</text>
-                <text class="statLabel">This week</text>
-              </view>
-              <view class="statBlock">
-                <text class="statNum">{{ avgSessionLabel }}</text>
-                <text class="statLabel">Avg session</text>
-              </view>
-            </view>
+          </scroll-view>
+
+          <view
+            class="eyeDot tap"
+            :class="{ on: prefs.visibility === 'public' }"
+            role="button"
+            @tap="toggleVisibility"
+          >
+            <view class="eyeMini" :class="{ open: prefs.visibility === 'public' }" />
           </view>
         </view>
 
-        <view class="section">
-          <view class="sectionHead">
-            <text class="sectionTitle">Visibility</text>
-            <text class="sectionSub">Show focus hours on your profile card.</text>
-          </view>
-          <view class="visRow">
-            <view
-              class="visChip"
-              :class="{ on: prefs.visibility === 'public' }"
-              role="button"
-              @tap="setVisibility('public')"
-            ><text class="visText">Public</text></view>
-            <view
-              class="visChip"
-              :class="{ on: prefs.visibility === 'private' }"
-              role="button"
-              @tap="setVisibility('private')"
-            ><text class="visText">Private</text></view>
+        <view class="weekStrip">
+          <view v-for="d in weekTotals" :key="d.key" class="wBar">
+            <view class="wFill" :style="{ height: barHeight(d.minutes) + '%' }" />
           </view>
         </view>
 
@@ -125,66 +118,60 @@
       </view>
     </scroll-view>
 
-    <view class="overlay" :class="{ show: customOpen }" @tap="customOpen = false">
-      <view class="sheet" @tap.stop>
-        <text class="sheetTitle">Custom duration</text>
-        <text class="sheetSub">Choose how long you want to focus.</text>
-        <view class="customRow">
-          <view class="adjust" role="button" @tap="adjustCustom(-5)"><text class="adjustText">−</text></view>
-          <view class="customNumWrap">
-            <text class="customNum">{{ customMinutes }}</text>
-            <text class="customUnit">min</text>
-          </view>
-          <view class="adjust" role="button" @tap="adjustCustom(5)"><text class="adjustText">＋</text></view>
-        </view>
-        <view class="commit" role="button" @tap="commitCustom">
-          <text class="commitText">Set duration</text>
-        </view>
-      </view>
-    </view>
-
-    <BottomNav active="study" />
     <GlobalSearchOverlay />
   </view>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue'
+import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
-import BottomNav from '@/components/BottomNav.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
-import { useFocusStore, WHITE_NOISE_OPTIONS } from '@/composables/useFocusStore'
+import { useFocusStore } from '@/composables/useFocusStore'
+import { playFocusAudio, stopFocusAudio } from '@/composables/useFocusAudio'
+import { useUserStore } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
+const { currentUser } = useUserStore()
+const isAdmin = computed(() => isAdminMember(currentUser.value))
+
 const {
   prefs,
+  noiseLibrary,
   weekTotals,
-  totalHoursLabel,
   recordSession,
   setVisibility,
   setSound,
   setDefaultMinutes,
-  sessions,
+  getNoiseById,
+  refreshNoiseLibrary,
+  addLocalNoise,
+  removeLocalNoise,
+  addSharedNoise,
+  removeSharedNoise,
   loadActiveSession,
   saveActiveSession,
   clearActiveSession,
 } = useFocusStore()
 
-const durations = [25, 50, 90]
-const noises = WHITE_NOISE_OPTIONS
-
 const saved = loadActiveSession()
 const selectedMinutes = ref(saved?.selectedMinutes || prefs.value.defaultMinutes || 25)
+const minuteDraft = ref(selectedMinutes.value)
 const totalSeconds = computed(() => selectedMinutes.value * 60)
 const remaining = ref(saved?.remaining ?? selectedMinutes.value * 60)
 const elapsed = ref(saved?.elapsed ?? 0)
 const running = ref(false)
 const tickRef = ref(null)
-const customOpen = ref(false)
-const customMinutes = ref(selectedMinutes.value)
+
+const dragLastY = ref(0)
+const dragAccum = ref(0)
+const DRAG_STEP_PX = 28
+
+const canEditDuration = computed(() => !running.value && remaining.value === totalSeconds.value)
+const showReset = computed(() => running.value || remaining.value < totalSeconds.value)
 
 const timerDisplay = computed(() => {
   const total = Math.max(0, remaining.value)
@@ -193,43 +180,82 @@ const timerDisplay = computed(() => {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 })
 
-const phaseLabel = computed(() => {
-  if (running.value) return 'In session'
-  if (remaining.value < totalSeconds.value && remaining.value > 0) return 'Paused'
-  if (remaining.value === 0) return 'Complete'
-  return `${selectedMinutes.value} min set`
-})
-
-const statusLabel = computed(() => {
-  if (running.value) return 'Stay with it — breathe, look at the work, and continue.'
-  if (remaining.value === 0) return 'Nice work. Take a few slow breaths.'
-  return 'Pick a duration, then start when you’re ready.'
-})
-
 const ringStyle = computed(() => {
   const pct = totalSeconds.value === 0 ? 0 : 1 - remaining.value / totalSeconds.value
   const deg = pct * 360
   return {
-    background: `conic-gradient(rgba(46,99,255,0.92) ${deg}deg, transparent ${deg}deg)`,
+    background: `conic-gradient(rgba(46,99,255,0.88) ${deg}deg, transparent ${deg}deg)`,
   }
 })
 
-const weekMinutesLabel = computed(() => {
-  const mins = weekTotals.value.reduce((acc, d) => acc + d.minutes, 0)
-  return mins >= 60 ? `${(mins / 60).toFixed(1)}h` : `${mins}m`
-})
-
-const avgSessionLabel = computed(() => {
-  const list = sessions.value
-  if (!list.length) return '—'
-  const total = list.reduce((acc, s) => acc + (s.minutes || 0), 0)
-  return `${Math.round(total / list.length)}m`
+watch(selectedMinutes, (v) => {
+  if (canEditDuration.value) minuteDraft.value = v
 })
 
 function barHeight(minutes) {
   const max = Math.max(60, ...weekTotals.value.map((d) => d.minutes))
-  if (!max) return 6
-  return Math.max(6, Math.min(100, Math.round((minutes / max) * 100)))
+  if (!max) return 8
+  return Math.max(8, Math.min(100, Math.round((minutes / max) * 100)))
+}
+
+function clampMinutes(value) {
+  return Math.max(1, Math.min(240, Math.round(Number(value) || 1)))
+}
+
+function applyMinutes(value) {
+  if (!canEditDuration.value) return
+  const next = clampMinutes(value)
+  minuteDraft.value = next
+  selectedMinutes.value = next
+  remaining.value = next * 60
+  elapsed.value = 0
+  setDefaultMinutes(next)
+  persistSession()
+}
+
+function adjustMinutes(delta) {
+  applyMinutes(minuteDraft.value + delta)
+}
+
+function onMinuteInput(e) {
+  const raw = e.detail?.value ?? e.target?.value ?? ''
+  if (raw === '') {
+    minuteDraft.value = ''
+    return
+  }
+  applyMinutes(raw)
+}
+
+function onMinuteBlur() {
+  if (minuteDraft.value === '' || minuteDraft.value === null) {
+    applyMinutes(selectedMinutes.value || 25)
+  }
+}
+
+function onDragStart(e) {
+  if (!canEditDuration.value) return
+  dragLastY.value = e.touches[0].clientY
+  dragAccum.value = 0
+}
+
+function onDragMove(e) {
+  if (!canEditDuration.value) return
+  const y = e.touches[0].clientY
+  dragAccum.value += dragLastY.value - y
+  dragLastY.value = y
+
+  while (dragAccum.value >= DRAG_STEP_PX) {
+    adjustMinutes(1)
+    dragAccum.value -= DRAG_STEP_PX
+  }
+  while (dragAccum.value <= -DRAG_STEP_PX) {
+    adjustMinutes(-1)
+    dragAccum.value += DRAG_STEP_PX
+  }
+}
+
+function onDragEnd() {
+  dragAccum.value = 0
 }
 
 function persistSession() {
@@ -246,58 +272,25 @@ function persistSession() {
 function restoreSession() {
   const snap = loadActiveSession()
   if (!snap) return
-  if (snap.selectedMinutes) selectedMinutes.value = snap.selectedMinutes
+  if (snap.selectedMinutes) {
+    selectedMinutes.value = snap.selectedMinutes
+    minuteDraft.value = snap.selectedMinutes
+  }
   if (typeof snap.remaining === 'number') remaining.value = snap.remaining
   if (typeof snap.elapsed === 'number') elapsed.value = snap.elapsed
   if (snap.soundId) setSound(snap.soundId)
-}
-
-function selectDuration(d) {
-  if (running.value) return
-  selectedMinutes.value = d
-  remaining.value = d * 60
-  elapsed.value = 0
-  setDefaultMinutes(d)
-  persistSession()
-}
-
-function openCustom() {
-  customMinutes.value = selectedMinutes.value
-  customOpen.value = true
-}
-
-function adjustCustom(delta) {
-  customMinutes.value = Math.max(5, Math.min(240, customMinutes.value + delta))
-}
-
-function commitCustom() {
-  if (running.value) {
-    customOpen.value = false
-    return
-  }
-  selectedMinutes.value = customMinutes.value
-  remaining.value = customMinutes.value * 60
-  elapsed.value = 0
-  setDefaultMinutes(customMinutes.value)
-  customOpen.value = false
-  persistSession()
 }
 
 function tick() {
   if (!running.value) return
   remaining.value = Math.max(0, remaining.value - 1)
   elapsed.value = totalSeconds.value - remaining.value
-  if (remaining.value === 0) {
-    completeSession()
-  }
+  if (remaining.value === 0) completeSession()
 }
 
 function togglePlay() {
-  if (running.value) {
-    pause()
-  } else {
-    start()
-  }
+  if (running.value) pause()
+  else start()
 }
 
 function start() {
@@ -309,6 +302,7 @@ function start() {
   if (tickRef.value) clearInterval(tickRef.value)
   tickRef.value = setInterval(tick, 1000)
   persistSession()
+  syncAudio()
 }
 
 function pause() {
@@ -318,321 +312,479 @@ function pause() {
     tickRef.value = null
   }
   persistSession()
+  stopFocusAudio()
 }
 
 function reset() {
   pause()
   remaining.value = totalSeconds.value
   elapsed.value = 0
+  minuteDraft.value = selectedMinutes.value
   persistSession()
 }
 
 function completeSession() {
   pause()
-  const minutes = selectedMinutes.value
   recordSession({
-    minutes,
+    minutes: selectedMinutes.value,
     subject: 'Focus',
     soundId: prefs.value.soundId,
   })
   toast.saved()
   remaining.value = totalSeconds.value
   elapsed.value = 0
+  minuteDraft.value = selectedMinutes.value
   clearActiveSession()
 }
 
 function pickNoise(id) {
   setSound(id)
+  syncAudio()
   persistSession()
 }
 
-onShow(() => restoreSession())
-onHide(() => pause())
-onBeforeUnmount(() => pause())
+function orbStyle(n) {
+  if (n.id === 'silence') return {}
+  return { background: n.color }
+}
+
+function canDeleteNoise(n) {
+  if (n.source === 'shared') return isAdmin.value
+  if (n.source === 'local') return n.userId === currentUser.value?.id
+  return false
+}
+
+function onNoiseLongPress(n) {
+  if (!canDeleteNoise(n)) return
+  uni.showModal({
+    title: 'Remove this sound?',
+    confirmText: 'Remove',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        if (n.source === 'shared') await removeSharedNoise(currentUser.value?.id, n.id)
+        else await removeLocalNoise(currentUser.value?.id, n.id)
+        stopFocusAudio()
+        toast.removed()
+      } catch {
+        toast.show('Could not remove')
+      }
+    },
+  })
+}
+
+async function addLocalSound() {
+  try {
+    await addLocalNoise(currentUser.value?.id)
+    toast.added()
+  } catch (e) {
+    if (String(e?.errMsg || e?.message || '').includes('cancel')) return
+    toast.show(e?.message || 'Upload failed')
+  }
+}
+
+async function onAddLongPress() {
+  if (!isAdmin.value) return
+  try {
+    await addSharedNoise(currentUser.value?.id)
+    toast.added()
+  } catch (e) {
+    if (String(e?.errMsg || e?.message || '').includes('cancel')) return
+    toast.show(e?.message || 'Upload failed')
+  }
+}
+
+function syncAudio() {
+  const noise = getNoiseById(prefs.value.soundId)
+  if (running.value && noise?.audioUrl) {
+    playFocusAudio(noise.audioUrl)
+  } else {
+    stopFocusAudio()
+  }
+}
+
+function toggleVisibility() {
+  setVisibility(prefs.value.visibility === 'public' ? 'private' : 'public')
+}
+
+watch([running, () => prefs.value.soundId], syncAudio)
+
+onShow(async () => {
+  await refreshNoiseLibrary(currentUser.value?.id)
+  restoreSession()
+  syncAudio()
+})
+onHide(() => {
+  pause()
+  stopFocusAudio()
+})
+onBeforeUnmount(() => {
+  pause()
+  stopFocusAudio()
+})
 </script>
 
 <style scoped>
 .page { min-height: 100vh; position: relative; overflow: hidden; }
 .bg {
   position: absolute; inset: 0; z-index: 0;
-  background: radial-gradient(1000rpx 700rpx at 50% -10%, rgba(40, 110, 255, 0.16), transparent 60%),
-    radial-gradient(800rpx 600rpx at 80% 40%, rgba(120, 180, 255, 0.10), transparent 65%),
-    linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1));
+  background: radial-gradient(900rpx 640rpx at 50% 8%, rgba(46, 99, 255, 0.12), transparent 62%),
+    linear-gradient(180deg, #f8faff, #eef1f7);
 }
 .t-dark .bg {
-  background: radial-gradient(1000rpx 700rpx at 50% -10%, rgba(60, 120, 255, 0.16), transparent 60%),
-    radial-gradient(800rpx 600rpx at 80% 40%, rgba(100, 160, 255, 0.08), transparent 65%),
+  background: radial-gradient(900rpx 640rpx at 50% 8%, rgba(60, 120, 255, 0.14), transparent 62%),
     linear-gradient(180deg, #111315, #0e1014);
 }
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
-.safe { padding: 4rpx 28rpx 200rpx; display: flex; flex-direction: column; gap: 26rpx; }
 
-.hero {
-  padding: 36rpx 26rpx 30rpx;
-  border-radius: 36rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(255, 255, 255, 0.55);
-  box-shadow: 0 26rpx 80rpx rgba(12, 20, 40, 0.10);
-  backdrop-filter: blur(14px);
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
+.safe {
+  padding: 12rpx 24rpx 48rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 22rpx;
-}
-.t-dark .hero {
-  background: rgba(26, 29, 33, 0.65);
-  border-color: rgba(255, 255, 255, 0.06);
-  box-shadow: 0 30rpx 100rpx rgba(0, 0, 0, 0.4);
+  gap: 36rpx;
 }
 
-.kicker { font-size: 20rpx; color: rgba(46, 99, 255, 0.92); font-weight: 720; letter-spacing: 1rpx; text-transform: uppercase; }
-.t-dark .kicker { color: rgba(170, 200, 255, 0.92); }
-.kickerMuted { font-size: 18rpx; color: rgba(16, 24, 40, 0.42); margin-top: 6rpx; letter-spacing: 0.6rpx; text-transform: uppercase; }
-.t-dark .kickerMuted { color: rgba(245, 247, 255, 0.42); }
-.hint { font-size: 20rpx; color: rgba(16, 24, 40, 0.5); text-align: center; max-width: 460rpx; line-height: 1.5; }
-.t-dark .hint { color: rgba(245, 247, 255, 0.5); }
+.stage {
+  position: relative;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding-top: 16rpx;
+}
+
+.resetDot {
+  position: absolute;
+  top: 0;
+  right: calc(50% - 230rpx);
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  background: rgba(16, 24, 40, 0.05);
+  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  z-index: 4;
+}
+.resetDot::after {
+  content: '';
+  position: absolute;
+  inset: 11rpx;
+  border-radius: 50%;
+  border: 2rpx solid rgba(16, 24, 40, 0.45);
+  border-top-color: transparent;
+  transform: rotate(-45deg);
+}
+.t-dark .resetDot {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.t-dark .resetDot::after { border-color: rgba(245, 247, 255, 0.45); border-top-color: transparent; }
 
 .ringStack {
   position: relative;
-  width: 420rpx;
-  height: 420rpx;
+  width: 460rpx;
+  height: 460rpx;
   display: flex;
   align-items: center;
   justify-content: center;
 }
+
 .ringBg, .ringFill {
   position: absolute;
   inset: 0;
   border-radius: 50%;
 }
 .ringBg {
-  background: conic-gradient(rgba(16, 24, 40, 0.08) 0deg, rgba(16, 24, 40, 0.08) 360deg);
+  background: rgba(16, 24, 40, 0.06);
 }
-.t-dark .ringBg {
-  background: conic-gradient(rgba(245, 247, 255, 0.08) 0deg, rgba(245, 247, 255, 0.08) 360deg);
-}
+.t-dark .ringBg { background: rgba(245, 247, 255, 0.06); }
 .ringFill {
   transition: background 800ms linear;
-  mask: radial-gradient(closest-side, transparent calc(50% - 16rpx), #000 calc(50% - 16rpx));
-  -webkit-mask: radial-gradient(closest-side, transparent calc(50% - 16rpx), #000 calc(50% - 16rpx));
+  mask: radial-gradient(closest-side, transparent calc(50% - 12rpx), #000 calc(50% - 12rpx));
+  -webkit-mask: radial-gradient(closest-side, transparent calc(50% - 12rpx), #000 calc(50% - 12rpx));
 }
+
 .centerCol {
   position: relative;
   z-index: 2;
-  width: 320rpx;
-  height: 320rpx;
+  width: 340rpx;
+  height: 340rpx;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1rpx solid rgba(255, 255, 255, 0.7);
-  box-shadow: inset 0 0 0 1rpx rgba(46, 99, 255, 0.04);
+  background: rgba(255, 255, 255, 0.88);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 20rpx 60rpx rgba(12, 20, 40, 0.08);
 }
 .t-dark .centerCol {
-  background: #1a1d21;
-  border-color: rgba(255, 255, 255, 0.06);
+  background: rgba(26, 29, 33, 0.92);
+  box-shadow: 0 24rpx 70rpx rgba(0, 0, 0, 0.35);
 }
-.timer {
-  font-size: 86rpx;
-  font-weight: 220;
-  letter-spacing: -2rpx;
+.centerCol.editable { cursor: grab; }
+
+.digitRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 2rpx;
+}
+
+.minField {
+  width: 128rpx;
+  text-align: center;
+  font-size: 80rpx;
+  font-weight: 200;
+  letter-spacing: -3rpx;
   color: rgba(16, 24, 40, 0.92);
   font-feature-settings: 'tnum';
+  background: transparent;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+.t-dark .minField { color: rgba(245, 247, 255, 0.92); }
+
+.sep {
+  font-size: 60rpx;
+  font-weight: 200;
+  color: rgba(16, 24, 40, 0.28);
+  line-height: 1;
+}
+.t-dark .sep { color: rgba(245, 247, 255, 0.28); }
+
+.secField {
+  font-size: 80rpx;
+  font-weight: 200;
+  letter-spacing: -3rpx;
+  color: rgba(16, 24, 40, 0.32);
+  font-feature-settings: 'tnum';
+  line-height: 1;
+}
+.t-dark .secField { color: rgba(245, 247, 255, 0.32); }
+
+.timer {
+  font-size: 88rpx;
+  font-weight: 200;
+  letter-spacing: -3rpx;
+  color: rgba(16, 24, 40, 0.92);
+  font-feature-settings: 'tnum';
+  line-height: 1;
 }
 .t-dark .timer { color: rgba(245, 247, 255, 0.92); }
 
-.durationRow { display: flex; gap: 8rpx; flex-wrap: wrap; justify-content: center; }
-.chip {
-  padding: 10rpx 18rpx;
-  border-radius: 999rpx;
-  background: rgba(255, 255, 255, 0.5);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
-  transition: background 220ms ease, border-color 220ms ease, transform 180ms ease;
-}
-.t-dark .chip {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.06);
-}
-.chip.on {
-  background: rgba(46, 99, 255, 0.14);
-  border-color: rgba(46, 99, 255, 0.24);
-}
-.chip:active { transform: scale(0.97); }
-.chipText { font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.72); }
-.t-dark .chipText { color: rgba(245, 247, 255, 0.72); }
-.chip.on .chipText { color: rgba(46, 99, 255, 0.96); font-weight: 740; }
-.t-dark .chip.on .chipText { color: rgba(170, 200, 255, 0.96); }
-
-.controls { display: flex; gap: 14rpx; width: 100%; }
-.ctlGhost {
-  width: 110rpx;
-  height: 96rpx;
-  border-radius: 26rpx;
+.playOrb {
+  position: absolute;
+  left: 50%;
+  bottom: 18rpx;
+  z-index: 3;
+  width: 88rpx;
+  height: 88rpx;
+  margin-left: -44rpx;
+  border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(16, 24, 40, 0.05);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  background: linear-gradient(180deg, #5a8eff, #2e63ff);
+  box-shadow: 0 16rpx 44rpx rgba(46, 99, 255, 0.32);
+  transition: transform 180ms ease, background 220ms ease, box-shadow 220ms ease;
 }
-.t-dark .ctlGhost {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+.playOrb.pause {
+  background: rgba(16, 24, 40, 0.88);
+  box-shadow: 0 14rpx 40rpx rgba(16, 24, 40, 0.28);
 }
-.ctlGhost:active { transform: scale(0.97); }
-.ctlGhostText { font-size: 21rpx; color: rgba(16, 24, 40, 0.7); font-weight: 660; }
-.t-dark .ctlGhostText { color: rgba(245, 247, 255, 0.72); }
+.t-dark .playOrb.pause { background: rgba(245, 247, 255, 0.14); }
 
-.ctlPrimary {
-  flex: 1;
-  height: 96rpx;
-  border-radius: 26rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14rpx;
-  background: linear-gradient(180deg, #4f86ff, #2e63ff);
-  box-shadow: 0 22rpx 56rpx rgba(46, 99, 255, 0.30);
-  transition: transform 180ms ease, box-shadow 180ms ease;
-}
-.ctlPrimary:active { transform: scale(0.985); box-shadow: 0 14rpx 38rpx rgba(46, 99, 255, 0.24); }
-.ctlPrimary.pause { background: linear-gradient(180deg, rgba(16, 24, 40, 0.85), rgba(16, 24, 40, 0.95)); box-shadow: 0 20rpx 50rpx rgba(16, 24, 40, 0.32); }
-.ctlPrimaryText { color: #fff; font-size: 24rpx; font-weight: 740; letter-spacing: 0.4rpx; }
-.ctlGlyph { width: 22rpx; height: 22rpx; display: flex; align-items: center; justify-content: center; }
-.triangle {
-  width: 0; height: 0;
-  border-left: 14rpx solid #fff;
-  border-top: 9rpx solid transparent;
-  border-bottom: 9rpx solid transparent;
+.playGlyph {
+  width: 0;
+  height: 0;
+  margin-left: 5rpx;
+  border-left: 16rpx solid #fff;
+  border-top: 10rpx solid transparent;
+  border-bottom: 10rpx solid transparent;
 }
 .pauseGlyph { display: flex; gap: 6rpx; }
-.pauseGlyph view { width: 5rpx; height: 18rpx; background: #fff; border-radius: 2rpx; }
+.pauseGlyph view {
+  width: 5rpx;
+  height: 20rpx;
+  background: #fff;
+  border-radius: 2rpx;
+}
 
-.section { display: flex; flex-direction: column; gap: 14rpx; }
-.sectionHead { padding: 0 4rpx; }
-.sectionTitle { font-size: 24rpx; font-weight: 740; color: rgba(16, 24, 40, 0.82); }
-.t-dark .sectionTitle { color: rgba(245, 247, 255, 0.82); }
-.sectionSub { display: block; margin-top: 4rpx; font-size: 20rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .sectionSub { color: rgba(245, 247, 255, 0.48); }
-
-.noiseRow { display: flex; gap: 10rpx; flex-wrap: wrap; }
-.noise {
-  flex: 1 0 130rpx;
-  padding: 16rpx 14rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
+.bottomDock {
+  width: 100%;
+  max-width: 560rpx;
   display: flex;
   align-items: center;
-  gap: 10rpx;
-  transition: background 220ms ease, border-color 220ms ease, transform 180ms ease;
+  gap: 12rpx;
 }
-.t-dark .noise {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.06);
+
+.noiseScroll {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
 }
-.noise:active { transform: scale(0.985); }
-.noise.on {
-  background: rgba(46, 99, 255, 0.10);
-  border-color: rgba(46, 99, 255, 0.22);
+
+.noiseTrack {
+  display: inline-flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 6rpx 4rpx;
 }
-.noiseText { font-size: 21rpx; font-weight: 660; color: rgba(16, 24, 40, 0.78); }
-.t-dark .noiseText { color: rgba(245, 247, 255, 0.78); }
-.noise.on .noiseText { color: rgba(46, 99, 255, 0.96); }
-.t-dark .noise.on .noiseText { color: rgba(170, 200, 255, 0.96); }
-.noiseGlyph {
-  width: 30rpx; height: 30rpx;
-  border-radius: 50%;
-  border: 1.4rpx solid rgba(16, 24, 40, 0.32);
+
+.noiseChip {
   position: relative;
-  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
 }
-.t-dark .noiseGlyph { border-color: rgba(245, 247, 255, 0.36); }
-.noise.on .noiseGlyph { border-color: rgba(46, 99, 255, 0.66); }
-.noiseGlyph .dot {
-  width: 8rpx; height: 8rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.42);
-}
-.t-dark .noiseGlyph .dot { background: rgba(245, 247, 255, 0.42); }
-.noise.on .noiseGlyph .dot { background: rgba(46, 99, 255, 0.92); }
-.noiseGlyph.g-silence .dot { background: transparent; }
-.noiseGlyph.g-rain { border-style: dashed; }
-.noiseGlyph.g-wind .dot { width: 14rpx; height: 1.6rpx; border-radius: 999rpx; }
-.noiseGlyph.g-cafe .dot { background: rgba(220, 140, 30, 0.85); }
 
-.card {
-  border-radius: 28rpx;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
+.orbWrap {
+  position: relative;
+  width: 52rpx;
+  height: 52rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
-.t-dark .card {
-  background: rgba(255, 255, 255, 0.04);
+
+.orb {
+  width: 44rpx;
+  height: 44rpx;
+  border-radius: 50%;
+  transition: transform 180ms ease, box-shadow 220ms ease;
+}
+.orb.muted {
+  background: rgba(16, 24, 40, 0.12);
+  border: 2rpx dashed rgba(16, 24, 40, 0.22);
+}
+.t-dark .orb.muted {
+  background: rgba(245, 247, 255, 0.08);
+  border-color: rgba(245, 247, 255, 0.22);
+}
+
+.noiseChip.on .orb {
+  transform: scale(1.06);
+}
+
+.selRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2.4rpx solid rgba(46, 99, 255, 0.88);
+  box-shadow: 0 0 0 4rpx rgba(46, 99, 255, 0.14);
+}
+.t-dark .selRing {
+  border-color: rgba(170, 200, 255, 0.92);
+  box-shadow: 0 0 0 4rpx rgba(120, 160, 255, 0.18);
+}
+
+.localDot, .sharedDot {
+  position: absolute;
+  right: 2rpx;
+  bottom: 2rpx;
+  width: 10rpx;
+  height: 10rpx;
+  border-radius: 50%;
+  border: 1.5rpx solid rgba(255, 255, 255, 0.9);
+}
+.localDot { background: rgba(120, 90, 220, 0.95); }
+.sharedDot { background: rgba(36, 160, 110, 0.95); }
+
+.addOrb {
+  background: rgba(255, 255, 255, 0.55);
+  border: 1.6rpx dashed rgba(46, 99, 255, 0.42);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.t-dark .addOrb {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(170, 200, 255, 0.42);
+}
+.plusBar {
+  position: absolute;
+  background: rgba(46, 99, 255, 0.82);
+  border-radius: 999rpx;
+}
+.t-dark .plusBar { background: rgba(170, 200, 255, 0.88); }
+.plusBar.h { width: 18rpx; height: 2.4rpx; }
+.plusBar.v { width: 2.4rpx; height: 18rpx; }
+
+.eyeDot {
+  width: 52rpx;
+  height: 52rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1rpx solid rgba(16, 24, 40, 0.05);
+}
+.t-dark .eyeDot {
+  background: rgba(26, 29, 33, 0.55);
   border-color: rgba(255, 255, 255, 0.06);
 }
-.pad { padding: 22rpx 22rpx; }
+.eyeDot.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.22); }
 
-.weekRow {
-  display: flex; gap: 14rpx; align-items: flex-end; height: 160rpx;
-  padding: 0 6rpx;
+.eyeMini {
+  width: 22rpx;
+  height: 12rpx;
+  border-radius: 999rpx;
+  border: 2rpx solid rgba(16, 24, 40, 0.38);
+  position: relative;
 }
-.bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8rpx; height: 100%; }
-.barTrack { width: 100%; flex: 1; border-radius: 12rpx; background: rgba(16, 24, 40, 0.05); display: flex; align-items: flex-end; overflow: hidden; }
-.t-dark .barTrack { background: rgba(245, 247, 255, 0.06); }
-.barFill {
+.t-dark .eyeMini { border-color: rgba(245, 247, 255, 0.38); }
+.eyeMini::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5rpx;
+  height: 5rpx;
+  margin: -2.5rpx 0 0 -2.5rpx;
+  border-radius: 50%;
+  background: rgba(16, 24, 40, 0.45);
+}
+.t-dark .eyeMini::after { background: rgba(245, 247, 255, 0.45); }
+.eyeDot.on .eyeMini::after { background: rgba(46, 99, 255, 0.95); }
+.eyeMini:not(.open)::before {
+  content: '';
+  position: absolute;
+  left: -3rpx;
+  right: -3rpx;
+  top: 50%;
+  height: 2rpx;
+  background: rgba(16, 24, 40, 0.45);
+  transform: rotate(-22deg);
+}
+.t-dark .eyeMini:not(.open)::before { background: rgba(245, 247, 255, 0.45); }
+
+.weekStrip {
   width: 100%;
-  background: linear-gradient(180deg, rgba(120, 160, 255, 0.92), rgba(46, 99, 255, 0.92));
-  border-radius: 12rpx;
+  max-width: 520rpx;
+  height: 72rpx;
+  display: flex;
+  align-items: flex-end;
+  gap: 8rpx;
+  padding: 0 8rpx;
+  opacity: 0.72;
+}
+.wBar {
+  flex: 1;
+  height: 100%;
+  border-radius: 8rpx;
+  background: rgba(16, 24, 40, 0.04);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+.t-dark .wBar { background: rgba(245, 247, 255, 0.04); }
+.wFill {
+  width: 100%;
+  background: rgba(46, 99, 255, 0.72);
+  border-radius: 8rpx 8rpx 0 0;
   transition: height 380ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
-.barLabel { font-size: 18rpx; color: rgba(16, 24, 40, 0.46); }
-.t-dark .barLabel { color: rgba(245, 247, 255, 0.46); }
+.t-dark .wFill { background: rgba(120, 160, 255, 0.78); }
 
-.weekStats {
-  display: flex; justify-content: space-between; gap: 12rpx;
-  margin-top: 18rpx; padding-top: 18rpx;
-  border-top: 1rpx solid rgba(16, 24, 40, 0.05);
-}
-.t-dark .weekStats { border-top-color: rgba(255, 255, 255, 0.05); }
-.statBlock { display: flex; flex-direction: column; gap: 4rpx; flex: 1; }
-.statNum { font-size: 26rpx; font-weight: 720; color: rgba(16, 24, 40, 0.86); }
-.t-dark .statNum { color: rgba(245, 247, 255, 0.86); }
-.statLabel { font-size: 18rpx; color: rgba(16, 24, 40, 0.46); }
-.t-dark .statLabel { color: rgba(245, 247, 255, 0.46); }
-
-.visRow { display: flex; gap: 10rpx; padding: 0 4rpx; }
-.visChip {
-  flex: 1; height: 78rpx; border-radius: 22rpx;
-  display: flex; align-items: center; justify-content: center;
-  background: rgba(255, 255, 255, 0.62);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
-}
-.t-dark .visChip { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
-.visChip.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.24); }
-.visText { font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.7); }
-.t-dark .visText { color: rgba(245, 247, 255, 0.7); }
-.visChip.on .visText { color: rgba(46, 99, 255, 0.96); font-weight: 740; }
-.t-dark .visChip.on .visText { color: rgba(170, 200, 255, 0.96); }
-
-.spacer { height: 24rpx; }
-
-.overlay { position: fixed; inset: 0; z-index: 60; background: rgba(8, 12, 24, 0.4); backdrop-filter: blur(12px); opacity: 0; pointer-events: none; transition: opacity 0.22s ease; }
-.overlay.show { opacity: 1; pointer-events: auto; }
-.sheet { position: absolute; left: 24rpx; right: 24rpx; bottom: 24rpx; padding: 28rpx 22rpx 24rpx; border-radius: 32rpx; background: rgba(255, 255, 255, 0.92); border: 1rpx solid rgba(255, 255, 255, 0.6); }
-.t-dark .sheet { background: #1a1d21; border-color: rgba(255, 255, 255, 0.06); }
-.sheetTitle { font-size: 26rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
-.t-dark .sheetTitle { color: #f5f7fa; }
-.sheetSub { display: block; margin-top: 6rpx; font-size: 20rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .sheetSub { color: rgba(245, 247, 255, 0.5); }
-.customRow { margin-top: 22rpx; display: flex; align-items: center; justify-content: space-between; gap: 18rpx; padding: 0 6rpx; }
-.adjust { width: 80rpx; height: 80rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.06); display: flex; align-items: center; justify-content: center; }
-.t-dark .adjust { background: rgba(255, 255, 255, 0.06); }
-.adjustText { font-size: 36rpx; color: rgba(16, 24, 40, 0.7); font-weight: 300; line-height: 1; }
-.t-dark .adjustText { color: rgba(245, 247, 255, 0.7); }
-.customNumWrap { display: flex; align-items: baseline; gap: 8rpx; }
-.customNum { font-size: 76rpx; font-weight: 220; letter-spacing: -2rpx; color: rgba(16, 24, 40, 0.92); font-feature-settings: 'tnum'; }
-.t-dark .customNum { color: #f5f7fa; }
-.customUnit { font-size: 22rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .customUnit { color: rgba(245, 247, 255, 0.5); }
-.commit { margin-top: 22rpx; height: 86rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #5a8eff, #2e63ff); box-shadow: 0 18rpx 50rpx rgba(46, 99, 255, 0.28); }
-.commitText { color: #fff; font-size: 24rpx; font-weight: 740; }
+.spacer { height: 16rpx; }
 </style>

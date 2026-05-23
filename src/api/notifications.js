@@ -18,11 +18,10 @@ function rowToNotification(row, state = {}) {
     attachmentUrl: row.attachment_url || '',
     by: row.by || 'Admin',
     createdAt: row.created_at,
-    // 每个用户的个人状态（来自 notification_user_states 或默认值）
-    hidden: state.hidden ?? false,
-    read: state.read ?? false,
-    important: state.important ?? false,
-    inPlanner: state.in_planner ?? false,
+    hidden: !!state.hidden,
+    read: !!state.read,
+    important: !!state.important,
+    inPlanner: !!state.in_planner,
   }
 }
 
@@ -33,15 +32,15 @@ function rowToNotification(row, state = {}) {
 export async function fetchNotifications(options = {}) {
   if (USE_MOCK) return mock.fetchNotifications(options)
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { data: [], error: new Error('未登录') }
+  if (!user) return { data: [], error: new Error('未登录'), userId: '' }
 
   const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .order('created_at', { ascending: false })
 
-  if (error) return { data: [], error }
-  if (!data || data.length === 0) return { data: [], error: null }
+  if (error) return { data: [], error, userId: user.id }
+  if (!data || data.length === 0) return { data: [], error: null, userId: user.id }
 
   const { data: states } = await supabase
     .from('notification_user_states')
@@ -56,7 +55,7 @@ export async function fetchNotifications(options = {}) {
     ? list.filter((n) => n.hidden === options.hidden)
     : list
 
-  return { data: filtered, error: null }
+  return { data: filtered, error: null, userId: user.id }
 }
 
 /**
@@ -84,20 +83,34 @@ export async function createNotification(payload) {
 }
 
 /**
- * 更新当前用户对某条通知的个人状态（upsert）
+ * 更新当前用户对某条通知的个人状态（read-modify-write upsert）
  */
 async function upsertState(notificationId, patch) {
   const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: new Error('未登录') }
+  if (!user) return { error: new Error('未登录'), userId: '' }
+
+  const { data: existing } = await supabase
+    .from('notification_user_states')
+    .select('hidden, read, important, in_planner')
+    .eq('user_id', user.id)
+    .eq('notification_id', notificationId)
+    .maybeSingle()
+
+  const row = {
+    user_id: user.id,
+    notification_id: notificationId,
+    hidden: existing?.hidden ?? false,
+    read: existing?.read ?? false,
+    important: existing?.important ?? false,
+    in_planner: existing?.in_planner ?? false,
+    ...patch,
+  }
 
   const { error } = await supabase
     .from('notification_user_states')
-    .upsert(
-      { user_id: user.id, notification_id: notificationId, ...patch },
-      { onConflict: 'user_id,notification_id' }
-    )
+    .upsert(row, { onConflict: 'user_id,notification_id' })
 
-  return { error }
+  return { error, userId: user.id }
 }
 
 export async function markRead(notificationId) {
@@ -113,6 +126,11 @@ export async function toggleImportant(notificationId, currentValue) {
 export async function toggleHidden(notificationId, currentValue) {
   if (USE_MOCK) return mock.toggleHidden(notificationId, currentValue)
   return upsertState(notificationId, { hidden: !currentValue })
+}
+
+export async function setHidden(notificationId, hidden) {
+  if (USE_MOCK) return mock.setHidden(notificationId, hidden)
+  return upsertState(notificationId, { hidden: !!hidden })
 }
 
 export async function setInPlanner(notificationId, value) {

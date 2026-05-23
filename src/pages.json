@@ -11,7 +11,7 @@
 			"path": "pages/index/index",
 			"style": {
 				"navigationStyle": "custom",
-				"navigationBarTitleText": "Dashboard"
+				"navigationBarTitleText": "26S201"
 			}
 		},
 		{
@@ -124,13 +124,6 @@
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "Members"
-			}
-		},
-		{
-			"path": "pages/common/select-picker",
-			"style": {
-				"navigationStyle": "custom",
-				"navigationBarTitleText": "Choose"
 			}
 		}
 	],

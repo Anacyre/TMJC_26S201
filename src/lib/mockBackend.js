@@ -337,6 +337,8 @@ function seedState() {
       { user_id: userId, resource_id: 'res2' },
       { user_id: userId, resource_id: 'res4' },
     ],
+
+    focusSounds: [],
   }
 }
 
@@ -391,6 +393,7 @@ function ensureClassRoster(state) {
   }
 
   state.roster_version = ROSTER_VERSION
+  if (!Array.isArray(state.focusSounds)) state.focusSounds = []
   return state
 }
 
@@ -868,7 +871,7 @@ export async function fetchNotifications(options = {}) {
   const filtered = options.hidden !== undefined
     ? list.filter((n) => n.hidden === options.hidden)
     : list
-  return { data: filtered, error: null }
+  return { data: filtered, error: null, userId }
 }
 
 export async function createNotification(payload) {
@@ -910,6 +913,13 @@ export async function toggleHidden(notificationId, currentValue) {
   const id = currentUserId(); if (!id) return { error: new Error('Not signed in') }
   upsertNoticeState(id, notificationId, { hidden: !currentValue })
   return { error: null }
+}
+
+export async function setHidden(notificationId, hidden) {
+  await tick(20)
+  const id = currentUserId(); if (!id) return { error: new Error('Not signed in'), userId: '' }
+  upsertNoticeState(id, notificationId, { hidden: !!hidden })
+  return { error: null, userId: id }
 }
 
 export async function setInPlanner(notificationId, value) {
@@ -1107,6 +1117,29 @@ export async function downloadResource(resourceId) {
   res.downloads_count = (res.downloads_count || 0) + 1
   persist()
   return { downloadUrl: res.file_url || '', error: null }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  FOCUS SOUNDS (shared white noise library)
+// ═════════════════════════════════════════════════════════════════════
+export async function fetchFocusSounds() {
+  await tick(20)
+  return { data: [...(_state.focusSounds || [])], error: null }
+}
+
+export async function addFocusSound(record) {
+  await tick(20)
+  if (!Array.isArray(_state.focusSounds)) _state.focusSounds = []
+  _state.focusSounds.unshift(record)
+  persist()
+  return { data: record, error: null }
+}
+
+export async function removeFocusSound(id) {
+  await tick(20)
+  _state.focusSounds = (_state.focusSounds || []).filter((s) => s.id !== id)
+  persist()
+  return { error: null }
 }
 
 // ═════════════════════════════════════════════════════════════════════

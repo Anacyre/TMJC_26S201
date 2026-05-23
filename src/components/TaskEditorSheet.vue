@@ -1,4 +1,5 @@
 <template>
+  <view class="taskEditorRoot">
   <view class="overlay" :class="[themeClass, { show: modelValue }]" @tap="emit('update:modelValue', false)">
     <view class="sheet" @tap.stop>
       <view class="grabber" />
@@ -116,13 +117,23 @@
       </view>
     </view>
   </view>
+
+  <SelectPickerSheet
+    :open="statusPickerOpen"
+    :options="statusLabels"
+    :selected="statusLabel(form.status)"
+    kind="status"
+    @close="statusPickerOpen = false"
+    @pick="onStatusPick"
+  />
+  </view>
 </template>
 
 <script setup>
 import { computed, reactive, watch, ref } from 'vue'
 import DateField from '@/components/DateField.vue'
 import TagSelect from '@/components/TagSelect.vue'
-import { startPicker } from '@/lib/pickerSession'
+import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
@@ -157,6 +168,8 @@ const isAdmin = computed(() => isAdminMember(currentUser.value))
 const priorities = ['P1', 'P2', 'P3']
 const statuses = ['today', 'upcoming', 'overdue', 'completed']
 const saving = ref(false)
+const statusPickerOpen = ref(false)
+const statusLabels = computed(() => statuses.map(statusLabel))
 
 const form = reactive({
   title: '',
@@ -252,23 +265,12 @@ function onCreateTag(name) {
 }
 
 function openStatusPicker() {
-  const labels = statuses.map(statusLabel)
-  const id = startPicker({
-    title: 'Choose status',
-    options: labels,
-    value: statusLabel(form.status),
-    kind: 'status',
-    allowCreate: false,
-    onSelect: (label) => {
-      const idx = labels.indexOf(label)
-      if (idx >= 0) form.status = statuses[idx]
-    },
-  })
-  uni.navigateTo({
-    url: `/pages/common/select-picker?id=${encodeURIComponent(id)}`,
-    animationType: 'slide-in-right',
-    animationDuration: 220,
-  })
+  statusPickerOpen.value = true
+}
+
+function onStatusPick(label) {
+  const idx = statusLabels.value.indexOf(label)
+  if (idx >= 0) form.status = statuses[idx]
 }
 
 function buildDeadlineString() {

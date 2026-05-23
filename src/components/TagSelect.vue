@@ -1,6 +1,6 @@
 <template>
   <view class="tagSelect" :class="themeClass">
-    <view class="control tap" role="button" @tap="openPicker">
+    <view class="control tap" role="button" @tap="pickerOpen = true">
       <view class="left">
         <view class="chip" :class="resolvedColorClass">
           <view class="chipDot" />
@@ -9,13 +9,24 @@
       </view>
       <view class="chev"><text class="chevText">&gt;</text></view>
     </view>
+
+    <SelectPickerSheet
+      :open="pickerOpen"
+      :options="pickerRange"
+      :selected="modelValue"
+      :allow-create="allowCreate && canCreate"
+      :kind="kind"
+      @close="pickerOpen = false"
+      @pick="onPick"
+      @create="onCreate"
+    />
   </view>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
-import { startPicker } from '@/lib/pickerSession'
+import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -30,6 +41,7 @@ const props = defineProps({
 const emit = defineEmits(['update:modelValue', 'create'])
 
 const { themeClass } = useTheme()
+const pickerOpen = ref(false)
 
 const pickerRange = computed(() =>
   props.options.map((o) => (typeof o === 'string' ? o : o.name || o.label))
@@ -46,27 +58,12 @@ const resolvedColorClass = computed(() => {
   return 'c-slate'
 })
 
-function pickerTitle() {
-  if (props.kind === 'subject') return 'Choose subject'
-  if (props.kind === 'status') return 'Choose status'
-  return 'Choose option'
+function onPick(value) {
+  emit('update:modelValue', value)
 }
 
-function openPicker() {
-  const id = startPicker({
-    title: pickerTitle(),
-    options: pickerRange.value,
-    value: props.modelValue,
-    kind: props.kind,
-    allowCreate: props.allowCreate && props.canCreate,
-    onSelect: (value) => emit('update:modelValue', value),
-    onCreate: (value) => emit('create', value),
-  })
-  uni.navigateTo({
-    url: `/pages/common/select-picker?id=${encodeURIComponent(id)}`,
-    animationType: 'slide-in-right',
-    animationDuration: 220,
-  })
+function onCreate(value) {
+  emit('create', value)
 }
 </script>
 

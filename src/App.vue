@@ -123,8 +123,8 @@ button {
 .preview-pill {
   position: fixed;
   left: 14rpx;
-  top: calc(env(safe-area-inset-top) + 10rpx);
-  z-index: 120;
+  top: calc(env(safe-area-inset-top) + 62px);
+  z-index: 90;
   height: 44rpx;
   padding: 0 12rpx;
   border-radius: 999rpx;

@@ -189,7 +189,7 @@ function createCommunity() {
 .seg.on { background: rgba(46, 99, 255, 0.14); color: rgba(46, 99, 255, 0.96); }
 .t-dark .seg.on { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - 320rpx); padding: 14rpx 28rpx 200rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 176rpx); padding: 14rpx 28rpx 200rpx; }
 .list { display: flex; flex-direction: column; gap: 12rpx; }
 .emptyWrap, .emptyFull { padding: 32rpx 12rpx; }
 .emptyFull { grid-column: span 2; }

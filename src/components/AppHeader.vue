@@ -1,5 +1,6 @@
 <template>
-  <view class="shell" :class="[themeClass, navMode]">
+  <view class="headerWrap">
+    <view class="shell" :class="[themeClass, navMode]">
     <view class="bar">
       <view class="side left">
         <view v-if="navMode === 'brand'" class="brand" role="button" @tap="goHome">
@@ -27,6 +28,8 @@
         </view>
       </view>
     </view>
+    </view>
+    <view class="spacer" aria-hidden="true" />
   </view>
 </template>
 
@@ -42,7 +45,7 @@ import ClassLogo from '@/components/ClassLogo.vue'
 import BackButton from '@/components/BackButton.vue'
 
 const props = defineProps({
-  title: { type: String, default: 'Dashboard' },
+  title: { type: String, default: '' },
   navMode: { type: String, default: 'brand' },
   showAvatar: { type: Boolean, default: true },
 })
@@ -73,12 +76,24 @@ function openProfile() {
 </script>
 
 <style scoped>
+.headerWrap {
+  width: 100%;
+}
+
 .shell {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 15;
+  left: 0;
+  right: 0;
+  z-index: 100;
   width: 100%;
   padding-top: env(safe-area-inset-top);
+}
+
+.spacer {
+  height: var(--shell-header-offset);
+  width: 100%;
+  flex-shrink: 0;
 }
 
 .bar {

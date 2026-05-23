@@ -25,6 +25,7 @@ export const toast = {
   saved: () => show('Saved'),
   added: () => show('Added'),
   addedToPlanner: () => show('Added to planner'),
+  alreadyInPlanner: () => show('Already in planner'),
   hidden: () => show('Hidden'),
   noticeHidden: () => show('Notice hidden'),
   deleted: () => show('Deleted'),

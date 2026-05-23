@@ -194,7 +194,7 @@ const {
   markRead,
   toggleImportant,
   setInPlanner,
-  toggleHidden,
+  setHidden,
   getNotificationById,
   addNotification,
 } = useNotificationStore()
@@ -273,7 +273,7 @@ function onOpenCard(n) {
 
 function onPlanner(n) {
   if (n.inPlanner) {
-    toast.show('Already added')
+    toast.show('Already in planner')
     return
   }
   addTaskFromNotice({
@@ -284,8 +284,12 @@ function onPlanner(n) {
     description: n.description,
     noticeTitle: n.title,
   })
-  setInPlanner(n.id, true)
-  toast.addedToPlanner()
+  Promise.all([
+    setInPlanner(n.id, true),
+    setHidden(n.id, true),
+  ]).then(() => {
+    toast.addedToPlanner()
+  })
 }
 
 function onImportant(n) {
@@ -294,8 +298,8 @@ function onImportant(n) {
 
 function onHide(n) {
   hidingId.value = n.id
-  setTimeout(() => {
-    toggleHidden(n.id)
+  setTimeout(async () => {
+    await setHidden(n.id, true)
     hidingId.value = ''
     toast.noticeHidden()
   }, 280)
@@ -393,7 +397,7 @@ watch([typeFilter, subjectFilter], () => {
 .chip.sm { padding: 8rpx 14rpx; font-size: 19rpx; }
 .chip.on { background: rgba(46, 99, 255, 0.16); color: rgba(46, 99, 255, 0.96); border-color: rgba(46, 99, 255, 0.22); transform: scale(1.02); }
 .t-dark .chip.on { background: rgba(120, 160, 255, 0.18); color: rgba(170, 200, 255, 0.96); border-color: rgba(120, 160, 255, 0.26); }
-.scroll { position: relative; z-index: 1; height: calc(100vh - 248rpx); padding: 0 24rpx 32rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 96rpx); padding: 0 24rpx 32rpx; }
 .pinSection, .feedSection { margin-top: 8rpx; }
 .pinLabel { display: block; font-size: 20rpx; font-weight: 650; color: rgba(16, 24, 40, 0.48); padding: 8rpx 4rpx 10rpx; }
 .t-dark .pinLabel { color: rgba(245, 247, 255, 0.45); }
