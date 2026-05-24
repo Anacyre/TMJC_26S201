@@ -3,6 +3,10 @@
     <view class="bg" />
     <AppHeader />
 
+    <TabPageContent
+      tab-id="community"
+    >
+      <template #chrome>
     <view class="topRow">
       <view class="noticeEntry tap" role="button" @tap="openNotifications">
         <view class="noticeGlyph">
@@ -31,6 +35,14 @@
       <view class="seg tap" :class="{ on: tab === 'communities' }" role="button" @tap="tab = 'communities'"><text>Spaces</text></view>
       <view class="seg tap" :class="{ on: tab === 'members' }" role="button" @tap="tab = 'members'"><text>Members</text></view>
     </view>
+
+    <view v-if="isAdmin && tab === 'communities'" class="addFab" role="button" @tap="showAddCommunity = true" aria-label="Add community">
+      <view class="plus">
+        <view class="hLine" />
+        <view class="vLine" />
+      </view>
+    </view>
+      </template>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <SkeletonList v-if="loading && tab === 'communities'" variant="cards" :count="3" />
@@ -74,13 +86,7 @@
       </view>
       <view class="gap" />
     </scroll-view>
-
-    <view v-if="isAdmin && tab === 'communities'" class="addFab" role="button" @tap="showAddCommunity = true" aria-label="Add community">
-      <view class="plus">
-        <view class="hLine" />
-        <view class="vLine" />
-      </view>
-    </view>
+    </TabPageContent>
 
     <view class="overlay" :class="{ show: showAddCommunity }" @tap="showAddCommunity = false">
       <view class="sheet" @tap.stop>
@@ -99,6 +105,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
+import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -108,6 +115,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useMemberStore } from '@/composables/useMemberStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { navChild, navSibling } from '@/lib/navigation'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
@@ -135,35 +143,32 @@ function focusHoursFor(id) {
   return ''
 }
 
-function openFeed(id) {
-  uni.navigateTo({ url: `/pages/community/feed?id=${id}`, animationType: 'pop-in', animationDuration: 240 })
-}
-function openMember(id) {
-  uni.navigateTo({ url: `/pages/member/profile?id=${id}`, animationType: 'slide-in-right', animationDuration: 220 })
-}
-function openNotifications() {
-  uni.navigateTo({ url: '/pages/notifications/index' })
-}
-function openManage() {
-  uni.navigateTo({ url: '/pages/member/manage', animationType: 'slide-in-right', animationDuration: 220 })
-}
-function createCommunity() {
+function openFeed(id) { navChild(`/pages/community/feed?id=${id}`) }
+function openMember(id) { navSibling(`/pages/member/profile?id=${id}`) }
+function openNotifications() { navSibling('/pages/notifications/index') }
+function openManage() { navSibling('/pages/member/manage') }
+async function createCommunity() {
   if (!draft.value.name.trim()) {
     toast.show('Name required')
     return
   }
-  addCommunity({
+  const { error } = await addCommunity({
     name: draft.value.name.trim(),
     desc: draft.value.desc.trim() || 'A new class space.',
     icon: draft.value.icon.trim() || '#',
   })
+  if (error) {
+    toast.show(error.message || 'Could not create space')
+    return
+  }
   showAddCommunity.value = false
   draft.value = { name: '', desc: '', icon: '#' }
+  toast.show('Space created')
 }
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
@@ -203,7 +208,7 @@ function createCommunity() {
 .seg.on { background: rgba(46, 99, 255, 0.12); color: rgba(46, 99, 255, 0.96); font-weight: 740; }
 .t-dark .seg.on { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset) - 196rpx); padding: 14rpx 28rpx 200rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 320rpx); min-height: 300rpx; padding: 14rpx 28rpx 200rpx; }
 .list { display: flex; flex-direction: column; gap: var(--list-stack-gap); }
 .emptyWrap, .emptyFull { padding: 32rpx 12rpx; }
 .emptyFull { grid-column: span 2; }

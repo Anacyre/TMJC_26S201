@@ -4,8 +4,8 @@
 
     <AppHeader />
 
-    <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
-      <view class="safe">
+    <TabPageContent tab-id="home">
+      <template #chrome>
         <view class="hero">
           <view class="heroHead">
             <view class="heroText">
@@ -38,11 +38,15 @@
             </view>
           </view>
         </view>
+      </template>
 
+    <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
+      <view class="safe">
         <view class="section">
           <text class="sectionTitle">Recent notices</text>
 
-          <view v-if="!notices.length" class="emptyCard">
+          <SkeletonList v-if="noticesLoading" variant="notifications" :count="2" />
+          <view v-else-if="!notices.length" class="emptyCard">
             <EmptyState variant="notifications" title="No notices yet" />
           </view>
           <view v-else class="taskList">
@@ -72,7 +76,8 @@
         <view class="section">
           <text class="sectionTitle">Today's focus</text>
 
-          <view v-if="!todayTasks.length" class="emptyCard">
+          <SkeletonList v-if="tasksLoading" variant="tasks" :count="2" />
+          <view v-else-if="!todayTasks.length" class="emptyCard">
             <EmptyState variant="tasks" title="No tasks today" />
           </view>
           <view v-else class="taskList">
@@ -105,6 +110,7 @@
         <view class="spacer" />
       </view>
     </scroll-view>
+    </TabPageContent>
 
     <BottomNav active="home" />
     <GlobalSearchOverlay />
@@ -115,19 +121,22 @@
 import { computed, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/BottomNav.vue'
+import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { taskDueBucket } from '@/lib/taskDueDate'
+import { navChild, navSibling } from '@/lib/navigation'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 
 const { themeClass } = useTheme()
-const { tasks, toggleTaskDone } = useTasksStore()
-const { visibleNotifications } = useNotificationStore()
+const { tasks, toggleTaskDone, loading: tasksLoading } = useTasksStore()
+const { visibleNotifications, loading: noticesLoading } = useNotificationStore()
 const { currentUser, fetchCurrentUser } = useUserStore()
 const { totalHoursLabel } = useFocusStore()
 const userName = computed(() => currentUser.value.name || 'Guest')
@@ -174,15 +183,15 @@ const unreadNoticesCount = computed(() => visibleNotifications.value.filter((n) 
 const focusHoursDisplay = computed(() => totalHoursLabel.value || '0m')
 
 function viewAllNotices() {
-  uni.navigateTo({ url: '/pages/notifications/index', animationType: 'slide-in-right', animationDuration: 220 })
+  navSibling('/pages/notifications/index')
 }
 
 function openNotice(n) {
-  uni.navigateTo({ url: `/pages/notice/detail?id=${encodeURIComponent(n.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
+  navChild(`/pages/notice/detail?id=${encodeURIComponent(n.id)}`)
 }
 
 function openTask(t) {
-  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}`, animationType: 'slide-in-right', animationDuration: 220 })
+  navChild(`/pages/task/detail?id=${encodeURIComponent(t.id)}`)
 }
 
 function toggleTask(t) {
@@ -190,11 +199,11 @@ function toggleTask(t) {
 }
 
 function openPlanner() {
-  uni.navigateTo({ url: '/pages/tasks/index', animationType: 'slide-in-right', animationDuration: 220 })
+  navSibling('/pages/tasks/index')
 }
 
 function openFocus() {
-  uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 })
+  navSibling('/pages/study/focus')
 }
 
 onLoad(() => { fetchCurrentUser() })
@@ -202,14 +211,14 @@ onShow(() => { fetchCurrentUser() })
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%), linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1)); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 320rpx); min-height: 300rpx; }
 .safe { padding: 0 28rpx 200rpx; }
 
-.hero { padding-top: 4rpx; padding-bottom: 4rpx; }
+.hero { padding: 4rpx 28rpx 6rpx; }
 .heroHead { display: flex; align-items: flex-end; justify-content: space-between; padding: 20rpx 4rpx 18rpx; }
 .heroText { display: flex; flex-direction: column; gap: 6rpx; }
 .h1 { font-size: 40rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); letter-spacing: -0.5rpx; }

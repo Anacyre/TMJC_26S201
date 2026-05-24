@@ -47,7 +47,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
-import { navTo, pageAnim } from '@/lib/navigation'
+import { navTab } from '@/lib/navigation'
 
 const props = defineProps({ active: { type: String, default: 'home' } })
 const { themeClass } = useTheme()
@@ -63,11 +63,7 @@ const tabs = [
 
 function go(key) {
   if (key === props.active) return
-  if (key === 'home') return navTo('/pages/index/index', pageAnim.fade)
-  if (key === 'tasks') return navTo('/pages/tasks/index', pageAnim.slide)
-  if (key === 'community') return navTo('/pages/community/index', pageAnim.slide)
-  if (key === 'study') return navTo('/pages/study/index', pageAnim.slide)
-  if (key === 'other') return navTo('/pages/other/other', pageAnim.slide)
+  navTab(key, props.active)
 }
 </script>
 

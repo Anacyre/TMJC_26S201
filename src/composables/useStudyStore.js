@@ -40,14 +40,29 @@ function getResourcesBySubject(subjectId) {
 
 // ─── Writes ──────────────────────────────────────────────────────
 
+async function addSubject(payload) {
+  const { data, error } = await studyApi.createSubject(payload)
+  if (error) return { data: null, error }
+  if (data) subjects.value.unshift(data)
+  return { data, error: null }
+}
+
 async function uploadResource(payload) {
   const { data, error } = await studyApi.createResource(payload)
-  if (!error && data) {
+  if (error) return { data: null, error }
+  if (data) {
     resources.value.unshift(data)
-    return data
+    const subIdx = subjects.value.findIndex((s) => s.id === data.subjectId)
+    if (subIdx >= 0) {
+      subjects.value[subIdx] = {
+        ...subjects.value[subIdx],
+        filesCount: (subjects.value[subIdx].filesCount || 0) + 1,
+        updatedAt: data.createdAt || new Date().toISOString(),
+      }
+    }
+    return { data, error: null }
   }
-  if (error) console.error('[useStudyStore] uploadResource:', error.message)
-  return null
+  return { data: null, error: new Error('Upload failed') }
 }
 
 async function toggleResourceLike(resourceId) {
@@ -81,6 +96,7 @@ export function useStudyStore() {
     getSubjectById,
     getResourceById,
     getResourcesBySubject,
+    addSubject,
     uploadResource,
     toggleResourceLike,
     downloadResource,

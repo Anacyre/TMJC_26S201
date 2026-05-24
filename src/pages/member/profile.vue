@@ -185,6 +185,7 @@ import { toast } from '@/composables/useToast'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { logout } from '@/api/auth'
 import { clearAuthSession } from '@/composables/useAuthSession'
+import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 const { getMemberById } = useCommunityStore()
@@ -305,7 +306,7 @@ function minuteLabel(minutes) {
 }
 
 function openFocus() {
-  uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 })
+  navSibling('/pages/study/focus')
 }
 
 watch(

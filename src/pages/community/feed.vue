@@ -3,11 +3,14 @@
     <view class="bg" />
     <AppHeader nav-mode="back" />
 
+    <PageContent>
+      <template #chrome>
     <view class="filters">
       <view v-for="f in ['hot','new','top']" :key="f" class="chip" :class="{ on: filter === f }" role="button" @tap="filter = f">
         <text class="chipText">{{ filterLabel(f) }}</text>
       </view>
     </view>
+      </template>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <SkeletonList v-if="loading" variant="feed" :count="3" />
@@ -48,6 +51,7 @@
       </view>
       <view class="gap" />
     </scroll-view>
+    </PageContent>
 
     <view class="fab" role="button" @tap="showCreate = true" aria-label="New post">
       <view class="plus">
@@ -87,12 +91,14 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
+import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 
@@ -135,31 +141,40 @@ function shortTimeLabel(iso) {
 }
 
 function openPost(postId) {
-  uni.navigateTo({ url: `/pages/community/post-detail?id=${postId}`, animationType: 'slide-in-right', animationDuration: 220 })
+  navSibling(`/pages/community/post-detail?id=${postId}`)
 }
 
-function createPost() {
+async function createPost() {
   if (!draft.value.text.trim()) {
     toast.show('Write something')
     return
   }
-  addPost({
+  if (!id.value) {
+    toast.show('Missing space')
+    return
+  }
+  const { error } = await addPost({
     communityId: id.value,
     title: draft.value.text.trim(),
+    content: draft.value.text.trim(),
     image: draft.value.image.trim(),
     author: currentUser.value.name,
     anonymous: draft.value.anonymous,
   })
+  if (error) {
+    toast.show(error.message || 'Could not post')
+    return
+  }
   showCreate.value = false
   draft.value = { text: '', image: '', anonymous: false }
   toast.published()
 }
 
-onLoad((q) => { id.value = q?.id || 'c1' })
+onLoad((q) => { id.value = q?.id || '' })
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 

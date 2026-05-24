@@ -3,6 +3,8 @@
     <view class="bg" />
     <AppHeader nav-mode="back" />
 
+    <PageContent>
+      <template #chrome>
     <view class="filterWrap">
       <view class="filtersTop">
         <scroll-view class="chipScroll grow" scroll-x :show-scrollbar="false" enhanced>
@@ -44,6 +46,7 @@
         </view>
       </scroll-view>
     </view>
+      </template>
 
     <scroll-view
       class="scroll"
@@ -111,6 +114,7 @@
       </template>
       <view class="gap" />
     </scroll-view>
+    </PageContent>
 
     <view v-if="isAdminActive" class="addFab" role="button" @tap="openCreate" aria-label="Add notification">
       <view class="plus">
@@ -212,6 +216,7 @@
 import { computed, ref, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
+import PageContent from '@/components/PageContent.vue'
 import NoticeCard from '@/components/NoticeCard.vue'
 import SwipeRow from '@/components/SwipeRow.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
@@ -227,6 +232,7 @@ import { useTagStore } from '@/composables/useTagStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
+import { navChild, navSibling } from '@/lib/navigation'
 import {
   clearNoticeDraft,
   loadNoticeDraft,
@@ -356,11 +362,7 @@ const restList = computed(() => {
 
 function onOpenCard(n) {
   markRead(n.id)
-  uni.navigateTo({
-    url: `/pages/notice/detail?id=${encodeURIComponent(n.id)}`,
-    animationType: 'slide-in-right',
-    animationDuration: 220,
-  })
+  navChild(`/pages/notice/detail?id=${encodeURIComponent(n.id)}`)
 }
 
 function onPlanner(n) {
@@ -437,7 +439,7 @@ function onHide(n) {
 }
 
 function openHidden() {
-  uni.navigateTo({ url: '/pages/notifications/hidden' })
+  navSibling('/pages/notifications/hidden')
 }
 
 function openCreate() {
@@ -537,7 +539,7 @@ watch([typeFilter, subjectFilter], () => {
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; }
+.page { min-height: 100vh; position: relative; display: flex; flex-direction: column; overflow: hidden; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 

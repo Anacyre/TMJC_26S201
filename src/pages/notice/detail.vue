@@ -3,6 +3,7 @@
     <view class="bg" />
     <AppHeader nav-mode="back" />
 
+    <PageContent>
     <view class="safe">
       <view class="card pad">
         <view class="head">
@@ -29,6 +30,7 @@
         </view>
       </view>
     </view>
+    </PageContent>
     <GlobalSearchOverlay />
   </view>
 </template>
@@ -37,6 +39,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
+import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
@@ -153,6 +156,8 @@ onLoad((query) => {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 .bg {

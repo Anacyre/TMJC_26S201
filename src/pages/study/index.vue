@@ -2,7 +2,9 @@
   <view class="page" :class="themeClass">
     <view class="bg" />
     <AppHeader />
-    <scroll-view class="scroll" scroll-y :show-scrollbar="false">
+
+    <TabPageContent tab-id="study">
+      <template #chrome>
       <view class="focusEntry" role="button" @tap="openFocus">
         <view class="focusGlyph">
           <view class="ringO" />
@@ -17,7 +19,9 @@
           <text class="focusStatLabel">focused</text>
         </view>
       </view>
+      </template>
 
+    <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="sectionHead">
         <text class="sectionTitle">Subjects</text>
       </view>
@@ -41,7 +45,10 @@
       <view class="sectionHead">
         <text class="sectionTitle">Recent</text>
       </view>
-      <view v-if="!latestResourcesView.length" class="emptyWrap">
+      <view v-if="loading" class="emptyWrap">
+        <SkeletonList variant="resources" :count="3" />
+      </view>
+      <view v-else-if="!latestResourcesView.length" class="emptyWrap">
         <EmptyState
           variant="resources"
           title="No resources"
@@ -55,14 +62,33 @@
       </view>
       <view class="gap" />
     </scroll-view>
+    </TabPageContent>
+
+    <view v-if="isAdmin" class="addFab" role="button" @tap="showAddSubject = true" aria-label="Add subject">
+      <view class="plus">
+        <view class="hLine" />
+        <view class="vLine" />
+      </view>
+    </view>
+
+    <view class="overlay" :class="{ show: showAddSubject }" @tap="showAddSubject = false">
+      <view class="sheet" @tap.stop>
+        <text class="sheetTitle">New subject</text>
+        <view class="field"><input class="input" v-model="subjectDraft.name" placeholder="Name" placeholder-class="ph" /></view>
+        <view class="field"><input class="input" v-model="subjectDraft.icon" placeholder="Icon" placeholder-class="ph" maxlength="2" /></view>
+        <view class="create tap" role="button" @tap="createSubject">{{ savingSubject ? '…' : 'Create' }}</view>
+      </view>
+    </view>
+
     <BottomNav active="study" />
     <GlobalSearchOverlay />
   </view>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
+import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -70,10 +96,17 @@ import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
 import { useFocusStore } from '@/composables/useFocusStore'
+import { useAdminMode } from '@/composables/useAdminMode'
+import { toast } from '@/composables/useToast'
+import { navChild, navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
-const { subjects, latestResources, loading } = useStudyStore()
+const { subjects, latestResources, loading, addSubject } = useStudyStore()
 const { totalHoursLabel } = useFocusStore()
+const { isAdminActive: isAdmin } = useAdminMode()
+const showAddSubject = ref(false)
+const savingSubject = ref(false)
+const subjectDraft = ref({ name: '', icon: '📘' })
 const focusHoursLabel = computed(() => totalHoursLabel.value || '0m')
 
 function shortTimeLabel(iso) {
@@ -98,19 +131,43 @@ const subjectsView = computed(() =>
 
 const latestResourcesView = computed(() => latestResources.value)
 
-function openSubject(id) { uni.navigateTo({ url: `/pages/study/feed?id=${id}`, animationType: 'pop-in', animationDuration: 240 }) }
-function openResource(id) { uni.navigateTo({ url: `/pages/study/detail?id=${id}`, animationType: 'slide-in-right', animationDuration: 220 }) }
-function openFocus() { uni.navigateTo({ url: '/pages/study/focus', animationType: 'slide-in-right', animationDuration: 220 }) }
+function openSubject(id) { navChild(`/pages/study/feed?id=${id}`) }
+function openResource(id) { navSibling(`/pages/study/detail?id=${id}`) }
+function openFocus() { navSibling('/pages/study/focus') }
+
+async function createSubject() {
+  if (!subjectDraft.value.name.trim()) {
+    toast.show('Name required')
+    return
+  }
+  if (savingSubject.value) return
+  savingSubject.value = true
+  try {
+    const { error } = await addSubject({
+      name: subjectDraft.value.name.trim(),
+      icon: subjectDraft.value.icon.trim() || '📘',
+    })
+    if (error) {
+      toast.show(error.message || 'Could not create subject')
+      return
+    }
+    showAddSubject.value = false
+    subjectDraft.value = { name: '', icon: '📘' }
+    toast.show('Subject created')
+  } finally {
+    savingSubject.value = false
+  }
+}
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); padding: 6rpx 28rpx 200rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 280rpx); min-height: 300rpx; padding: 6rpx 28rpx 200rpx; }
 
-.focusEntry { display: flex; align-items: center; gap: 14rpx; padding: 20rpx 18rpx; border-radius: 28rpx; background: linear-gradient(135deg, rgba(80, 140, 255, 0.10), rgba(46, 99, 255, 0.04)); border: 1rpx solid rgba(46, 99, 255, 0.16); transition: transform 180ms ease, background 220ms ease; }
+.focusEntry { display: flex; align-items: center; gap: 14rpx; margin: 6rpx 28rpx 0; padding: 20rpx 18rpx; border-radius: 28rpx; background: linear-gradient(135deg, rgba(80, 140, 255, 0.10), rgba(46, 99, 255, 0.04)); border: 1rpx solid rgba(46, 99, 255, 0.16); transition: transform 180ms ease, background 220ms ease; }
 .t-dark .focusEntry { background: linear-gradient(135deg, rgba(80, 140, 255, 0.18), rgba(46, 99, 255, 0.08)); border-color: rgba(120, 160, 255, 0.24); }
 .focusEntry:active { transform: scale(0.99); }
 
@@ -155,4 +212,25 @@ function openFocus() { uni.navigateTo({ url: '/pages/study/focus', animationType
 .rMeta { display: block; margin-top: 6rpx; font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); }
 .t-dark .rMeta { color: rgba(245, 247, 255, 0.45); }
 .gap { height: 24rpx; }
+
+.addFab { position: fixed; right: 28rpx; bottom: calc(160rpx + env(safe-area-inset-bottom)); width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.78); border: 1rpx solid rgba(255, 255, 255, 0.6); box-shadow: 0 22rpx 60rpx rgba(46, 99, 255, 0.18); backdrop-filter: blur(16px); z-index: 35; transition: transform 200ms ease, box-shadow 200ms ease; }
+.t-dark .addFab { background: rgba(26, 29, 33, 0.85); border-color: rgba(255, 255, 255, 0.08); box-shadow: 0 22rpx 70rpx rgba(0, 0, 0, 0.5); }
+.addFab:active { transform: scale(0.94); }
+.plus { position: relative; width: 26rpx; height: 26rpx; }
+.hLine, .vLine { position: absolute; background: rgba(46, 99, 255, 0.95); border-radius: 999rpx; }
+.hLine { left: 0; right: 0; top: 50%; height: 2.4rpx; margin-top: -1.2rpx; }
+.vLine { top: 0; bottom: 0; left: 50%; width: 2.4rpx; margin-left: -1.2rpx; }
+
+.overlay { position: fixed; inset: 0; z-index: 50; opacity: 0; pointer-events: none; background: rgba(8, 12, 24, 0.4); backdrop-filter: blur(12px); transition: opacity 0.22s ease; }
+.overlay.show { opacity: 1; pointer-events: auto; }
+.sheet { position: absolute; left: 14rpx; right: 14rpx; bottom: 14rpx; padding: 24rpx 22rpx; border-radius: 32rpx; background: rgba(255, 255, 255, 0.92); border: 1rpx solid rgba(255, 255, 255, 0.6); }
+.t-dark .sheet { background: #1a1d21; border-color: rgba(255, 255, 255, 0.06); }
+.sheetTitle { font-size: 26rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
+.t-dark .sheetTitle { color: #f5f7fa; }
+.field { margin-top: 12rpx; }
+.input { width: 100%; height: 80rpx; padding: 0 16rpx; border-radius: 18rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.08); color: rgba(16, 24, 40, 0.92); font-size: 23rpx; }
+.t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.08); color: #f5f7fa; }
+.ph { color: rgba(16, 24, 40, 0.35); }
+.t-dark .ph { color: rgba(245, 247, 255, 0.35); }
+.create { margin-top: 18rpx; height: 84rpx; border-radius: 22rpx; background: linear-gradient(180deg, #5a8eff, #2e63ff); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 23rpx; font-weight: 720; box-shadow: 0 14rpx 36rpx rgba(46, 99, 255, 0.28); }
 </style>

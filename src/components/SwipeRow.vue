@@ -180,8 +180,14 @@ function rawDragTotal(dx) {
   return baseOffset.value + dx
 }
 
+function isSwipeIgnoredTarget(target) {
+  if (!target?.closest) return false
+  return !!target.closest('[data-swipe-ignore]')
+}
+
 function onTouchStart(e) {
   if (isDesktop.value) return
+  if (isSwipeIgnoredTarget(e.target)) return
   const t = e.touches?.[0]
   if (!t) return
   startX.value = t.clientX

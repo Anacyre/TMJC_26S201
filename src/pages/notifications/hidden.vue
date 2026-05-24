@@ -3,6 +3,7 @@
     <view class="bg" />
     <AppHeader nav-mode="back" />
 
+    <PageContent>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view v-if="!list.length" class="empty">
         <EmptyState
@@ -27,6 +28,7 @@
       </view>
       <view class="gap" />
     </scroll-view>
+    </PageContent>
 
     <GlobalSearchOverlay />
   </view>
@@ -36,6 +38,7 @@
 import { computed } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
+import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'

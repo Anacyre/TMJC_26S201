@@ -132,9 +132,9 @@ function onCreate(value) {
 .t-dark .chipDot { background: rgba(245, 247, 255, 0.42); }
 
 .chipText {
-  font-size: 18rpx;
+  font-size: 26rpx;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   white-space: nowrap;
   color: rgba(16, 24, 40, 0.86);
 }

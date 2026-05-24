@@ -118,7 +118,7 @@ watch(
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 130;
+  z-index: 140;
   opacity: 0;
   pointer-events: none;
   background: rgba(8, 12, 24, 0.38);
@@ -182,7 +182,8 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16rpx 18rpx;
+  min-height: 88rpx;
+  padding: 18rpx 20rpx;
   border-radius: 22rpx;
   background: rgba(16, 24, 40, 0.03);
   border: 1rpx solid rgba(16, 24, 40, 0.06);
@@ -205,9 +206,9 @@ watch(
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 8rpx;
-  min-height: 32rpx;
-  padding: 0 12rpx;
+  gap: 10rpx;
+  min-height: 44rpx;
+  padding: 0 16rpx;
   border-radius: 999rpx;
   background: rgba(16, 24, 40, 0.06);
   border: 1rpx solid rgba(16, 24, 40, 0.08);
@@ -218,17 +219,17 @@ watch(
   border-color: rgba(255, 255, 255, 0.08);
 }
 .chipDot {
-  width: 8rpx;
-  height: 8rpx;
+  width: 10rpx;
+  height: 10rpx;
   border-radius: 50%;
   flex-shrink: 0;
   background: rgba(16, 24, 40, 0.42);
 }
 .t-dark .chipDot { background: rgba(245, 247, 255, 0.42); }
 .chipText {
-  font-size: 18rpx;
+  font-size: 28rpx;
   font-weight: 700;
-  line-height: 1;
+  line-height: 1.1;
   white-space: nowrap;
   color: rgba(16, 24, 40, 0.86);
 }
@@ -247,7 +248,7 @@ watch(
 .chip.c-rose .chipDot { background: rgba(220, 80, 110, 0.95); }
 
 .check {
-  font-size: 18rpx;
+  font-size: 22rpx;
   font-weight: 760;
   color: rgba(46, 99, 255, 0.96);
   letter-spacing: 0.4rpx;

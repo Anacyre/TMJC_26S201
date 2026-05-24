@@ -89,16 +89,16 @@ async function addComment(postId, text, anonymous = false) {
 
 async function addCommunity(payload) {
   const { data, error } = await communityApi.createCommunity(payload)
-  if (!error && data) communities.value.unshift(data)
+  if (error) return { data: null, error }
+  if (data) communities.value.unshift(data)
+  return { data, error: null }
 }
 
 async function addPost(payload) {
   const { data, error } = await communityApi.createPost(payload)
-  if (!error && data) {
-    posts.value.unshift(data)
-    return data
-  }
-  return null
+  if (error) return { data: null, error }
+  if (data) posts.value.unshift(data)
+  return { data, error: null }
 }
 
 async function togglePostLike(postId) {

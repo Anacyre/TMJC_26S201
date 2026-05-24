@@ -33,7 +33,12 @@
             <view class="navBtn tap" role="button" @tap="prevMonth">
               <text class="navText">‹</text>
             </view>
-            <text class="monthLabel">{{ monthLabel }}</text>
+            <view class="calTitleWrap">
+              <text class="monthLabel">{{ monthLabel }}</text>
+              <view class="todayBtn tap" role="button" @tap="goToday">
+                <text class="todayBtnText">Today</text>
+              </view>
+            </view>
             <view class="navBtn tap" role="button" @tap="nextMonth">
               <text class="navText">›</text>
             </view>
@@ -206,6 +211,12 @@ function syncViewMonth() {
   viewMonth.value = base.getMonth()
 }
 
+function goToday() {
+  const today = new Date()
+  viewYear.value = today.getFullYear()
+  viewMonth.value = today.getMonth()
+}
+
 function prevMonth() {
   if (viewMonth.value === 0) {
     viewMonth.value = 11
@@ -259,7 +270,7 @@ watch(
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 130;
+  z-index: 140;
   opacity: 0;
   pointer-events: none;
   background: rgba(8, 12, 24, 0.38);
@@ -320,7 +331,40 @@ watch(
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8rpx;
   padding: 0 4rpx 12rpx;
+}
+
+.calTitleWrap {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.todayBtn {
+  min-height: 44rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(46, 99, 255, 0.10);
+  border: 1rpx solid rgba(46, 99, 255, 0.22);
+}
+.t-dark .todayBtn {
+  background: rgba(120, 160, 255, 0.14);
+  border-color: rgba(120, 160, 255, 0.28);
+}
+.todayBtnText {
+  font-size: 20rpx;
+  font-weight: 720;
+  color: rgba(46, 99, 255, 0.96);
+}
+.t-dark .todayBtnText {
+  color: rgba(170, 200, 255, 0.96);
 }
 
 .navBtn {
@@ -378,6 +422,7 @@ watch(
 }
 
 .dayCell {
+  position: relative;
   aspect-ratio: 1;
   border-radius: 16rpx;
   display: flex;
@@ -396,16 +441,45 @@ watch(
 .dayCell.off {
   opacity: 0.34;
 }
-.dayCell.today {
-  border-color: rgba(46, 99, 255, 0.28);
+.dayCell.today:not(.on) {
+  background: rgba(46, 99, 255, 0.04);
+  border-color: rgba(46, 99, 255, 0.16);
+}
+.t-dark .dayCell.today:not(.on) {
+  background: rgba(120, 160, 255, 0.06);
+  border-color: rgba(120, 160, 255, 0.18);
+}
+.dayCell.today:not(.on) .dayNum {
+  color: rgba(46, 99, 255, 0.58);
+  font-weight: 700;
+}
+.t-dark .dayCell.today:not(.on) .dayNum {
+  color: rgba(170, 200, 255, 0.58);
+}
+.dayCell.today:not(.on)::after {
+  content: '';
+  position: absolute;
+  bottom: 7rpx;
+  width: 5rpx;
+  height: 5rpx;
+  border-radius: 50%;
+  background: rgba(46, 99, 255, 0.38);
+}
+.t-dark .dayCell.today:not(.on)::after {
+  background: rgba(170, 200, 255, 0.38);
 }
 .dayCell.on {
-  background: rgba(46, 99, 255, 0.14);
-  border-color: rgba(46, 99, 255, 0.32);
+  background: linear-gradient(180deg, rgba(90, 142, 255, 0.96), rgba(46, 99, 255, 0.96));
+  border-color: rgba(46, 99, 255, 0.96);
+  box-shadow: 0 4rpx 14rpx rgba(46, 99, 255, 0.22);
+}
+.dayCell.today.on::after {
+  display: none;
 }
 .t-dark .dayCell.on {
-  background: rgba(120, 160, 255, 0.18);
-  border-color: rgba(120, 160, 255, 0.36);
+  background: linear-gradient(180deg, rgba(100, 150, 255, 0.96), rgba(70, 120, 255, 0.96));
+  border-color: rgba(120, 160, 255, 0.96);
+  box-shadow: 0 4rpx 14rpx rgba(70, 120, 255, 0.28);
 }
 .dayCell.disabled {
   opacity: 0.22;
@@ -421,11 +495,11 @@ watch(
   color: rgba(245, 247, 255, 0.82);
 }
 .dayCell.on .dayNum {
-  color: rgba(46, 99, 255, 0.96);
+  color: #fff;
   font-weight: 760;
 }
 .t-dark .dayCell.on .dayNum {
-  color: rgba(170, 200, 255, 0.96);
+  color: rgba(245, 247, 255, 0.98);
 }
 
 .list {

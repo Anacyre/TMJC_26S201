@@ -55,10 +55,25 @@ function upsertTask(task) {
 
 async function toggleTaskDone(id) {
   const target = getTaskById(id)
-  if (!target) return { error: new Error('Task not found') }
-  const { data, error } = await tasksApi.toggleTaskDone(id, target.done)
-  if (!error && data) upsertTask(data)
-  return { data, error }
+  if (!target) return { data: null, error: new Error('Task not found') }
+
+  const prevDone = target.done
+  const deadlineDate = parseDeadlineDate(target.deadline)
+  const optimisticDone = !prevDone
+  upsertTask({
+    ...target,
+    done: optimisticDone,
+    status: optimisticDone ? 'completed' : resolveTaskStatusFromForm({ deadlineDate }),
+    completedAt: optimisticDone ? new Date().toISOString() : '',
+  })
+
+  const { data, error } = await tasksApi.toggleTaskDone(id, prevDone)
+  if (error) {
+    upsertTask(target)
+    return { data: null, error }
+  }
+  if (data) upsertTask(data)
+  return { data, error: null }
 }
 
 async function toggleChecklist(taskId, checklistId) {
@@ -94,17 +109,17 @@ async function addTask(payload) {
   const { data, error } = await tasksApi.createTask(payload)
   if (!error && data) {
     upsertTask(data)
-    return data
+    return { data, error: null }
   }
   if (error) console.error('[useTasksStore] addTask:', error.message)
-  return null
+  return { data: null, error: error || new Error('Could not create task') }
 }
 
 async function addTaskFromNotice({ noticeId, title, subject, deadline, description, noticeTitle }) {
   const existing = tasks.value.find((t) => t.sourceNoticeId === noticeId)
   if (existing) return existing
 
-  return addTask({
+  const { data } = await addTask({
     title: title?.trim() || 'From notice',
     subject: subject?.trim() || 'General',
     deadline: deadline?.trim() ? `Due ${deadline.trim()}` : 'See notice',
@@ -113,6 +128,7 @@ async function addTaskFromNotice({ noticeId, title, subject, deadline, descripti
     relatedNotice: { id: noticeId, title: noticeTitle || title },
     sourceNoticeId: noticeId,
   })
+  return data
 }
 
 async function archiveTask(id) {

@@ -135,6 +135,28 @@ export function resolveTaskStatusFromForm({ deadlineDate, done = false }) {
   return resolveActiveStatusFromDeadline(deadlineDate)
 }
 
+/** Map in-app bucket status to Postgres `tasks.status` check constraint values. */
+export function toDbTaskStatus(status, { deadlineDate, done = false } = {}) {
+  if (done) return 'completed'
+  const appStatus = status || resolveTaskStatusFromForm({ deadlineDate, done: false })
+  switch (appStatus) {
+    case 'recent':
+    case 'no-deadline':
+    case 'today':
+      return 'today'
+    case 'upcoming':
+      return 'upcoming'
+    case 'overdue':
+      return 'overdue'
+    case 'completed':
+      return 'completed'
+    case 'archived':
+      return 'archived'
+    default:
+      return 'today'
+  }
+}
+
 export function resolveTaskStatusFromTask(task) {
   if (task?.done) return 'completed'
   const key = parseDueDateKey(task?.deadline)
@@ -175,6 +197,36 @@ export function enrichTask(task) {
     ...task,
     status: resolveTaskStatusFromTask(task),
   }
+}
+
+export function formatTaskDueChipLabel(task) {
+  if (taskHasNoDueDate(task)) return 'Anytime'
+  const key = parseDueDateKey(task?.deadline)
+  if (!key) return 'Anytime'
+
+  const [y, m, d] = key.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  if (Number.isNaN(date.getTime())) return 'Anytime'
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const target = new Date(date)
+  target.setHours(0, 0, 0, 0)
+  const diff = Math.round((target - today) / 86400000)
+
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Tomorrow'
+  if (diff === -1) return 'Yesterday'
+  return `${MONTHS[date.getMonth()]} ${date.getDate()}`
+}
+
+export function taskDueChipClass(task) {
+  if (taskHasNoDueDate(task)) return 'sub-slate'
+  if (task?.done) return 'state-completed'
+  const bucket = taskDueBucket(task)
+  if (bucket === 'no-deadline') return 'sub-slate'
+  if (bucket === 'completed') return 'state-completed'
+  return `state-${bucket}`
 }
 
 export function formatDueSectionLabel(isoKey) {

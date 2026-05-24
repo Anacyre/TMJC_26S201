@@ -1103,6 +1103,29 @@ export async function fetchSubjects() {
   return { data, error: null }
 }
 
+export async function createSubject(payload) {
+  await tick()
+  const row = {
+    id: uid('sub'),
+    icon: payload.icon || '📘',
+    name: payload.name,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  }
+  _state.subjects.push(row)
+  persist()
+  return {
+    data: {
+      id: row.id,
+      icon: row.icon,
+      name: row.name,
+      filesCount: 0,
+      updatedAt: row.updated_at,
+    },
+    error: null,
+  }
+}
+
 export async function fetchResources(options = {}) {
   await tick()
   const userId = currentUserId()

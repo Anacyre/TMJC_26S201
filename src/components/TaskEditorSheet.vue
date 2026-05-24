@@ -35,8 +35,8 @@
               <TagSelect
                 v-model="form.subject"
                 :options="tagNames"
-                :allow-create="isAdmin"
-                :can-create="isAdmin"
+                :allow-create="true"
+                :can-create="true"
                 kind="subject"
                 @create="onCreateTag"
                 placeholder="Subject"
@@ -127,7 +127,6 @@ import DateField from '@/components/DateField.vue'
 import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
-import { useAdminMode } from '@/composables/useAdminMode'
 import { resolveTaskStatusFromForm } from '@/lib/taskDueDate'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { toast } from '@/composables/useToast'
@@ -153,7 +152,6 @@ const emit = defineEmits(['update:modelValue', 'save'])
 
 const { themeClass } = useTheme()
 const { tagNames, addTag } = useTagStore()
-const { isAdminActive: isAdmin } = useAdminMode()
 
 const priorities = ['P1', 'P2', 'P3']
 const saving = ref(false)
@@ -248,9 +246,14 @@ function toggleReminder() {
 }
 
 function onCreateTag(name) {
-  if (!isAdmin.value) return
   addTag(name)
 }
+
+function resetSaving() {
+  saving.value = false
+}
+
+defineExpose({ resetSaving })
 
 function buildDeadlineString() {
   if (!form.deadlineDate) return 'Anytime'
@@ -267,6 +270,7 @@ function buildReminderString() {
 }
 
 function submit() {
+  if (saving.value) return
   if (!form.title.trim()) {
     toast.show('Title required')
     return
@@ -362,7 +366,7 @@ function submit() {
 }
 .taskEditorRoot :deep(.value) { font-size: 28rpx; }
 .taskEditorRoot :deep(.label) { font-size: 20rpx; }
-.taskEditorRoot :deep(.chipText) { font-size: 20rpx; }
+.taskEditorRoot :deep(.chipText) { font-size: 26rpx; }
 .taskEditorRoot :deep(.iconWrap) { width: 46rpx; height: 46rpx; border-radius: 14rpx; }
 
 .metaGrid { gap: 10rpx; }

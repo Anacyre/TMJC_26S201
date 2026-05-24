@@ -6,6 +6,7 @@ import {
   purgeStaleCompletedTasks,
   resolveTaskStatusFromForm,
   shouldRetainCompletedTask,
+  toDbTaskStatus,
 } from '@/lib/taskDueDate'
 
 const USE_MOCK = mock.USE_MOCK
@@ -100,7 +101,7 @@ export async function createTask(payload) {
   if (!user) return { data: null, error: new Error('Not signed in') }
 
   const deadlineDate = parseDeadlineDate(payload.deadline)
-  const status = payload.status || resolveTaskStatusFromForm({ deadlineDate })
+  const status = toDbTaskStatus(payload.status, { deadlineDate })
 
   const { data, error } = await supabase
     .from('tasks')
@@ -130,7 +131,7 @@ export async function createTask(payload) {
 export async function updateTask(taskId, payload) {
   if (USE_MOCK) return mock.updateTask(taskId, payload)
   const deadlineDate = parseDeadlineDate(payload.deadline)
-  const status = payload.status || resolveTaskStatusFromForm({
+  const status = toDbTaskStatus(payload.status, {
     deadlineDate,
     done: payload.done,
   })
@@ -193,12 +194,13 @@ export async function toggleTaskDone(taskId, currentDone) {
 
   if (fetchError || !existing) return { data: null, error: fetchError || new Error('Task not found') }
 
-  const newDone = !currentDone
+  const newDone = !existing.done
   const now = new Date().toISOString()
   const deadlineDate = parseDeadlineDate(existing.deadline)
-  const status = newDone
-    ? 'completed'
-    : resolveTaskStatusFromForm({ deadlineDate })
+  const status = toDbTaskStatus(
+    newDone ? 'completed' : resolveTaskStatusFromForm({ deadlineDate }),
+    { deadlineDate, done: newDone },
+  )
 
   const { data, error } = await supabase
     .from('tasks')

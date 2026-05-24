@@ -3,6 +3,7 @@
     <view class="bg" />
     <AppHeader />
 
+    <TabPageContent tab-id="other" chrome-only>
     <view class="safe">
       <view class="grid">
         <view
@@ -20,6 +21,7 @@
         </view>
       </view>
     </view>
+    </TabPageContent>
 
     <BottomNav active="other" />
     <GlobalSearchOverlay />
@@ -30,10 +32,12 @@
 import { h, ref } from 'vue'
 import { onLoad, onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/BottomNav.vue'
+import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { toast } from '@/composables/useToast'
+import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 
@@ -68,8 +72,8 @@ const entries = ref([
 ])
 
 function openEntry(x) {
-  if (x.key === 'memories') return uni.navigateTo({ url: '/pages/other/events-memories', animationType: 'slide-in-right', animationDuration: 220 })
-  if (x.key === 'hidden') return uni.navigateTo({ url: '/pages/notifications/hidden', animationType: 'slide-in-right', animationDuration: 220 })
+  if (x.key === 'memories') return navSibling('/pages/other/events-memories')
+  if (x.key === 'hidden') return navSibling('/pages/notifications/hidden')
   toast.show(`${x.title}`)
 }
 
@@ -78,7 +82,7 @@ onShow(() => {})
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%),
     radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%),

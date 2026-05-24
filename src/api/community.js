@@ -101,10 +101,38 @@ export async function fetchPosts(options = {}) {
 /**
  * Create a post
  */
+async function hydratePostRow(row, userId) {
+  if (!row) return null
+  let authorName = 'Unknown'
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('name, display_name')
+    .eq('id', userId)
+    .maybeSingle()
+  if (prof) authorName = prof.display_name || prof.name || authorName
+
+  let communityName = ''
+  if (row.community_id) {
+    const { data: comm } = await supabase
+      .from('communities')
+      .select('name')
+      .eq('id', row.community_id)
+      .maybeSingle()
+    communityName = comm?.name || ''
+  }
+
+  return rowToPost({
+    ...row,
+    profiles: { name: authorName },
+    communities: { name: communityName },
+  })
+}
+
 export async function createPost(payload) {
   if (USE_MOCK) return mock.createPost(payload)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { data: null, error: new Error('Not signed in') }
+  if (!payload.communityId) return { data: null, error: new Error('Missing community') }
 
   const { data, error } = await supabase
     .from('posts')
@@ -112,16 +140,17 @@ export async function createPost(payload) {
       community_id: payload.communityId,
       user_id: user.id,
       title: payload.title,
-      content: payload.content || '',
+      content: payload.content || payload.title || '',
       anonymous: payload.anonymous || false,
       image: payload.image || '',
       likes_count: 0,
       comments_count: 0,
     })
-    .select(`*, communities(name), profiles(name)`)
+    .select('*')
     .single()
 
-  return { data: data ? rowToPost(data) : null, error }
+  if (error) return { data: null, error }
+  return { data: await hydratePostRow(data, user.id), error: null }
 }
 
 /**

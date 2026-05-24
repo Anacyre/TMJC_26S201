@@ -1,22 +1,31 @@
 <template>
   <view
     class="card task tap"
-    :class="[{ pressed, overdue: isOverdue }, 'st-' + task.status]"
+    :class="[{ pressed, overdue: isOverdue, completing }, 'st-' + task.status]"
     @touchstart="$emit('press-start')"
     @touchend="$emit('press-end')"
     @touchcancel="$emit('press-end')"
     @tap="$emit('open')"
   >
     <view class="left">
-      <view class="check" :class="{ on: task.done }" role="button" @tap.stop="$emit('toggle')">
+      <view
+        class="check"
+        data-swipe-ignore
+        :class="{ on: task.done }"
+        role="button"
+        @tap.stop="$emit('toggle')"
+        @click.stop="$emit('toggle')"
+        @touchstart.stop
+        @touchend.stop
+      >
         <view class="checkDot" />
       </view>
     </view>
     <view class="main">
       <view class="row1">
-        <text class="title" :class="{ done: task.done }" :number-of-lines="1">{{ task.title }}</text>
-        <view class="prio task-chip" :class="'prio-' + task.priority.toLowerCase()">
-          <text class="task-chip-text">{{ task.priority }}</text>
+        <text class="title" :class="{ done: task.done, completing }" :number-of-lines="1">{{ task.title }}</text>
+        <view class="metaChip task-chip" :class="metaChipClass">
+          <text class="task-chip-text">{{ metaChipLabel }}</text>
         </view>
       </view>
       <view class="row2">
@@ -34,14 +43,25 @@
 <script setup>
 import { computed } from 'vue'
 import { subjectChipClass } from '@/lib/subjectChip'
-import { taskDisplayStatus, taskBucketLabel, taskIsOverdue } from '@/lib/taskDueDate'
+import { taskDisplayStatus, taskBucketLabel, taskIsOverdue, formatTaskDueChipLabel, taskDueChipClass } from '@/lib/taskDueDate'
 
 const props = defineProps({
   task: { type: Object, required: true },
   pressed: { type: Boolean, default: false },
+  sortMode: { type: String, default: 'due-date' },
+  completing: { type: Boolean, default: false },
 })
 
 defineEmits(['open', 'toggle', 'press-start', 'press-end'])
+
+const showDueDate = computed(() => props.sortMode === 'priority')
+const metaChipLabel = computed(() =>
+  showDueDate.value ? formatTaskDueChipLabel(props.task) : props.task.priority
+)
+const metaChipClass = computed(() => {
+  if (showDueDate.value) return taskDueChipClass(props.task)
+  return `prio prio-${String(props.task.priority || 'P3').toLowerCase()}`
+})
 
 const statusBucket = computed(() => taskDisplayStatus(props.task))
 const displayStatus = computed(() => taskBucketLabel(statusBucket.value))
@@ -54,7 +74,10 @@ const isOverdue = computed(() => taskIsOverdue(props.task))
   border-radius: var(--list-card-radius);
   background: rgba(255, 255, 255, 0.7);
   border: 1rpx solid rgba(16, 24, 40, 0.04);
-  transition: transform 180ms ease, background 220ms ease, border-color 220ms ease;
+  transition: transform 180ms ease, background 220ms ease, border-color 220ms ease, opacity 500ms ease;
+}
+.card.completing {
+  opacity: 0.72;
 }
 .t-dark .card {
   background: rgba(255, 255, 255, 0.04);
@@ -121,11 +144,21 @@ const isOverdue = computed(() => taskIsOverdue(props.task))
 
 .main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
 .row1 { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; }
-.title { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); }
+.title {
+  font-size: var(--list-title-size);
+  font-weight: 720;
+  color: rgba(16, 24, 40, 0.92);
+  transition: opacity 500ms ease, color 500ms ease;
+}
 .t-dark .title { color: rgba(245, 247, 255, 0.92); }
 .card.overdue .title { color: rgba(130, 28, 24, 0.92); }
 .t-dark .card.overdue .title { color: rgba(255, 210, 206, 0.92); }
-.title.done { opacity: 0.5; text-decoration: line-through; }
+.title.done,
+.title.completing {
+  opacity: 0.48;
+  text-decoration: line-through;
+  text-decoration-thickness: 2rpx;
+}
 
 .row2 { display: flex; align-items: center; gap: 10rpx; flex-wrap: wrap; }
 </style>

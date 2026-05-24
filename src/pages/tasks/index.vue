@@ -4,44 +4,56 @@
 
     <AppHeader />
 
+    <TabPageContent tab-id="tasks">
+      <template #chrome>
+        <view class="filterWrap">
+          <scroll-view class="tabScroll" scroll-x :show-scrollbar="false" enhanced>
+            <view class="tabs">
+              <view
+                v-for="item in tabItems"
+                :key="item.id"
+                class="tab"
+                :class="[item.tone, { on: isTabActive(item.id) }]"
+                role="button"
+                @tap="toggleTab(item.id)"
+              >
+                <text class="tabText">{{ item.label }}</text>
+              </view>
+            </view>
+          </scroll-view>
+
+          <scroll-view class="tabScroll sortScroll" scroll-x :show-scrollbar="false" enhanced>
+            <view class="tabs">
+              <view
+                class="tab"
+                :class="{ on: sortMode === 'due-date' }"
+                role="button"
+                @tap="sortMode = 'due-date'"
+              >
+                <text class="tabText">Due date</text>
+              </view>
+              <view
+                class="tab"
+                :class="{ on: sortMode === 'priority' }"
+                role="button"
+                @tap="sortMode = 'priority'"
+              >
+                <text class="tabText">Priority</text>
+              </view>
+            </view>
+          </scroll-view>
+        </view>
+
+        <view class="addFab" role="button" @tap="openCreate" aria-label="Add task">
+          <view class="plus">
+            <view class="hLine" />
+            <view class="vLine" />
+          </view>
+        </view>
+      </template>
+
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
-        <scroll-view class="tabScroll" scroll-x :show-scrollbar="false" enhanced>
-          <view class="tabs">
-            <view
-              v-for="item in tabItems"
-              :key="item.id"
-              class="tab"
-              :class="[item.tone, { on: isTabActive(item.id) }]"
-              role="button"
-              @tap="toggleTab(item.id)"
-            >
-              <text class="tabText">{{ item.label }}</text>
-            </view>
-          </view>
-        </scroll-view>
-
-        <scroll-view v-if="!loading" class="tabScroll sortScroll" scroll-x :show-scrollbar="false" enhanced>
-          <view class="tabs">
-            <view
-              class="tab"
-              :class="{ on: sortMode === 'due-date' }"
-              role="button"
-              @tap="sortMode = 'due-date'"
-            >
-              <text class="tabText">Due date</text>
-            </view>
-            <view
-              class="tab"
-              :class="{ on: sortMode === 'priority' }"
-              role="button"
-              @tap="sortMode = 'priority'"
-            >
-              <text class="tabText">Priority</text>
-            </view>
-          </view>
-        </scroll-view>
-
         <SkeletonList v-if="loading" variant="tasks" :count="4" />
 
         <view v-else-if="!groupedSections.length" class="emptyWrap">
@@ -62,9 +74,14 @@
           >
             <text class="sectionLabel">{{ section.label }}</text>
             <view class="sectionBody">
-              <template v-for="t in section.tasks" :key="t.id">
+              <view
+                v-for="t in section.tasks"
+                :key="t.id"
+                class="taskRow"
+                :class="{ completing: completingAnim.has(t.id) }"
+              >
                 <SwipeRow
-                  v-if="t.done"
+                  v-if="t.done && !completingIds.has(t.id)"
                   side="left"
                   :actions="taskSwipeActions"
                   commit-action="delete"
@@ -74,6 +91,8 @@
                 >
                   <TaskListCard
                     :task="t"
+                    :sort-mode="sortMode"
+                    :completing="completingAnim.has(t.id)"
                     :pressed="pressedKey === t.id"
                     @press-start="pressedKey = t.id"
                     @press-end="pressedKey = ''"
@@ -84,13 +103,15 @@
                 <TaskListCard
                   v-else
                   :task="t"
+                  :sort-mode="sortMode"
+                  :completing="completingAnim.has(t.id)"
                   :pressed="pressedKey === t.id"
                   @press-start="pressedKey = t.id"
                   @press-end="pressedKey = ''"
                   @open="openTask(t)"
                   @toggle="toggleDone(t)"
                 />
-              </template>
+              </view>
             </view>
           </view>
         </view>
@@ -98,23 +119,18 @@
         <view class="spacer" />
       </view>
     </scroll-view>
-
-    <view class="addFab" role="button" @tap="openCreate" aria-label="Add task">
-      <view class="plus">
-        <view class="hLine" />
-        <view class="vLine" />
-      </view>
-    </view>
+    </TabPageContent>
 
     <BottomNav active="tasks" />
-    <TaskEditorSheet v-model="createOpen" mode="create" :task="emptyTask" @save="createTask" />
+    <TaskEditorSheet ref="createEditorRef" v-model="createOpen" mode="create" :task="emptyTask" @save="createTask" />
     <GlobalSearchOverlay />
   </view>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, ref, nextTick } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
+import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import TaskEditorSheet from '@/components/TaskEditorSheet.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
@@ -125,6 +141,7 @@ import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { buildTaskSections, taskDueBucket } from '@/lib/taskDueDate'
+import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
@@ -147,22 +164,45 @@ const tabItems = [
   { id: 'overdue', label: 'Overdue', tone: 'danger' },
 ]
 
+const COMPLETE_ANIM_MS = 500
+
 const selectedTabs = ref(new Set())
 const sortMode = ref('due-date')
 const pressedKey = ref('')
+const completingIds = ref(new Set())
+const completingAnim = ref(new Set())
+const completingBuckets = ref(new Map())
 const createOpen = ref(false)
+const createEditorRef = ref(null)
 const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', reminder: '', checklist: [] })
 
 const tabTasks = computed(() => {
   const pool = tasks.value.filter((x) => x.status !== 'archived')
-  if (!selectedTabs.value.size) return pool
-  return pool.filter((x) => selectedTabs.value.has(taskDueBucket(x)))
+  return pool.filter((x) => {
+    if (completingIds.value.has(x.id)) return true
+    if (!selectedTabs.value.size) return !x.done
+    return selectedTabs.value.has(taskDueBucket(x))
+  })
 })
 
 const groupedSections = computed(() => {
   const items = tabTasks.value
   if (!items.length) return []
-  return buildTaskSections(items, sortMode.value)
+
+  let displayItems = items
+  if (completingBuckets.value.size) {
+    displayItems = items.map((t) => {
+      const bucket = completingBuckets.value.get(t.id)
+      if (!bucket || bucket === 'completed') return t
+      return {
+        ...t,
+        done: false,
+        status: bucket === 'no-deadline' ? 'recent' : bucket,
+      }
+    })
+  }
+
+  return buildTaskSections(displayItems, sortMode.value)
 })
 
 const showAddAction = computed(() => {
@@ -195,12 +235,55 @@ function toggleTab(id) {
   selectedTabs.value = next
 }
 
-function toggleDone(t) {
-  toggleTaskDone(t.id)
+function willHideOnComplete(task) {
+  if (task.done) return false
+  if (!selectedTabs.value.size) return true
+  return !selectedTabs.value.has('completed')
+}
+
+function beginCompleteHide(task) {
+  const buckets = new Map(completingBuckets.value)
+  buckets.set(task.id, taskDueBucket(task))
+  completingBuckets.value = buckets
+  completingIds.value = new Set([...completingIds.value, task.id])
+}
+
+function startCompleteAnim(id) {
+  completingAnim.value = new Set([...completingAnim.value, id])
+}
+
+function endCompleteHide(id) {
+  const buckets = new Map(completingBuckets.value)
+  buckets.delete(id)
+  completingBuckets.value = buckets
+  const ids = new Set(completingIds.value)
+  ids.delete(id)
+  completingIds.value = ids
+  const anim = new Set(completingAnim.value)
+  anim.delete(id)
+  completingAnim.value = anim
+}
+
+async function toggleDone(t) {
+  const willHide = willHideOnComplete(t)
+  if (willHide) beginCompleteHide(t)
+
+  const { error } = await toggleTaskDone(t.id)
+  if (error) {
+    if (willHide) endCompleteHide(t.id)
+    toast.show(error.message || 'Could not update task')
+    return
+  }
+
+  if (willHide) {
+    await nextTick()
+    requestAnimationFrame(() => startCompleteAnim(t.id))
+    setTimeout(() => endCompleteHide(t.id), COMPLETE_ANIM_MS)
+  }
 }
 
 function openTask(t) {
-  uni.navigateTo({ url: `/pages/task/detail?id=${encodeURIComponent(t.id)}` })
+  navChild(`/pages/task/detail?id=${encodeURIComponent(t.id)}`)
 }
 
 function openCreate() {
@@ -208,9 +291,10 @@ function openCreate() {
 }
 
 async function createTask(payload) {
-  const created = await addTask(payload)
-  if (!created) {
-    toast.show('Could not create task')
+  const { data, error } = await addTask(payload)
+  if (!data) {
+    toast.show(error?.message || 'Could not create task')
+    createEditorRef.value?.resetSaving?.()
     return
   }
   toast.added()
@@ -234,13 +318,14 @@ function onTaskSwipeAction(id, actionId) {
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%), linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1)); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 320rpx); min-height: 300rpx; }
 .safe { padding: 0 28rpx 200rpx; }
 
+.filterWrap { padding: 0 28rpx; }
 .tabScroll { padding: 8rpx 0 14rpx; white-space: nowrap; }
 .sortScroll { padding-top: 0; padding-bottom: 16rpx; }
 .tabs { display: inline-flex; gap: 8rpx; padding-right: 8rpx; }
@@ -279,6 +364,21 @@ function onTaskSwipeAction(id, actionId) {
 .t-dark .sectionLabel { color: rgba(245, 247, 255, 0.52); }
 
 .sectionBody { display: flex; flex-direction: column; gap: var(--list-stack-gap); }
+
+.taskRow {
+  overflow: hidden;
+  max-height: 260rpx;
+  transition:
+    max-height 500ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 500ms ease,
+    transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.taskRow.completing {
+  max-height: 0;
+  opacity: 0;
+  transform: scale(0.97) translateY(-6rpx);
+  pointer-events: none;
+}
 
 .spacer { height: 18rpx; }
 

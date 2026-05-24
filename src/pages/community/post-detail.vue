@@ -2,6 +2,8 @@
   <view class="page" :class="themeClass">
     <view class="bg" />
     <AppHeader nav-mode="back" />
+
+    <PageContent>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="card pad">
         <text class="title">{{ post.title }}</text>
@@ -29,6 +31,7 @@
       </view>
       <view class="gap" />
     </scroll-view>
+    </PageContent>
     <GlobalSearchOverlay />
   </view>
 </template>
@@ -37,6 +40,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
+import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'

@@ -23,6 +23,34 @@ export async function fetchSubjects() {
   return { data: mapped, error }
 }
 
+/**
+ * Create a subject (admin only — enforced by RLS)
+ */
+export async function createSubject(payload) {
+  if (USE_MOCK) return mock.createSubject(payload)
+  const { data, error } = await supabase
+    .from('subjects')
+    .insert({
+      icon: payload.icon || '📘',
+      name: payload.name,
+    })
+    .select('*')
+    .single()
+
+  if (error) return { data: null, error }
+
+  return {
+    data: {
+      id: data.id,
+      icon: data.icon || '',
+      name: data.name,
+      filesCount: 0,
+      updatedAt: data.updated_at,
+    },
+    error: null,
+  }
+}
+
 // ─── Resources ──────────────────────────────────────────────────
 
 function rowToResource(row, likedSet = new Set()) {
@@ -86,10 +114,38 @@ export async function fetchResources(options = {}) {
 /**
  * Create a study resource (upload file via upload.js first)
  */
+async function hydrateResourceRow(row, userId) {
+  if (!row) return null
+  let authorName = 'Unknown'
+  const { data: prof } = await supabase
+    .from('profiles')
+    .select('name, display_name')
+    .eq('id', userId)
+    .maybeSingle()
+  if (prof) authorName = prof.display_name || prof.name || authorName
+
+  let subjectName = row.subjects?.name || ''
+  if (!subjectName && row.subject_id) {
+    const { data: sub } = await supabase
+      .from('subjects')
+      .select('name')
+      .eq('id', row.subject_id)
+      .maybeSingle()
+    subjectName = sub?.name || ''
+  }
+
+  return rowToResource({
+    ...row,
+    profiles: { name: authorName },
+    subjects: { name: subjectName },
+  })
+}
+
 export async function createResource(payload) {
   if (USE_MOCK) return mock.createResource(payload)
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { data: null, error: new Error('Not signed in') }
+  if (!payload.subjectId) return { data: null, error: new Error('Missing subject') }
 
   const { data, error } = await supabase
     .from('resources')
@@ -104,10 +160,11 @@ export async function createResource(payload) {
       downloads_count: 0,
       likes_count: 0,
     })
-    .select(`*, subjects(name), profiles(name)`)
+    .select('*')
     .single()
 
-  return { data: data ? rowToResource(data) : null, error }
+  if (error) return { data: null, error }
+  return { data: await hydrateResourceRow(data, user.id), error: null }
 }
 
 /**

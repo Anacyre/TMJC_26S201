@@ -4,6 +4,7 @@
 
     <AppHeader nav-mode="back" />
 
+    <PageContent>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
         <view class="card pad">
@@ -55,14 +56,15 @@
         <view class="bottomBar">
           <view class="btn ghost tap" role="button" @tap="editOpen = true"><text class="btnText">Edit</text></view>
           <view class="btn primary tap" role="button" @tap="completeTask">
-            <text class="btnTextPrimary">{{ task.done ? 'Done' : 'Complete' }}</text>
+            <text class="btnTextPrimary">{{ task.done ? 'Mark incomplete' : 'Complete' }}</text>
           </view>
         </view>
 
         <view class="spacer" />
       </view>
     </scroll-view>
-    <TaskEditorSheet v-model="editOpen" mode="edit" :task="task" @save="saveTask" />
+    </PageContent>
+    <TaskEditorSheet ref="editEditorRef" v-model="editOpen" mode="edit" :task="task" @save="saveTask" />
     <GlobalSearchOverlay />
   </view>
 </template>
@@ -71,6 +73,7 @@
 import { computed, ref } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
+import PageContent from '@/components/PageContent.vue'
 import TaskEditorSheet from '@/components/TaskEditorSheet.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
@@ -78,10 +81,12 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { taskDisplayStatus, taskBucketLabel } from '@/lib/taskDueDate'
 import { toast } from '@/composables/useToast'
+import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 const id = ref('')
 const editOpen = ref(false)
+const editEditorRef = ref(null)
 const taskReady = ref(false)
 const { getTaskById, loadTaskById, toggleTaskDone, toggleChecklist, updateTask } = useTasksStore()
 const { getNotificationById } = useNotificationStore()
@@ -124,12 +129,15 @@ function toggleCheck(c) {
 }
 
 function openNotice(nid) {
-  uni.navigateTo({ url: `/pages/notifications/index?id=${encodeURIComponent(nid)}` })
+  navSibling(`/pages/notifications/index?id=${encodeURIComponent(nid)}`)
 }
 
-function completeTask() {
-  const wasDone = task.value.done
-  toggleTaskDone(task.value.id)
+async function completeTask() {
+  const { error } = await toggleTaskDone(task.value.id)
+  if (error) {
+    toast.show(error.message || 'Could not update task')
+    return
+  }
   toast.updated()
 }
 
@@ -141,6 +149,7 @@ async function saveTask(payload) {
   const { error } = await updateTask(task.value.id, payload)
   if (error) {
     toast.show(error.message || 'Could not save task')
+    editEditorRef.value?.resetSaving?.()
     return
   }
   toast.saved()
