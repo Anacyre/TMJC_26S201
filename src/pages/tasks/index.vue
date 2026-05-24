@@ -7,42 +7,34 @@
     <TabPageContent tab-id="tasks">
       <template #chrome>
         <view class="filterWrap">
-          <scroll-view class="tabScroll" scroll-x :show-scrollbar="false" enhanced>
-            <view class="tabs">
-              <view
-                v-for="item in tabItems"
-                :key="item.id"
-                class="tab"
-                :class="[item.tone, { on: isTabActive(item.id) }]"
-                role="button"
-                @tap="toggleTab(item.id)"
-              >
-                <text class="tabText">{{ item.label }}</text>
-              </view>
+          <view class="filterRow">
+            <view class="filterDrop tap" role="button" @tap="filterPickerOpen = true">
+              <text class="filterDropText">{{ filterDisplayLabel }}</text>
+              <text class="filterChev">▾</text>
             </view>
-          </scroll-view>
-
-          <scroll-view class="tabScroll sortScroll" scroll-x :show-scrollbar="false" enhanced>
-            <view class="tabs">
-              <view
-                class="tab"
-                :class="{ on: sortMode === 'due-date' }"
-                role="button"
-                @tap="sortMode = 'due-date'"
-              >
-                <text class="tabText">Due date</text>
-              </view>
-              <view
-                class="tab"
-                :class="{ on: sortMode === 'priority' }"
-                role="button"
-                @tap="sortMode = 'priority'"
-              >
-                <text class="tabText">Priority</text>
-              </view>
+            <view class="filterDrop tap" role="button" @tap="sortPickerOpen = true">
+              <text class="filterDropText">{{ sortDisplayLabel }}</text>
+              <text class="filterChev">▾</text>
             </view>
-          </scroll-view>
+          </view>
         </view>
+
+        <SelectPickerSheet
+          :open="filterPickerOpen"
+          :options="filterPickerOptions"
+          :selected="filterDisplayLabel"
+          kind="tag"
+          @close="filterPickerOpen = false"
+          @pick="onFilterPick"
+        />
+        <SelectPickerSheet
+          :open="sortPickerOpen"
+          :options="sortPickerOptions"
+          :selected="sortDisplayLabel"
+          kind="tag"
+          @close="sortPickerOpen = false"
+          @pick="onSortPick"
+        />
 
         <view class="addFab" role="button" @tap="openCreate" aria-label="Add task">
           <view class="plus">
@@ -138,6 +130,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SwipeRow from '@/components/SwipeRow.vue'
 import TaskListCard from '@/components/TaskListCard.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
+import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { buildTaskSections, taskDueBucket } from '@/lib/taskDueDate'
@@ -157,16 +150,26 @@ const taskContextItems = [
 ]
 
 const tabItems = [
+  { id: '', label: 'All tasks' },
   { id: 'recent', label: 'Recent' },
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'completed', label: 'Done' },
   { id: 'no-deadline', label: 'No deadline' },
-  { id: 'overdue', label: 'Overdue', tone: 'danger' },
+  { id: 'overdue', label: 'Overdue' },
 ]
+
+const filterPickerOptions = tabItems.map((x) => x.label)
+const sortPickerOptions = ['Due date', 'Priority']
+const filterLabelById = Object.fromEntries(tabItems.map((x) => [x.id, x.label]))
+const filterIdByLabel = Object.fromEntries(tabItems.map((x) => [x.label, x.id]))
+const sortLabelByMode = { 'due-date': 'Due date', priority: 'Priority' }
+const sortModeByLabel = { 'Due date': 'due-date', Priority: 'priority' }
 
 const COMPLETE_ANIM_MS = 500
 
-const selectedTabs = ref(new Set())
+const filterTab = ref('')
+const filterPickerOpen = ref(false)
+const sortPickerOpen = ref(false)
 const sortMode = ref('due-date')
 const pressedKey = ref('')
 const completingIds = ref(new Set())
@@ -176,12 +179,15 @@ const createOpen = ref(false)
 const createEditorRef = ref(null)
 const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', reminder: '', checklist: [] })
 
+const filterDisplayLabel = computed(() => filterLabelById[filterTab.value] || 'All tasks')
+const sortDisplayLabel = computed(() => sortLabelByMode[sortMode.value] || 'Due date')
+
 const tabTasks = computed(() => {
   const pool = tasks.value.filter((x) => x.status !== 'archived')
   return pool.filter((x) => {
     if (completingIds.value.has(x.id)) return true
-    if (!selectedTabs.value.size) return !x.done
-    return selectedTabs.value.has(taskDueBucket(x))
+    if (!filterTab.value) return !x.done
+    return taskDueBucket(x) === filterTab.value
   })
 })
 
@@ -206,39 +212,34 @@ const groupedSections = computed(() => {
 })
 
 const showAddAction = computed(() => {
-  if (!selectedTabs.value.size) return true
-  return !selectedTabs.value.has('completed') || selectedTabs.value.size > 1
+  if (!filterTab.value) return true
+  return filterTab.value !== 'completed'
 })
 
 const emptyTitle = computed(() => {
-  if (!selectedTabs.value.size) return 'No tasks'
-  if (selectedTabs.value.size === 1) {
-    const only = [...selectedTabs.value][0]
-    if (only === 'no-deadline') return 'No tasks without deadline'
-    if (only === 'overdue') return 'Nothing overdue'
-    if (only === 'completed') return 'No completed tasks'
-    if (only === 'upcoming') return 'Nothing upcoming'
-    if (only === 'recent') return 'Nothing recent'
-    return 'No matching tasks'
-  }
+  if (!filterTab.value) return 'No tasks'
+  if (filterTab.value === 'no-deadline') return 'No tasks without deadline'
+  if (filterTab.value === 'overdue') return 'Nothing overdue'
+  if (filterTab.value === 'completed') return 'No completed tasks'
+  if (filterTab.value === 'upcoming') return 'Nothing upcoming'
+  if (filterTab.value === 'recent') return 'Nothing recent'
   return 'No matching tasks'
 })
 
-function isTabActive(id) {
-  return selectedTabs.value.has(id)
+function onFilterPick(label) {
+  filterTab.value = filterIdByLabel[label] ?? ''
+  filterPickerOpen.value = false
 }
 
-function toggleTab(id) {
-  const next = new Set(selectedTabs.value)
-  if (next.has(id)) next.delete(id)
-  else next.add(id)
-  selectedTabs.value = next
+function onSortPick(label) {
+  sortMode.value = sortModeByLabel[label] || 'due-date'
+  sortPickerOpen.value = false
 }
 
 function willHideOnComplete(task) {
   if (task.done) return false
-  if (!selectedTabs.value.size) return true
-  return !selectedTabs.value.has('completed')
+  if (!filterTab.value) return true
+  return filterTab.value !== 'completed'
 }
 
 function beginCompleteHide(task) {
@@ -322,25 +323,48 @@ function onTaskSwipeAction(id, actionId) {
 .bg { position: absolute; inset: 0; z-index: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(120, 180, 255, 0.14), transparent 65%), linear-gradient(180deg, rgba(248, 250, 255, 1), rgba(241, 244, 250, 1)); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), radial-gradient(900rpx 700rpx at 70% 30%, rgba(100, 160, 255, 0.08), transparent 62%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 320rpx); min-height: 300rpx; }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 260rpx); min-height: 300rpx; }
 .safe { padding: 0 28rpx 200rpx; }
 
-.filterWrap { padding: 0 28rpx; }
-.tabScroll { padding: 8rpx 0 14rpx; white-space: nowrap; }
-.sortScroll { padding-top: 0; padding-bottom: 16rpx; }
-.tabs { display: inline-flex; gap: 8rpx; padding-right: 8rpx; }
-.tab { flex-shrink: 0; padding: 12rpx 18rpx; border-radius: 999rpx; background: transparent; opacity: 0.62; transition: transform 150ms cubic-bezier(0.34,1.2,0.64,1), opacity 150ms ease, background 150ms ease, border-color 150ms ease; border: 1rpx solid transparent; }
-.tab.on { opacity: 1; background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.18); }
-.tab.danger .tabText { color: rgba(255, 59, 48, 0.78); }
-.tab.danger.on { background: rgba(255, 59, 48, 0.12); border-color: rgba(255, 59, 48, 0.22); }
-.tab.danger.on .tabText { color: rgba(255, 59, 48, 0.96); font-weight: 740; }
-.t-dark .tab.danger .tabText { color: rgba(255, 120, 110, 0.82); }
-.t-dark .tab.danger.on .tabText { color: rgba(255, 140, 130, 0.96); }
-.tab:active { transform: scale(0.97); }
-.tabText { font-size: 22rpx; font-weight: 660; color: rgba(16, 24, 40, 0.7); }
-.t-dark .tabText { color: rgba(245, 247, 255, 0.66); }
-.tab.on .tabText { color: rgba(46, 99, 255, 0.96); font-weight: 740; }
-.t-dark .tab.on .tabText { color: rgba(170, 200, 255, 0.96); }
+.filterWrap { padding: 8rpx 28rpx 14rpx; }
+.filterRow { display: flex; gap: 10rpx; align-items: stretch; }
+.filterDrop {
+  flex: 1;
+  min-width: 0;
+  min-height: 68rpx;
+  padding: 0 16rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10rpx;
+  transition: transform 150ms ease, background 180ms ease, border-color 180ms ease;
+}
+.t-dark .filterDrop {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.filterDrop:active { transform: scale(0.985); background: rgba(46, 99, 255, 0.06); border-color: rgba(46, 99, 255, 0.14); }
+.filterDropText {
+  flex: 1;
+  min-width: 0;
+  font-size: 22rpx;
+  font-weight: 660;
+  color: rgba(16, 24, 40, 0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t-dark .filterDropText { color: rgba(245, 247, 255, 0.82); }
+.filterChev {
+  flex-shrink: 0;
+  font-size: 18rpx;
+  color: rgba(16, 24, 40, 0.42);
+  line-height: 1;
+}
+.t-dark .filterChev { color: rgba(245, 247, 255, 0.42); }
 
 .emptyWrap { padding: 24rpx 0 0; }
 .list { display: flex; flex-direction: column; }

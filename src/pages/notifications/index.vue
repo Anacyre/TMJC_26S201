@@ -6,51 +6,46 @@
     <PageContent>
       <template #chrome>
     <view class="filterWrap">
-      <view class="filtersTop">
-        <scroll-view class="chipScroll grow" scroll-x :show-scrollbar="false" enhanced>
-          <view class="chipRow">
-            <view
-              v-for="f in typeFilters"
-              :key="f"
-              class="chip"
-              :class="{ on: typeFilter === f }"
-              role="button"
-              @tap="toggleTypeFilter(f)"
-            >
-              <text>{{ f }}</text>
-            </view>
-          </view>
-        </scroll-view>
-        <view class="hiddenPill" role="button" @tap="openHidden">
+      <view class="filterRow">
+        <view class="filterDrop tap" role="button" @tap="typePickerOpen = true">
+          <text class="filterDropText">{{ typeFilterLabel }}</text>
+          <text class="filterChev">▾</text>
+        </view>
+        <view
+          v-if="typeFilter === 'Homework'"
+          class="filterDrop tap"
+          role="button"
+          @tap="subjectPickerOpen = true"
+        >
+          <text class="filterDropText">{{ subjectFilterLabel }}</text>
+          <text class="filterChev">▾</text>
+        </view>
+        <view class="hiddenPill tap" role="button" @tap="openHidden">
           <text class="hiddenPillText">Hidden</text>
         </view>
       </view>
-      <scroll-view
-        v-if="showSubjectFilter"
-        class="chipScroll sub"
-        scroll-x
-        :show-scrollbar="false"
-        enhanced
-      >
-        <view class="chipRow">
-          <view
-            v-for="s in subjectFilters"
-            :key="s"
-            class="chip sm"
-            :class="{ on: subjectFilter === s }"
-            role="button"
-            @tap="subjectFilter = s"
-          >
-            <text>{{ s }}</text>
-          </view>
-        </view>
-      </scroll-view>
     </view>
+
+    <SelectPickerSheet
+      :open="typePickerOpen"
+      :options="typeFilterOptions"
+      :selected="typeFilterLabel"
+      kind="tag"
+      @close="typePickerOpen = false"
+      @pick="onTypeFilterPick"
+    />
+    <SelectPickerSheet
+      :open="subjectPickerOpen"
+      :options="subjectFilterOptions"
+      :selected="subjectFilterLabel"
+      kind="tag"
+      @close="subjectPickerOpen = false"
+      @pick="onSubjectFilterPick"
+    />
       </template>
 
     <scroll-view
       class="scroll"
-      :class="{ withSubject: showSubjectFilter }"
       scroll-y
       :show-scrollbar="false"
       :scroll-into-view="scrollInto"
@@ -164,6 +159,24 @@
               </view>
             </view>
 
+            <view v-if="showDraftSubject" class="field collapsible">
+              <view class="collapseHead tap" role="button" @tap="subjectExpanded = !subjectExpanded">
+                <text class="collapseLabel">{{ subjectCollapseLabel }}</text>
+                <text class="collapseChev" :class="{ open: subjectExpanded }">›</text>
+              </view>
+              <view class="collapseBody" :class="{ open: subjectExpanded }">
+                <TagSelect
+                  v-model="draft.subject"
+                  :options="tagNames"
+                  :allow-create="true"
+                  :can-create="true"
+                  kind="subject"
+                  @create="onCreateTag"
+                  placeholder="Subject"
+                />
+              </view>
+            </view>
+
             <view class="field metaGrid">
               <view class="typeRow inline">
                 <view
@@ -179,18 +192,7 @@
               </view>
 
               <view class="metaRow">
-                <view v-if="showDraftSubject" class="metaItem">
-                  <TagSelect
-                    v-model="draft.subject"
-                    :options="tagNames"
-                    :allow-create="true"
-                    :can-create="true"
-                    kind="subject"
-                    @create="onCreateTag"
-                    placeholder="Subject"
-                  />
-                </view>
-                <view class="metaItem" :class="{ full: !showDraftSubject }">
+                <view class="metaItem full">
                   <DateField v-model="draft.deadlineDate" mode="date" placeholder="Deadline" />
                 </view>
               </view>
@@ -222,6 +224,7 @@ import SwipeRow from '@/components/SwipeRow.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
+import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { toast } from '@/composables/useToast'
 import TagSelect from '@/components/TagSelect.vue'
 import DateField from '@/components/DateField.vue'
@@ -233,6 +236,7 @@ import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { navChild, navSibling } from '@/lib/navigation'
+import { canAddNoticeToTasks } from '@/lib/noticeRules'
 import {
   clearNoticeDraft,
   loadNoticeDraft,
@@ -258,8 +262,37 @@ const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
 const { isAdminActive, isRealAdmin } = useAdminMode()
 
-const typeFilters = ['Homework', 'General', 'VIA', 'Events', 'Important']
-const subjectFilters = computed(() => ['All', ...tagNames.value.filter((n) => n !== 'General')])
+const typeFilterOptions = ['All types', 'Homework', 'General', 'VIA', 'Events', 'Important']
+const typeFilterValueByLabel = {
+  'All types': '',
+  Homework: 'Homework',
+  General: 'General',
+  VIA: 'VIA',
+  Events: 'Events',
+  Important: 'Important',
+}
+const typeFilterLabelByValue = Object.fromEntries(
+  Object.entries(typeFilterValueByLabel).map(([label, value]) => [value, label])
+)
+
+const subjectFilterOptions = computed(() => [
+  'All subjects',
+  ...tagNames.value.filter((n) => n !== 'General'),
+])
+const subjectFilterValueByLabel = computed(() => {
+  const map = { 'All subjects': 'All' }
+  subjectFilterOptions.value.slice(1).forEach((label) => {
+    map[label] = label
+  })
+  return map
+})
+const subjectFilterLabelByValue = computed(() => {
+  const map = { All: 'All subjects' }
+  subjectFilterOptions.value.slice(1).forEach((label) => {
+    map[label] = label
+  })
+  return map
+})
 
 const noticeTypes = [
   { id: 'homework', label: 'Homework' },
@@ -270,12 +303,16 @@ const noticeTypes = [
 
 const typeFilter = ref('')
 const subjectFilter = ref('All')
-const showSubjectFilter = computed(() => typeFilter.value === 'Homework')
+const typePickerOpen = ref(false)
+const subjectPickerOpen = ref(false)
+const typeFilterLabel = computed(() => typeFilterLabelByValue[typeFilter.value] || 'All types')
+const subjectFilterLabel = computed(() => subjectFilterLabelByValue.value[subjectFilter.value] || 'All subjects')
 const hidingId = ref('')
 const scrollInto = ref('')
 const showCreate = ref(false)
 const publishing = ref(false)
 const descExpanded = ref(false)
+const subjectExpanded = ref(false)
 const draftSavedAt = ref(0)
 let draftSaveTimer = null
 let draftSavedHintTimer = null
@@ -292,6 +329,10 @@ function emptyDraft() {
 
 const draft = ref(emptyDraft())
 const showDraftSubject = computed(() => draft.value.type === 'Homework')
+const subjectCollapseLabel = computed(() => {
+  if (subjectExpanded.value) return draft.value.subject?.trim() || 'Subject'
+  return draft.value.subject?.trim() ? draft.value.subject : 'Add subject'
+})
 const hasDraftContent = computed(() => noticeDraftHasContent(draft.value))
 
 function persistNoticeDraft() {
@@ -319,6 +360,7 @@ function closeCreate() {
 function discardDraft() {
   draft.value = emptyDraft()
   descExpanded.value = false
+  subjectExpanded.value = false
   clearNoticeDraft(currentUser.value?.id)
   draftSavedAt.value = 0
   toast.show('Draft cleared')
@@ -331,8 +373,18 @@ function subjectMatches(n, chip) {
   return s.includes(chip.toLowerCase())
 }
 
-function toggleTypeFilter(f) {
-  typeFilter.value = typeFilter.value === f ? '' : f
+function onTypeFilterPick(label) {
+  typeFilter.value = typeFilterValueByLabel[label] ?? ''
+  if (typeFilter.value !== 'Homework') {
+    subjectFilter.value = 'All'
+    subjectPickerOpen.value = false
+  }
+  typePickerOpen.value = false
+}
+
+function onSubjectFilterPick(label) {
+  subjectFilter.value = subjectFilterValueByLabel.value[label] ?? 'All'
+  subjectPickerOpen.value = false
 }
 
 function typeMatches(n, chip) {
@@ -366,6 +418,10 @@ function onOpenCard(n) {
 }
 
 function onPlanner(n) {
+  if (!canAddNoticeToTasks(n)) {
+    toast.show('General notices cannot be added to tasks')
+    return
+  }
   if (n.inPlanner) {
     toast.show('Already in planner')
     return
@@ -451,6 +507,7 @@ function openCreate() {
   const saved = userId ? loadNoticeDraft(userId) : null
   draft.value = saved || emptyDraft()
   descExpanded.value = !!(draft.value.description || '').trim()
+  subjectExpanded.value = !!(draft.value.subject || '').trim()
   draftSavedAt.value = 0
   showCreate.value = true
   if (saved) toast.show('Draft restored')
@@ -500,6 +557,7 @@ async function publish() {
     clearNoticeDraft(currentUser.value?.id)
     draft.value = emptyDraft()
     descExpanded.value = false
+    subjectExpanded.value = false
     draftSavedAt.value = 0
     showCreate.value = false
     toast.published()
@@ -524,11 +582,17 @@ onLoad((q) => {
 })
 
 watch(typeFilter, (next, prev) => {
-  if (prev === 'Homework' && next !== 'Homework') subjectFilter.value = 'All'
+  if (prev === 'Homework' && next !== 'Homework') {
+    subjectFilter.value = 'All'
+    subjectPickerOpen.value = false
+  }
 })
 
 watch(() => draft.value.type, (next, prev) => {
-  if (prev === 'Homework' && next !== 'Homework') draft.value.subject = ''
+  if (prev === 'Homework' && next !== 'Homework') {
+    draft.value.subject = ''
+    subjectExpanded.value = false
+  }
 })
 
 watch(draft, schedulePersistNoticeDraft, { deep: true })
@@ -543,23 +607,61 @@ watch([typeFilter, subjectFilter], () => {
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.18), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.filterWrap { position: relative; z-index: 2; padding: 14rpx 0 8rpx; }
-.filtersTop { display: flex; align-items: center; gap: 10rpx; padding: 0 24rpx 6rpx; }
-.chipScroll.grow { flex: 1; min-width: 0; }
-.hiddenPill { flex-shrink: 0; padding: 10rpx 14rpx; border-radius: 999rpx; background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.08); }
-.t-dark .hiddenPill { background: #1a1d21; border-color: rgba(255, 255, 255, 0.06); }
-.hiddenPillText { font-size: 19rpx; color: rgba(16, 24, 40, 0.55); }
+.filterWrap { position: relative; z-index: 2; padding: 8rpx 24rpx 12rpx; }
+.filterRow { display: flex; align-items: stretch; gap: 8rpx; }
+.filterDrop {
+  flex: 1;
+  min-width: 0;
+  min-height: 68rpx;
+  padding: 0 14rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8rpx;
+  transition: transform 150ms ease, background 180ms ease, border-color 180ms ease, opacity 180ms ease;
+}
+.t-dark .filterDrop {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.filterDrop.muted { opacity: 0.55; }
+.filterDrop:active { transform: scale(0.985); background: rgba(46, 99, 255, 0.06); border-color: rgba(46, 99, 255, 0.14); }
+.filterDropText {
+  flex: 1;
+  min-width: 0;
+  font-size: 20rpx;
+  font-weight: 660;
+  color: rgba(16, 24, 40, 0.82);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.t-dark .filterDropText { color: rgba(245, 247, 255, 0.82); }
+.filterChev {
+  flex-shrink: 0;
+  font-size: 16rpx;
+  color: rgba(16, 24, 40, 0.42);
+  line-height: 1;
+}
+.t-dark .filterChev { color: rgba(245, 247, 255, 0.42); }
+.hiddenPill {
+  flex-shrink: 0;
+  min-height: 68rpx;
+  padding: 0 14rpx;
+  border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(16, 24, 40, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.t-dark .hiddenPill { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.08); }
+.hiddenPillText { font-size: 19rpx; color: rgba(16, 24, 40, 0.55); font-weight: 660; }
 .t-dark .hiddenPillText { color: rgba(245, 247, 255, 0.52); }
-.chipScroll { width: 100%; white-space: nowrap; margin-bottom: 6rpx; }
-.chipScroll.sub { margin-bottom: 0; }
-.chipRow { display: inline-flex; gap: 8rpx; padding: 0 24rpx 4rpx; }
-.chip { display: inline-flex; align-items: center; padding: 10rpx 18rpx; border-radius: 999rpx; font-size: 20rpx; color: rgba(16, 24, 40, 0.62); background: rgba(255, 255, 255, 0.62); border: 1rpx solid rgba(16, 24, 40, 0.08); transition: background 0.22s ease, color 0.22s ease, transform 0.18s ease; }
-.t-dark .chip { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.06); color: rgba(245, 247, 255, 0.7); }
-.chip.sm { padding: 8rpx 14rpx; font-size: 19rpx; }
-.chip.on { background: rgba(46, 99, 255, 0.16); color: rgba(46, 99, 255, 0.96); border-color: rgba(46, 99, 255, 0.22); transform: scale(1.02); }
-.t-dark .chip.on { background: rgba(120, 160, 255, 0.18); color: rgba(170, 200, 255, 0.96); border-color: rgba(120, 160, 255, 0.26); }
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 72rpx); padding: 0 24rpx 32rpx; }
-.scroll.withSubject { height: calc(100vh - var(--shell-header-offset, 148rpx) - 116rpx); }
+.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 96rpx); padding: 0 24rpx 32rpx; }
 .pinSection, .feedSection { margin-top: 8rpx; }
 .pinLabel { display: block; font-size: 20rpx; font-weight: 650; color: rgba(16, 24, 40, 0.48); padding: 8rpx 4rpx 10rpx; }
 .t-dark .pinLabel { color: rgba(245, 247, 255, 0.45); }

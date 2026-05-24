@@ -40,7 +40,7 @@
           </view>
         </view>
 
-        <view class="plannerSlot">
+        <view v-if="canAddToPlanner" class="plannerSlot">
           <view
             v-if="showPlus"
             class="act planner"
@@ -70,7 +70,7 @@
           </view>
         </view>
       </view>
-      <text v-if="notice.inPlanner && !localHiding" class="plannerHint">Added</text>
+      <text v-if="canAddToPlanner && notice.inPlanner && !localHiding" class="plannerHint">Added</text>
     </view>
   </view>
 </template>
@@ -78,6 +78,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
+import { canAddNoticeToTasks } from '@/lib/noticeRules'
 
 const props = defineProps({
   notice: { type: Object, required: true },
@@ -93,8 +94,10 @@ const checkAnimating = ref(false)
 const localHiding = ref(false)
 const plannerBusy = ref(false)
 
+const canAddToPlanner = computed(() => canAddNoticeToTasks(props.notice))
+
 const showPlus = computed(
-  () => !props.notice.inPlanner && !checkAnimating.value && !localHiding.value
+  () => canAddToPlanner.value && !props.notice.inPlanner && !checkAnimating.value && !localHiding.value
 )
 
 function onPlannerTapDone() {

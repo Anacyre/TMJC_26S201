@@ -22,7 +22,7 @@
           <view class="btn ghost tap" @tap="togglePinned">
             <text class="btnText">{{ notice.important ? 'Unpin' : 'Pin' }}</text>
           </view>
-          <view class="btn primary tap" @tap="addToPlanner"><text class="btnTextPrimary">Add task</text></view>
+          <view v-if="canAddToTasks" class="btn primary tap" @tap="addToPlanner"><text class="btnTextPrimary">Add task</text></view>
           <view class="btn ghost tap" @tap="hideNotice"><text class="btnText">Hide</text></view>
           <view v-if="canDelete" class="btn ghost danger tap" @tap="deleteNotice">
             <text class="btnTextDanger">Delete</text>
@@ -47,6 +47,7 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
+import { canAddNoticeToTasks } from '@/lib/noticeRules'
 
 const { themeClass } = useTheme()
 const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, removeNotification } = useNotificationStore()
@@ -68,6 +69,7 @@ const fallback = {
   createdAt: '',
 }
 const notice = computed(() => getNotificationById(id.value) || fallback)
+const canAddToTasks = computed(() => canAddNoticeToTasks(notice.value))
 const timeLabel = computed(() => shortTimeLabel(notice.value.createdAt))
 const canDelete = computed(() => {
   const userId = currentUser.value?.id
@@ -129,6 +131,10 @@ function deleteNotice() {
 
 function addToPlanner() {
   if (!notice.value?.id) return
+  if (!canAddToTasks.value) {
+    toast.show('General notices cannot be added to tasks')
+    return
+  }
   if (notice.value.inPlanner) {
     toast.show('Already added')
     return
