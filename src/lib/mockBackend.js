@@ -22,6 +22,7 @@ import {
   normalizeTaskStatus,
   parseDueDateKey,
   purgeStaleCompletedTasks,
+  resolveDoneAfterChecklistToggle,
   resolveTaskStatusFromForm,
   shouldRetainCompletedTask,
 } from '@/lib/taskDueDate'
@@ -119,9 +120,9 @@ function seedState() {
         priority: 'P1', status: 'recent', reminder: '1h before',
         done: false,
         checklist: [
-          { id: 'c1', text: 'Read worked example on p.142', done: true },
-          { id: 'c2', text: 'Sketch the medians', done: false },
-          { id: 'c3', text: 'Write the proof', done: false },
+          { id: 'c1', text: 'Read worked example on p.142', done: true, deadline: '' },
+          { id: 'c2', text: 'Sketch the medians', done: false, deadline: '2026-05-27' },
+          { id: 'c3', text: 'Write the proof', done: false, deadline: '2026-05-29' },
         ],
         related_notice: { id: noticeMathHw, title: 'Math Chapter 6 — Discussion Q8' },
         source_notice_id: noticeMathHw,
@@ -132,7 +133,7 @@ function seedState() {
         title: 'Physics projectile motion assignment',
         description: 'Worksheet 4.2 — 6 problems on launched balls and inclined surfaces. Show working clearly.',
         deadline: 'Due Fri 11:59 PM', subject: 'Physics',
-        priority: 'P2', status: 'recent', reminder: 'Morning of',
+        priority: 'P2', status: 'recent', reminder: 'Fri May 30 · 2026-05-30 at 07:30 · repeat:daily (Daily)',
         done: false,
         checklist: [
           { id: 'c1', text: 'Watch recap video', done: false },
@@ -347,6 +348,7 @@ function seedState() {
     ],
 
     focusSounds: [],
+    focusSessions: [],
   }
 }
 
@@ -402,6 +404,7 @@ function ensureClassRoster(state) {
 
   state.roster_version = ROSTER_VERSION
   if (!Array.isArray(state.focusSounds)) state.focusSounds = []
+  if (!Array.isArray(state.focusSessions)) state.focusSessions = []
   return state
 }
 
@@ -437,6 +440,19 @@ function detectRole(email) {
   return 'member'
 }
 
+function normalizeChecklist(raw) {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 // ─── Mappers (snake_case row → camelCase domain object) ──────────────
 function rowToTask(row) {
   const task = {
@@ -449,7 +465,7 @@ function rowToTask(row) {
     status: normalizeTaskStatus(row.status),
     reminder: row.reminder || 'None',
     done: !!row.done,
-    checklist: row.checklist || [],
+    checklist: normalizeChecklist(row.checklist),
     relatedNotice: row.related_notice || null,
     sourceNoticeId: row.source_notice_id || '',
     createdAt: row.created_at,
@@ -877,12 +893,20 @@ export async function toggleChecklistItem(taskId, checklistId) {
   await tick()
   const idx = _state.tasks.findIndex((t) => t.id === taskId)
   if (idx < 0) return { data: null, error: new Error('Task not found') }
-  _state.tasks[idx].checklist = (_state.tasks[idx].checklist || []).map((c) =>
+  const task = _state.tasks[idx]
+  const checklist = normalizeChecklist(task.checklist).map((c) =>
     c.id === checklistId ? { ...c, done: !c.done } : c
   )
-  _state.tasks[idx].updated_at = nowIso()
+  const { done: nextDone } = resolveDoneAfterChecklistToggle(checklist, !!task.done)
+  const now = nowIso()
+  const deadlineDate = parseDueDateKey(task.deadline)
+  task.checklist = checklist
+  task.done = nextDone
+  task.status = nextDone ? 'completed' : resolveTaskStatusFromForm({ deadlineDate })
+  task.completed_at = nextDone ? task.completed_at || now : null
+  task.updated_at = now
   persist()
-  return { data: rowToTask(_state.tasks[idx]), error: null }
+  return { data: rowToTask(task), error: null }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1204,17 +1228,105 @@ export async function fetchFocusSounds() {
 
 export async function addFocusSound(record) {
   await tick(20)
+  const { error: denied } = await requireAdminCaller()
+  if (denied) return { data: null, error: denied }
   if (!Array.isArray(_state.focusSounds)) _state.focusSounds = []
-  _state.focusSounds.unshift(record)
+  const item = {
+    id: record.id || `fsnd_${Date.now().toString(36)}`,
+    name: record.name,
+    icon: record.icon || 'water',
+    color: record.color || '',
+    audioUrl: record.audioUrl,
+    fileKey: record.fileKey || '',
+    durationSeconds: record.durationSeconds || 0,
+    source: 'shared',
+    createdAt: record.createdAt || new Date().toISOString(),
+  }
+  _state.focusSounds.unshift(item)
   persist()
-  return { data: record, error: null }
+  return { data: item, error: null }
 }
 
 export async function removeFocusSound(id) {
   await tick(20)
+  const { error: denied } = await requireAdminCaller()
+  if (denied) return { error: denied }
   _state.focusSounds = (_state.focusSounds || []).filter((s) => s.id !== id)
   persist()
   return { error: null }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  FOCUS SESSIONS
+// ═════════════════════════════════════════════════════════════════════
+function focusSessionRowToClient(row) {
+  return {
+    id: row.id,
+    clientId: row.client_id || '',
+    minutes: row.minutes,
+    subject: row.subject || 'Focus',
+    soundId: row.sound_id || 'silence',
+    endedAt: row.ended_at,
+    synced: true,
+  }
+}
+
+export async function fetchFocusSessions() {
+  await tick(20)
+  const userId = currentUserId()
+  if (!userId) return { data: [], error: new Error('Not signed in') }
+  const rows = (_state.focusSessions || [])
+    .filter((s) => s.user_id === userId)
+    .sort((a, b) => new Date(b.ended_at).getTime() - new Date(a.ended_at).getTime())
+    .slice(0, 200)
+  return { data: rows.map(focusSessionRowToClient), error: null }
+}
+
+export async function createFocusSession(payload) {
+  await tick(20)
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  if (!Array.isArray(_state.focusSessions)) _state.focusSessions = []
+
+  if (payload.clientId) {
+    const existing = _state.focusSessions.find(
+      (s) => s.user_id === userId && s.client_id === payload.clientId
+    )
+    if (existing) return { data: focusSessionRowToClient(existing), error: null }
+  }
+
+  const row = {
+    id: uid('fs'),
+    user_id: userId,
+    client_id: payload.clientId || null,
+    minutes: Math.round(payload.minutes),
+    subject: payload.subject || 'Focus',
+    sound_id: payload.soundId || 'silence',
+    ended_at: payload.endedAt || nowIso(),
+    created_at: nowIso(),
+  }
+  _state.focusSessions.unshift(row)
+  persist()
+  return { data: focusSessionRowToClient(row), error: null }
+}
+
+export async function fetchFocusPrefs() {
+  await tick(10)
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  return { data: profile?.focus_prefs || null, error: null }
+}
+
+export async function saveFocusPrefs(prefs) {
+  await tick(10)
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  if (!profile) return { data: null, error: new Error('Profile not found') }
+  profile.focus_prefs = prefs
+  persist()
+  return { data: prefs, error: null }
 }
 
 // ═════════════════════════════════════════════════════════════════════

@@ -1,19 +1,28 @@
-/** Built-in presets (visual + silence; no bundled audio files). */
+import { uploadFile } from '@/api/upload'
+
+/** Only silence is built-in; shared sounds come from cloud (admin-uploaded). */
 export const BUILTIN_NOISES = [
-  { id: 'silence', name: 'Silence', source: 'builtin', audioUrl: '' },
-  { id: 'builtin_rain', name: 'Rain', source: 'builtin', audioUrl: '' },
-  { id: 'builtin_cafe', name: 'Cafe', source: 'builtin', audioUrl: '' },
-  { id: 'builtin_wind', name: 'Wind', source: 'builtin', audioUrl: '' },
-  { id: 'builtin_brown', name: 'Brown', source: 'builtin', audioUrl: '' },
+  { id: 'silence', name: 'No noise', source: 'builtin', icon: 'silence', audioUrl: '' },
 ]
 
-const LOCAL_KEY_PREFIX = 'focus_local_sounds_v1'
+export const NOISE_ICON_PRESETS = [
+  { id: 'water', label: 'Water', color: 'hsl(200, 52%, 52%)' },
+  { id: 'forest', label: 'Forest', color: 'hsl(140, 40%, 42%)' },
+  { id: 'beach', label: 'Beach', color: 'hsl(38, 68%, 56%)' },
+  { id: 'cafe', label: 'Café', color: 'hsl(28, 44%, 46%)' },
+  { id: 'library', label: 'Library', color: 'hsl(258, 26%, 50%)' },
+  { id: 'rain', label: 'Rain', color: 'hsl(215, 34%, 54%)' },
+  { id: 'wind', label: 'Wind', color: 'hsl(190, 28%, 56%)' },
+  { id: 'fire', label: 'Fire', color: 'hsl(18, 62%, 50%)' },
+]
 
-export function localSoundsKey(userId) {
-  return userId ? `${LOCAL_KEY_PREFIX}_${userId}` : `${LOCAL_KEY_PREFIX}_guest`
+export const MAX_FOCUS_SOUND_SECONDS = 600
+const ALLOWED_EXT = ['.mp3', '.wav']
+
+export function iconPreset(id) {
+  return NOISE_ICON_PRESETS.find((x) => x.id === id) || NOISE_ICON_PRESETS[0]
 }
 
-/** Stable vivid color from id (same id → same color). */
 export function colorFromId(id) {
   let hash = 0
   const str = String(id || 'noise')
@@ -27,9 +36,10 @@ export function colorFromId(id) {
 }
 
 export function withNoiseColor(item) {
+  const preset = item.icon ? iconPreset(item.icon) : null
   return {
     ...item,
-    color: item.color || colorFromId(item.id),
+    color: item.color || preset?.color || colorFromId(item.id),
   }
 }
 
@@ -37,13 +47,12 @@ export function normalizeNoiseList(list = []) {
   return list.map(withNoiseColor)
 }
 
-export function mergeNoiseLibrary({ shared = [], local = [] } = {}) {
+export function mergeNoiseLibrary({ shared = [] } = {}) {
   const builtins = normalizeNoiseList(BUILTIN_NOISES)
   const sharedNorm = normalizeNoiseList(shared)
-  const localNorm = normalizeNoiseList(local)
   const ids = new Set()
   const out = []
-  for (const item of [...builtins, ...sharedNorm, ...localNorm]) {
+  for (const item of [...builtins, ...sharedNorm]) {
     if (ids.has(item.id)) continue
     ids.add(item.id)
     out.push(item)
@@ -51,57 +60,11 @@ export function mergeNoiseLibrary({ shared = [], local = [] } = {}) {
   return out
 }
 
-function blobToDataUrl(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = reject
-    reader.readAsDataURL(blob)
-  })
-}
-
-/** Pick an audio file and return a storable sound record. */
-export async function pickAndBuildSoundRecord({ source, userId = '', nameHint = '' } = {}) {
-  const picked = await chooseAudioFile()
-  const file = picked.file
-  const size = file?.size || picked.size || 0
-  const maxBytes = 4 * 1024 * 1024
-  if (size > maxBytes) {
-    throw new Error('Audio must be under 4MB')
-  }
-
-  let audioUrl = ''
-  if (file instanceof Blob) {
-    audioUrl = await blobToDataUrl(file)
-  } else if (picked.path) {
-    const res = await fetch(picked.path)
-    audioUrl = await blobToDataUrl(await res.blob())
-  }
-
-  if (!audioUrl) throw new Error('Could not read audio file')
-
-  const baseName = nameHint
-    || file?.name?.replace(/\.[^.]+$/, '')
-    || picked.name?.replace(/\.[^.]+$/, '')
-    || 'Sound'
-
-  const id = `${source}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`
-
-  return withNoiseColor({
-    id,
-    name: baseName.slice(0, 24),
-    source,
-    userId: source === 'local' ? userId : '',
-    audioUrl,
-    createdAt: new Date().toISOString(),
-  })
-}
-
 function chooseAudioFile() {
   return new Promise((resolve, reject) => {
     uni.chooseFile({
       count: 1,
-      extension: ['.mp3', '.wav', '.m4a', '.ogg', '.aac', '.webm'],
+      extension: ALLOWED_EXT,
       success: (res) => {
         const file = res.tempFiles?.[0]
         if (file) {
@@ -125,17 +88,97 @@ function chooseAudioFile() {
   })
 }
 
-export function loadLocalSounds(userId) {
-  try {
-    const raw = uni.getStorageSync(localSoundsKey(userId))
-    return normalizeNoiseList(Array.isArray(raw) ? raw : [])
-  } catch {
-    return []
+async function fileToBlob(picked) {
+  const file = picked.file
+  if (file instanceof Blob) return file
+  if (picked.path) {
+    const res = await fetch(picked.path)
+    return res.blob()
+  }
+  throw new Error('Could not read audio file')
+}
+
+function readAudioDuration(blob) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(blob)
+    const audio = new Audio()
+    audio.preload = 'metadata'
+    audio.onloadedmetadata = () => {
+      const duration = Number(audio.duration)
+      URL.revokeObjectURL(url)
+      if (!Number.isFinite(duration) || duration <= 0) {
+        reject(new Error('Could not read audio duration'))
+        return
+      }
+      resolve(duration)
+    }
+    audio.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error('Could not read audio file'))
+    }
+    audio.src = url
+  })
+}
+
+function assertAllowedExtension(name = '') {
+  const lower = String(name).toLowerCase()
+  if (!ALLOWED_EXT.some((ext) => lower.endsWith(ext))) {
+    throw new Error('Only MP3 and WAV files are supported')
   }
 }
 
-export function saveLocalSounds(userId, list) {
-  try {
-    uni.setStorageSync(localSoundsKey(userId), list)
-  } catch {}
+/** Choose mp3/wav and validate duration (≤10 min). Does not upload. */
+export async function chooseFocusSoundFile() {
+  const picked = await chooseAudioFile()
+  assertAllowedExtension(picked.name || picked.path || '')
+
+  const blob = await fileToBlob(picked)
+  const duration = await readAudioDuration(blob)
+  if (duration > MAX_FOCUS_SOUND_SECONDS) {
+    throw new Error('Audio must be 10 minutes or less')
+  }
+
+  const baseName = picked.name?.replace(/\.[^.]+$/, '') || picked.path?.split('/').pop()?.replace(/\.[^.]+$/, '') || 'Sound'
+
+  return {
+    blob,
+    picked: {
+      file: picked.file || picked,
+      path: picked.path,
+      name: picked.name,
+      size: picked.size || blob.size,
+      type: blob.type || 'audio/mpeg',
+    },
+    durationSeconds: Math.round(duration * 10) / 10,
+    baseName: baseName.slice(0, 24),
+  }
+}
+
+export async function uploadFocusSoundRecord({ name, icon = 'water', picked, durationSeconds = 0 }) {
+  const { fileUrl, fileKey, error } = await uploadFile(picked, 'focus-sound')
+  if (error || !fileUrl) throw error || new Error('Upload failed')
+
+  const preset = iconPreset(icon)
+  const displayName = String(name || picked?.name?.replace(/\.[^.]+$/, '') || 'Sound').slice(0, 24)
+
+  return withNoiseColor({
+    name: displayName,
+    source: 'shared',
+    icon,
+    audioUrl: fileUrl,
+    fileKey: fileKey || '',
+    durationSeconds,
+    createdAt: new Date().toISOString(),
+  })
+}
+
+/** Pick file, validate, upload to cloud — convenience for one-step flows. */
+export async function pickAndUploadFocusSound({ name, icon = 'water' } = {}) {
+  const chosen = await chooseFocusSoundFile()
+  return uploadFocusSoundRecord({
+    name: name || chosen.baseName,
+    icon,
+    picked: chosen.picked,
+    durationSeconds: chosen.durationSeconds,
+  })
 }

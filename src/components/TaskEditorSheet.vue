@@ -94,11 +94,40 @@
               />
             </view>
           </view>
+
+          <view v-if="form.reminderOn" class="repeatBlock">
+            <text class="repeatLabel">Repeat</text>
+            <view class="repeatRow">
+              <view
+                v-for="opt in repeatOptions"
+                :key="opt.id"
+                class="repeatChip"
+                :class="{ on: form.reminderRepeat === opt.id }"
+                role="button"
+                @tap="form.reminderRepeat = opt.id"
+              >
+                <text class="repeatChipText">{{ opt.label }}</text>
+              </view>
+            </view>
+          </view>
         </view>
 
-        <view class="field">
+        <view class="field stepsField">
+          <text v-if="form.checklist.length" class="stepsHint">Each step can have its own deadline</text>
           <view v-for="(item, idx) in form.checklist" :key="item.id" class="checkRow">
-            <input class="input checkInput" v-model="item.text" :placeholder="`Step ${idx + 1}`" placeholder-class="placeholder" />
+            <view class="checkMain">
+              <input class="input checkInput" v-model="item.text" :placeholder="`Step ${idx + 1}`" placeholder-class="placeholder" />
+              <view class="stepDateWrap" @tap.stop @click.stop @touchstart.stop @touchend.stop>
+                <DateField
+                  :model-value="item.deadline"
+                  mode="date"
+                  placeholder="Step deadline"
+                  :compact="false"
+                  :clearable="true"
+                  @update:model-value="(v) => setStepDeadline(idx, v)"
+                />
+              </view>
+            </view>
             <view class="del" role="button" @tap="removeChecklist(idx)">
               <text class="delText">−</text>
             </view>
@@ -154,6 +183,13 @@ const { themeClass } = useTheme()
 const { tagNames, addTag } = useTagStore()
 
 const priorities = ['P1', 'P2', 'P3']
+const repeatOptions = [
+  { id: 'none', label: 'Never' },
+  { id: 'daily', label: 'Daily' },
+  { id: 'weekly', label: 'Weekly' },
+  { id: 'monthly', label: 'Monthly' },
+  { id: 'yearly', label: 'Yearly' },
+]
 const saving = ref(false)
 const descExpanded = ref(false)
 
@@ -166,6 +202,7 @@ const form = reactive({
   reminderOn: false,
   reminderDate: '',
   reminderTime: '',
+  reminderRepeat: 'none',
   checklist: [],
 })
 
@@ -177,13 +214,16 @@ function parseStoredDeadline(raw) {
 }
 
 function parseStoredReminder(raw) {
-  if (!raw || raw === 'None') return { on: false, date: '', time: '' }
+  if (!raw || raw === 'None') return { on: false, date: '', time: '', repeat: 'none' }
   const datePart = String(raw).match(/(\d{4}-\d{2}-\d{2})/)
   const timePart = String(raw).match(/(\d{2}:\d{2})/)
+  const repeatMatch = String(raw).match(/repeat:(\w+)/i)
+  const repeat = repeatMatch ? repeatMatch[1].toLowerCase() : 'none'
   return {
     on: !!datePart || !!timePart,
     date: datePart ? datePart[1] : '',
     time: timePart ? timePart[1] : '',
+    repeat: ['daily', 'weekly', 'monthly', 'yearly'].includes(repeat) ? repeat : 'none',
   }
 }
 
@@ -208,10 +248,12 @@ function syncFromTask() {
   form.reminderOn = r.on
   form.reminderDate = r.date
   form.reminderTime = r.time
+  form.reminderRepeat = r.repeat
   form.checklist = (props.task?.checklist || []).map((x, idx) => ({
     id: x.id || `c-${idx}`,
     text: x.text || '',
     done: !!x.done,
+    deadline: parseStoredDeadline(x.deadline) || '',
   }))
 }
 
@@ -230,11 +272,16 @@ function toggleDesc() {
 }
 
 function addChecklist() {
-  form.checklist.push({ id: `new-${Date.now().toString(36)}`, text: '', done: false })
+  form.checklist.push({ id: `new-${Date.now().toString(36)}`, text: '', done: false, deadline: '' })
 }
 
 function removeChecklist(idx) {
   form.checklist.splice(idx, 1)
+}
+
+function setStepDeadline(idx, value) {
+  const row = form.checklist[idx]
+  if (row) row.deadline = value || ''
 }
 
 function toggleReminder() {
@@ -242,6 +289,7 @@ function toggleReminder() {
   if (!form.reminderOn) {
     form.reminderDate = ''
     form.reminderTime = ''
+    form.reminderRepeat = 'none'
   }
 }
 
@@ -266,7 +314,19 @@ function buildReminderString() {
   const parts = []
   if (form.reminderDate) parts.push(formatDateLabel(form.reminderDate))
   if (form.reminderTime) parts.push(`at ${form.reminderTime}`)
+  if (form.reminderRepeat && form.reminderRepeat !== 'none') {
+    const repeatLabel = repeatOptions.find((x) => x.id === form.reminderRepeat)?.label || form.reminderRepeat
+    parts.push(`· repeat:${form.reminderRepeat}`)
+    parts.push(`(${repeatLabel})`)
+  }
   return parts.join(' ')
+}
+
+function resolveFormDeadlineDate() {
+  if (form.deadlineDate) return form.deadlineDate
+  const pending = form.checklist.filter((x) => !x.done && x.deadline)
+  if (!pending.length) return ''
+  return [...pending.map((x) => x.deadline)].sort()[0]
 }
 
 function submit() {
@@ -280,15 +340,21 @@ function submit() {
     return
   }
   saving.value = true
+  const deadlineDate = resolveFormDeadlineDate()
   emit('save', {
     title: form.title,
     description: form.description,
     deadline: buildDeadlineString(),
     subject: form.subject,
     priority: form.priority,
-    status: resolveTaskStatusFromForm({ deadlineDate: form.deadlineDate }),
+    status: resolveTaskStatusFromForm({ deadlineDate }),
     reminder: buildReminderString(),
-    checklist: form.checklist.filter((x) => x.text.trim()),
+    checklist: form.checklist.filter((x) => x.text.trim()).map((x) => ({
+      id: x.id,
+      text: x.text.trim(),
+      done: !!x.done,
+      deadline: x.deadline || '',
+    })),
   })
 }
 </script>
@@ -368,6 +434,12 @@ function submit() {
 .taskEditorRoot :deep(.label) { font-size: 20rpx; }
 .taskEditorRoot :deep(.chipText) { font-size: 26rpx; }
 .taskEditorRoot :deep(.iconWrap) { width: 46rpx; height: 46rpx; border-radius: 14rpx; }
+.taskEditorRoot :deep(.stepDateWrap .control) {
+  min-height: 84rpx;
+  padding: 14rpx 16rpx;
+  border-radius: 22rpx;
+}
+.taskEditorRoot :deep(.stepDateWrap .value) { font-size: 24rpx; }
 
 .metaGrid { gap: 10rpx; }
 .metaRow { display: flex; gap: 10rpx; width: 100%; align-items: stretch; }
@@ -416,9 +488,56 @@ function submit() {
 .toggleKnob { position: absolute; top: 4rpx; left: 4rpx; width: 32rpx; height: 32rpx; border-radius: 50%; background: rgba(255,255,255,.95); transition: transform 200ms ease; }
 .toggle.on .toggleKnob { transform: translateX(34rpx); }
 .reminderBody { margin-top: 0; }
-.checkRow { display: flex; gap: 10rpx; margin-top: 10rpx; }
+.repeatBlock { margin-top: 4rpx; }
+.repeatLabel {
+  display: block;
+  font-size: 20rpx;
+  font-weight: 660;
+  color: rgba(16,24,40,.52);
+  margin-bottom: 8rpx;
+}
+.t-dark .repeatLabel { color: rgba(245,247,255,.52); }
+.repeatRow { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.repeatChip {
+  min-height: 56rpx;
+  padding: 0 18rpx;
+  border-radius: 999rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(16,24,40,.04);
+  border: 1rpx solid rgba(16,24,40,.08);
+  transition: background 200ms ease, border-color 200ms ease, transform 180ms ease;
+}
+.t-dark .repeatChip {
+  background: rgba(255,255,255,.04);
+  border-color: rgba(255,255,255,.08);
+}
+.repeatChip.on {
+  background: rgba(46,99,255,.12);
+  border-color: rgba(46,99,255,.28);
+}
+.repeatChipText {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: rgba(16,24,40,.62);
+}
+.t-dark .repeatChipText { color: rgba(245,247,255,.62); }
+.repeatChip.on .repeatChipText { color: rgba(46,99,255,.96); }
+.checkRow { display: flex; gap: 10rpx; margin-top: 10rpx; align-items: flex-start; }
+.checkMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
 .checkInput { flex: 1; }
-.del { width: 84rpx; min-height: 96rpx; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; background: rgba(220,80,80,.08); border: 1rpx solid rgba(220,80,80,.16); }
+.stepsField { gap: 0; }
+.stepsHint {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 20rpx;
+  font-weight: 660;
+  color: rgba(16,24,40,.48);
+}
+.t-dark .stepsHint { color: rgba(245,247,255,.48); }
+.stepDateWrap { width: 100%; position: relative; z-index: 2; }
+.del { width: 84rpx; min-height: 96rpx; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; background: rgba(220,80,80,.08); border: 1rpx solid rgba(220,80,80,.16); flex-shrink: 0; margin-top: 0; }
 .delText { font-size: 34rpx; color: rgba(220,80,80,.9); line-height: 1; font-weight: 300; }
 .addCheck { margin-top: 12rpx; height: 76rpx; border-radius: 20rpx; border: 1rpx dashed rgba(16,24,40,.18); display: flex; align-items: center; justify-content: center; transition: background 180ms ease; }
 .t-dark .addCheck { border-color: rgba(255,255,255,.14); }

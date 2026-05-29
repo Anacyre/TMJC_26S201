@@ -5,9 +5,15 @@ import { authLoginEmail } from '@/lib/classMembers'
 const USE_MOCK = mock.USE_MOCK
 
 function resolveMustChangePassword(profile, user) {
+  if (user?.user_metadata?.must_change_password === false) return false
   if (profile && profile.must_change_password === false) return false
   if (profile && profile.must_change_password === true) return true
+  if (user?.user_metadata?.must_change_password === true) return true
   return user?.app_metadata?.must_change_password === true
+}
+
+export function userMustChangePassword(profile, user) {
+  return resolveMustChangePassword(profile, user)
 }
 
 export { hasStoredSession } from '@/lib/mockBackend'
@@ -127,28 +133,41 @@ export async function forgotPassword(email) {
 }
 
 /**
- * Change password (mock: admin-created accounts)
+ * Change password (first-login flow + self-service)
  */
 export async function changePassword(newPassword) {
   if (USE_MOCK) {
     const { user } = await mock.getCurrentUser()
-    if (!user?.id) return { error: new Error('Not signed in') }
+    if (!user?.id) return { data: null, error: new Error('Not signed in') }
     return mock.changePassword(user.id, newPassword)
   }
-  const { data: { user }, error: userError } = await supabase.auth.getUser()
-  if (userError || !user) return { error: userError || new Error('Not signed in') }
 
-  const { error } = await supabase.auth.updateUser({ password: newPassword })
-  if (error) return { error }
+  const { data: { user }, error: userError } = await supabase.auth.getUser()
+  if (userError || !user) return { data: null, error: userError || new Error('Not signed in') }
+
+  const next = String(newPassword || '').trim()
+  if (next.length < 6) return { data: null, error: new Error('Password must be at least 6 characters') }
+
+  const { data, error } = await supabase.auth.updateUser({
+    password: next,
+    data: {
+      ...user.user_metadata,
+      must_change_password: false,
+      password_changed_at: new Date().toISOString(),
+    },
+  })
+  if (error) return { data: null, error }
 
   const { error: profileError } = await supabase
     .from('profiles')
     .update({ must_change_password: false })
     .eq('id', user.id)
 
-  if (profileError) return { error: profileError }
+  if (profileError) {
+    console.warn('[changePassword] profile flag not updated:', profileError.message)
+  }
 
-  return { error: null }
+  return { data, error: null, profileFlagUpdated: !profileError }
 }
 
 /**

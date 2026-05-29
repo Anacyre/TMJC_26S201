@@ -1,52 +1,35 @@
 <template>
   <view class="page" :class="themeClass">
-    <view class="bg" />
-    <view class="bgLiveStack" :class="{ active: running }" :style="bgMotionVars">
-        <view
-          v-for="layerIndex in 2"
-          :key="layerIndex - 1"
-          class="bgLiveLayer"
-          :class="{ on: bgFront === layerIndex - 1 }"
-        >
-          <view class="bgLiveBlur" :style="bgLiveBlurStyle(layerIndex - 1)">
-            <view
-              v-for="(_, regionIndex) in FOCUS_BG_REGIONS"
-              :key="regionIndex"
-              class="bgRegion"
-              :style="bgRegionStyle(layerIndex - 1, regionIndex)"
-            />
-            <view
-              v-for="(link, linkIndex) in layerLinks(layerIndex - 1)"
-              :key="'link-' + linkIndex"
-              class="bgBridge"
-              :style="link.style"
-            />
+    <view class="focusCanvas">
+      <view class="bg" />
+      <view class="bgLiveStack" :class="{ active: running }" :style="bgMotionVars">
+          <view
+            v-for="layerIndex in 2"
+            :key="layerIndex - 1"
+            class="bgLiveLayer"
+            :class="{ on: bgFront === layerIndex - 1 }"
+          >
+            <view class="bgLiveBlur" :style="bgLiveBlurStyle(layerIndex - 1)">
+              <view
+                v-for="(_, regionIndex) in FOCUS_BG_REGIONS"
+                :key="regionIndex"
+                class="bgRegion"
+                :style="bgRegionStyle(layerIndex - 1, regionIndex)"
+              />
+              <view
+                v-for="(link, linkIndex) in layerLinks(layerIndex - 1)"
+                :key="'link-' + linkIndex"
+                class="bgBridge"
+                :style="link.style"
+              />
+            </view>
           </view>
-        </view>
-    </view>
+      </view>
 
-    <view
-      v-if="isDarkTheme"
-      class="auroraStack"
-      :class="{ active: running }"
-      aria-hidden="true"
-    >
-      <view
-        v-for="(band, index) in auroraBands"
-        :key="'aurora-' + index"
-        class="auroraBand"
-        :style="auroraBandStyle(band)"
-      />
-    </view>
-
-    <view class="focusChrome headerWrap" :class="chromeClass">
-      <AppHeader nav-mode="back" />
-    </view>
-
-    <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
+      <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
 
-        <view class="stage">
+        <view class="stage dialStage">
           <view
             v-if="showReset"
             class="resetDot tap focusChrome"
@@ -56,21 +39,27 @@
             @tap="reset"
           />
 
+          <view v-if="canAdjustTime" class="timeStepRow">
+            <view class="timeStepBtn tap" role="button" aria-label="Minus 10 minutes" @tap.stop="adjustSessionTime(-10)">
+              <text class="timeStepGlyph">−</text>
+            </view>
+            <view class="timeStepBtn tap" role="button" aria-label="Plus 10 minutes" @tap.stop="adjustSessionTime(10)">
+              <text class="timeStepGlyph">+</text>
+            </view>
+          </view>
+
           <view class="ringStack">
-            <view class="ringPlate" />
-            <view class="ringOuterRim" />
-            <view class="ringBg" />
-            <view class="ringInnerRim" />
+            <view class="knobShadow" aria-hidden="true" />
+            <view class="ringGroove" aria-hidden="true" />
+            <view class="ringTexture" aria-hidden="true" />
+            <view class="ringTrack" />
             <view class="ringFill" :style="ringStyle" />
             <view class="ringGlow" :style="ringGlowStyle" />
-
-            <view v-if="canAdjustTime" class="timeStepRow">
-              <view class="timeStepBtn tap" role="button" aria-label="Minus 10 minutes" @tap.stop="adjustSessionTime(-10)">
-                <text class="timeStepGlyph">−</text>
-              </view>
-              <view class="timeStepBtn tap" role="button" aria-label="Plus 10 minutes" @tap.stop="adjustSessionTime(10)">
-                <text class="timeStepGlyph">+</text>
-              </view>
+            <view class="ringStartMark" aria-hidden="true" />
+            <view class="ringTipWrap" :style="ringTipWrapStyle">
+              <view v-if="showPointerMark" class="ringPointerSpan" />
+              <view v-if="showPointerMark" class="ringPointerMark" />
+              <view class="ringTip" />
             </view>
 
             <view
@@ -81,6 +70,9 @@
               @touchend.stop="onDragEnd"
               @touchcancel.stop="onDragEnd"
             >
+              <view class="centerCap" aria-hidden="true" />
+              <view class="centerDimple" aria-hidden="true" />
+              <view class="centerContent">
               <view v-if="canAdjustTime && isPreStart" class="digitRow">
                 <input
                   class="minField"
@@ -95,6 +87,7 @@
                 <text class="secField">00</text>
               </view>
               <text v-else class="timer">{{ timerDisplay }}</text>
+              </view>
             </view>
 
             <view
@@ -111,54 +104,20 @@
         </view>
 
         <view class="bottomDock focusChrome" :class="chromeClass">
-          <scroll-view class="noiseScroll" scroll-x :show-scrollbar="false" enhanced>
-            <view class="noiseTrack">
-              <view
-                v-for="n in noiseLibrary"
-                :key="n.id"
-                class="noiseChip tap"
-                :class="{ on: prefs.soundId === n.id, deletable: canDeleteNoise(n) }"
-                role="button"
-                :aria-label="n.name"
-                @tap="pickNoise(n.id)"
-                @longpress="onNoiseLongPress(n)"
-              >
-                <view class="orbWrap">
-                  <view
-                    class="orb"
-                    :class="{ muted: n.id === 'silence' }"
-                    :style="orbStyle(n)"
-                  />
-                  <view v-if="prefs.soundId === n.id" class="selRing" />
-                  <view v-if="n.source === 'local'" class="localDot" />
-                  <view v-if="n.source === 'shared'" class="sharedDot" />
-                </view>
-              </view>
-
-              <view
-                class="noiseChip tap add"
-                role="button"
-                aria-label="Add local sound"
-                @tap="addLocalSound"
-                @longpress="onAddLongPress"
-              >
-                <view class="orbWrap">
-                  <view class="orb addOrb">
-                    <view class="plusBar h" />
-                    <view class="plusBar v" />
-                  </view>
-                </view>
-              </view>
-            </view>
-          </scroll-view>
-
           <view
-            class="eyeDot tap"
-            :class="{ on: prefs.visibility === 'public' }"
+            class="noisePill tap"
             role="button"
-            @tap="toggleVisibility"
+            aria-label="Ambient sound"
+            @tap="openNoiseSheet"
           >
-            <view class="eyeMini" :class="{ open: prefs.visibility === 'public' }" />
+            <view
+              class="noisePillOrb"
+              :class="{ muted: activeNoise?.id === 'silence' }"
+              :style="activeNoiseOrbStyle"
+            >
+              <view class="noiseGlyph" :class="'ic-' + (activeNoise?.icon || 'silence')" />
+            </view>
+            <text class="noisePillLabel">{{ activeNoise?.name || 'No noise' }}</text>
           </view>
         </view>
 
@@ -171,10 +130,29 @@
         <view class="spacer" />
       </view>
     </scroll-view>
+    </view>
+
+    <view class="focusChrome headerWrap" :class="chromeClass">
+      <AppHeader nav-mode="back" />
+    </view>
 
     <view class="focusChrome" :class="chromeClass">
       <GlobalSearchOverlay />
     </view>
+
+    <FocusNoiseSheet
+      ref="noiseSheetRef"
+      :open="noiseSheetOpen"
+      :sounds="noiseLibrary"
+      :selected-id="prefs.soundId"
+      :visibility="prefs.visibility"
+      :is-admin="isAdmin"
+      @close="noiseSheetOpen = false"
+      @confirm="onNoiseConfirm"
+      @toggle-visibility="toggleVisibility"
+      @upload="onNoiseUpload"
+      @removed="onNoiseRemoved"
+    />
   </view>
 </template>
 
@@ -183,6 +161,7 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { onHide, onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import FocusNoiseSheet from '@/components/FocusNoiseSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { playFocusAudio, stopFocusAudio } from '@/composables/useFocusAudio'
@@ -198,20 +177,30 @@ const {
   prefs,
   noiseLibrary,
   weekTotals,
+  fetchFocusSessions,
   recordSession,
   setVisibility,
   setSound,
   setDefaultMinutes,
   getNoiseById,
   refreshNoiseLibrary,
-  addLocalNoise,
-  removeLocalNoise,
-  addSharedNoise,
+  uploadSharedNoise,
   removeSharedNoise,
   loadActiveSession,
   saveActiveSession,
   clearActiveSession,
 } = useFocusStore()
+
+const noiseSheetOpen = ref(false)
+const noiseSheetRef = ref(null)
+
+const activeNoise = computed(() => getNoiseById(prefs.value.soundId) || getNoiseById('silence'))
+
+const activeNoiseOrbStyle = computed(() => {
+  const n = activeNoise.value
+  if (!n || n.id === 'silence') return {}
+  return { background: n.color }
+})
 
 const saved = loadActiveSession()
 const selectedMinutes = ref(saved?.selectedMinutes || prefs.value.defaultMinutes || 25)
@@ -227,13 +216,8 @@ const chromeLocked = ref(false)
 const bgLayers = ref([null, null])
 const bgFront = ref(0)
 const bgMotionMs = ref(9000)
-const auroraBands = ref([])
 let chromeFadeTimer = null
 let bgShiftTimer = null
-let auroraShiftTimer = null
-
-const AURORA_BAND_COUNT = 4
-const AURORA_TOP_MAX = 30
 
 const CHROME_FADE_MS = 1500
 const BG_CROSSFADE_MS = 6000
@@ -258,8 +242,6 @@ const FOCUS_BG_LINKS = [
 const BG_BLUR_PX = 56
 const FOCUS_BG_SAT_MIN = 36
 
-const isDarkTheme = computed(() => themeClass.value === 't-dark')
-
 const chromeClass = computed(() => ({
   'is-hidden': chromeHidden.value,
   'is-locked': chromeLocked.value,
@@ -282,12 +264,6 @@ const brightnessBoost = computed(() => Math.pow(focusProgress.value, 0.88))
 
 const bgMotionVars = computed(() => {
   const s = brightnessBoost.value
-  if (isDarkTheme.value) {
-    return {
-      '--focus-bright-lo': String(1 + 0.004 * s),
-      '--focus-bright-hi': String(1 + 0.018 * s),
-    }
-  }
   return {
     '--focus-bright-lo': String(1 - 0.035 * s),
     '--focus-bright-hi': String(1 + 0.018 * s),
@@ -296,9 +272,6 @@ const bgMotionVars = computed(() => {
 
 function themeLiftFromBoost(rawBoost) {
   const magnitude = Math.abs(rawBoost || 0)
-  if (isDarkTheme.value) {
-    return Math.round(magnitude * (0.05 + 0.07 * brightnessBoost.value))
-  }
   const scaled = Math.round(magnitude * (0.14 + 0.2 * brightnessBoost.value))
   return -scaled
 }
@@ -309,14 +282,13 @@ function clampSat(value) {
 
 function buildGradientBackground(seed) {
   const g = seed
-  const dark = isDarkTheme.value
   const lift = themeLiftFromBoost(g.lBoost)
-  const l1 = clampLight((dark ? 30 : 62) + lift, dark ? 18 : 48, dark ? 38 : 78)
-  const l2 = clampLight((dark ? 24 : 56) + Math.round(lift * 0.6), dark ? 14 : 42, dark ? 32 : 72)
-  const baseL = clampLight((dark ? 6 : 96) + Math.round(lift * 0.32), dark ? 4 : 86, dark ? 9 : 99)
-  const baseL2 = clampLight((dark ? 5 : 92) + Math.round(lift * 0.26), dark ? 3 : 82, dark ? 8 : 99)
-  const a1 = clampAlpha((dark ? 0.09 : 0.14) + lift * 0.0035, dark ? 0.035 : 0.06, dark ? 0.12 : 0.24)
-  const a2 = clampAlpha((dark ? 0.055 : 0.08) + lift * 0.0025, dark ? 0.022 : 0.03, dark ? 0.085 : 0.18)
+  const l1 = clampLight(62 + lift, 48, 78)
+  const l2 = clampLight(56 + Math.round(lift * 0.6), 42, 72)
+  const baseL = clampLight(96 + Math.round(lift * 0.32), 86, 99)
+  const baseL2 = clampLight(92 + Math.round(lift * 0.26), 82, 99)
+  const a1 = clampAlpha(0.14 + lift * 0.0035, 0.06, 0.24)
+  const a2 = clampAlpha(0.08 + lift * 0.0025, 0.03, 0.18)
   const sat = clampSat(g.s)
   const satSoft = Math.max(FOCUS_BG_SAT_MIN - 6, Math.round(sat * 0.88))
   const satMuted = Math.max(26, Math.round(sat * 0.56))
@@ -328,13 +300,12 @@ function regionCenter(layout) {
 }
 
 function seedToAnchorHsl(seed) {
-  const dark = isDarkTheme.value
   const lift = themeLiftFromBoost(seed.lBoost)
   return {
     h: seed.h1,
     s: clampSat(seed.s),
-    l: clampLight((dark ? 28 : 60) + lift, dark ? 16 : 46, dark ? 36 : 76),
-    a: clampAlpha((dark ? 0.24 : 0.38) + lift * 0.0025, dark ? 0.12 : 0.22, dark ? 0.34 : 0.58),
+    l: clampLight(60 + lift, 46, 76),
+    a: clampAlpha(0.38 + lift * 0.0025, 0.22, 0.58),
   }
 }
 
@@ -376,13 +347,12 @@ function hslToCss({ h, s, l, a }) {
 }
 
 function buildLayerBaseGradient(anchors) {
-  const dark = isDarkTheme.value
   let mixed = anchors[0]
   for (let i = 1; i < anchors.length; i += 1) {
     mixed = hslMean(mixed, anchors[i])
   }
-  const top = hslMean(mixed, { ...mixed, l: mixed.l + (dark ? 2 : 6), a: mixed.a * 0.72 })
-  const bottom = hslMean(mixed, { ...mixed, l: mixed.l - (dark ? 2 : 7), a: mixed.a * 0.65 })
+  const top = hslMean(mixed, { ...mixed, l: mixed.l + 6, a: mixed.a * 0.72 })
+  const bottom = hslMean(mixed, { ...mixed, l: mixed.l - 7, a: mixed.a * 0.65 })
   return `linear-gradient(180deg, ${hslToCss(top)}, ${hslToCss(mixed)}, ${hslToCss(bottom)})`
 }
 
@@ -488,73 +458,72 @@ function fmtDeg(value) {
   return `${Math.max(0, Math.min(360, value)).toFixed(2)}deg`
 }
 
-function buildCometRingGradient(deg, dark) {
+const RING_ZERO_DEG = 0
+
+function buildCometRingGradient(deg) {
   if (deg <= 0) return 'transparent'
 
-  const satTail = 11
-  const satHead = 17
-  const hueTail = 210
-  const hueMid = 222
-  const hueHead = 234
-  const lTail = dark ? 50 : 80
-  const lHead = dark ? 68 : 56
-  const lMid = Math.round((lTail + lHead) / 2)
+  /* t=0 sits at 12 o'clock (arc tail); tip at t=1 follows the pointer */
+  const stops = [
+    [0, 'hsla(220, 9%, 54%, 0.26)'],
+    [0.04, 'hsla(220, 9%, 50%, 0.22)'],
+    [0.10, 'hsla(220, 8%, 46%, 0.30)'],
+    [0.20, 'hsla(220, 8%, 42%, 0.40)'],
+    [0.32, 'hsla(220, 7%, 38%, 0.50)'],
+    [0.44, 'hsla(220, 7%, 36%, 0.58)'],
+    [0.56, 'hsla(220, 6%, 34%, 0.66)'],
+    [0.68, 'hsla(220, 6%, 36%, 0.72)'],
+    [0.78, 'hsla(220, 6%, 40%, 0.76)'],
+    [0.86, 'hsla(220, 7%, 46%, 0.80)'],
+    [0.93, 'hsla(220, 8%, 50%, 0.84)'],
+    [1, 'hsla(220, 9%, 54%, 0.88)'],
+  ]
 
-  const stops = dark
-    ? [
-        [0, hueTail, lTail, 0.035, satTail],
-        [0.16, hueTail, lTail, 0.07, satTail],
-        [0.38, hueMid, lMid, 0.16, satTail + 1],
-        [0.62, hueMid, lMid - 1, 0.32, satTail + 2],
-        [0.84, hueHead, lHead + 1, 0.62, satHead - 1],
-        [0.96, hueHead, lHead + 2, 0.82, satHead],
-        [1, hueHead, lHead + 3, 0.9, satHead],
-      ]
-    : [
-        [0, hueTail, lTail, 0.028, satTail],
-        [0.16, hueTail, lTail, 0.06, satTail],
-        [0.38, hueMid, lMid, 0.14, satTail + 1],
-        [0.62, hueMid, lMid - 2, 0.28, satTail + 2],
-        [0.84, hueHead, lHead, 0.58, satHead - 1],
-        [0.96, hueHead, lHead - 1, 0.76, satHead],
-        [1, hueHead, lHead - 2, 0.84, satHead],
-      ]
-
-  const parts = stops.map(([t, h, l, a, sat]) => {
-    const pos = deg * t
-    return `hsla(${h}, ${sat}%, ${l}%, ${a}) ${fmtDeg(pos)}`
-  })
-
-  return `conic-gradient(from 0deg, ${parts.join(', ')}, transparent ${fmtDeg(deg)})`
+  const parts = stops.map(([t, color]) => `${color} ${fmtDeg(deg * t)}`)
+  return `conic-gradient(from ${RING_ZERO_DEG}deg, ${parts.join(', ')}, transparent ${fmtDeg(deg)})`
 }
 
 const ringStyle = computed(() => {
   const pct = totalSeconds.value === 0 ? 0 : 1 - remaining.value / totalSeconds.value
   const deg = pct * 360
   return {
-    background: buildCometRingGradient(deg, isDarkTheme.value),
-    opacity: String(0.68 + pct * 0.24),
-    filter: 'contrast(1.08)',
+    background: buildCometRingGradient(deg),
+    opacity: String(0.48 + pct * 0.12),
   }
 })
 
 const ringGlowStyle = computed(() => {
   const pct = totalSeconds.value === 0 ? 0 : 1 - remaining.value / totalSeconds.value
   const deg = pct * 360
-  if (deg < 2) return { opacity: '0', background: 'transparent' }
+  if (deg < 1.5) return { opacity: '0', background: 'transparent' }
 
-  const dark = isDarkTheme.value
-  const l = dark ? 70 : 54
-  const sat = 16
-  const tail = fmtDeg(Math.max(0, deg - 20))
-  const warm = fmtDeg(Math.max(0, deg - 6))
+  const fade = fmtDeg(Math.max(0, deg - 26))
+  const soft = fmtDeg(Math.max(0, deg - 16))
+  const mid = fmtDeg(Math.max(0, deg - 9))
+  const warm = fmtDeg(Math.max(0, deg - 3))
   const tip = fmtDeg(deg)
-  const after = fmtDeg(Math.min(360, deg + 4))
+  const after = fmtDeg(Math.min(360, deg + 2))
+  const tailStart = 'hsla(220, 10%, 56%, 0.18)'
+  const tailSoft = 'hsla(220, 9%, 48%, 0.28)'
+  const tailMid = 'hsla(220, 8%, 54%, 0.38)'
+  const tailDeep = 'hsla(220, 7%, 42%, 0.52)'
+  const tipColor = 'hsla(0, 0%, 100%, 0.62)'
 
   return {
-    opacity: String(0.28 + pct * 0.22),
-    background: `conic-gradient(from 0deg, transparent 0deg, transparent ${tail}, hsla(228, ${sat - 2}%, ${l}%, 0.08) ${warm}, hsla(232, ${sat}%, ${l}%, 0.22) ${tip}, transparent ${after})`,
+    opacity: String(0.16 + pct * 0.12),
+    background: `conic-gradient(from ${RING_ZERO_DEG}deg, transparent 0deg, transparent ${fade}, ${tailStart} ${fade}, ${tailSoft} ${soft}, ${tailMid} ${mid}, ${tailDeep} ${warm}, ${tipColor} ${tip}, transparent ${after})`,
   }
+})
+
+const ringTipWrapStyle = computed(() => {
+  const pct = totalSeconds.value === 0 ? 0 : 1 - remaining.value / totalSeconds.value
+  const deg = pct * 360
+  return { transform: `rotate(${deg}deg)` }
+})
+
+const showPointerMark = computed(() => {
+  const pct = totalSeconds.value === 0 ? 0 : 1 - remaining.value / totalSeconds.value
+  return pct * 360 > 2.5
 })
 
 watch(selectedMinutes, (v) => {
@@ -600,80 +569,6 @@ function stopBgAnimation() {
   bgLayers.value = [null, null]
   bgFront.value = 0
   clearBgShiftTimer()
-  stopAuroraMotion()
-}
-
-function pickAuroraBand() {
-  const hue = 118 + Math.floor(Math.random() * 50)
-  return {
-    left: 4 + Math.random() * 58,
-    top: 2 + Math.random() * AURORA_TOP_MAX,
-    w: 34 + Math.random() * 36,
-    h: 11 + Math.random() * 15,
-    rot: -38 + Math.random() * 76,
-    hue,
-    hue2: hue + 12 + Math.floor(Math.random() * 22),
-    light: 58 + Math.floor(Math.random() * 16),
-    sat: 40 + Math.floor(Math.random() * 24),
-    alpha: 0.22 + Math.random() * 0.24,
-    driftMs: 9000 + Math.floor(Math.random() * 7000),
-  }
-}
-
-function auroraBandStyle(band) {
-  if (!band) return { opacity: 0 }
-  const innerA = Math.min(0.58, band.alpha + 0.14)
-  const outerA = band.alpha * 0.52
-  return {
-    left: `${band.left}%`,
-    top: `${band.top}%`,
-    width: `${band.w}%`,
-    height: `${band.h}%`,
-    opacity: String(Math.min(0.95, band.alpha + 0.18)),
-    transform: `rotate(${band.rot.toFixed(1)}deg)`,
-    animationDuration: `${band.driftMs}ms`,
-    background: `radial-gradient(ellipse 120% 96% at 50% 112%, hsla(${band.hue}, ${band.sat}%, ${band.light}%, ${innerA}) 0%, hsla(${band.hue2}, ${band.sat - 8}%, ${band.light - 6}%, ${outerA}) 44%, transparent 74%)`,
-  }
-}
-
-function clearAuroraShiftTimer() {
-  if (auroraShiftTimer) {
-    clearInterval(auroraShiftTimer)
-    auroraShiftTimer = null
-  }
-}
-
-function shiftAuroraBands() {
-  if (!running.value || !isDarkTheme.value) return
-  auroraBands.value = auroraBands.value.map((band) => {
-    if (Math.random() < 0.62) return pickAuroraBand()
-    return {
-      ...band,
-      left: Math.max(2, Math.min(56, band.left + (Math.random() - 0.5) * 20)),
-      top: Math.max(1, Math.min(AURORA_TOP_MAX, band.top + (Math.random() - 0.5) * 12)),
-      rot: band.rot + (Math.random() - 0.5) * 18,
-      hue: band.hue + Math.floor((Math.random() - 0.5) * 14),
-      light: Math.max(54, Math.min(76, band.light + (Math.random() - 0.5) * 8)),
-    }
-  })
-}
-
-function scheduleAuroraShift() {
-  clearAuroraShiftTimer()
-  if (!running.value || !isDarkTheme.value) return
-  auroraShiftTimer = setInterval(shiftAuroraBands, 2600 + Math.floor(Math.random() * 1400))
-}
-
-function startAuroraMotion() {
-  stopAuroraMotion()
-  if (!isDarkTheme.value) return
-  auroraBands.value = Array.from({ length: AURORA_BAND_COUNT }, pickAuroraBand)
-  scheduleAuroraShift()
-}
-
-function stopAuroraMotion() {
-  clearAuroraShiftTimer()
-  auroraBands.value = []
 }
 
 function crossfadeToNextLayer() {
@@ -872,7 +767,6 @@ function start() {
   persistSession()
   syncAudio()
   startBgAnimation()
-  startAuroraMotion()
   enterImmersiveChrome()
 }
 
@@ -913,61 +807,39 @@ function completeSession() {
   clearActiveSession()
 }
 
+function openNoiseSheet() {
+  noiseSheetOpen.value = true
+}
+
+function onNoiseConfirm(id) {
+  pickNoise(id)
+}
+
+async function onNoiseUpload(payload) {
+  try {
+    await uploadSharedNoise(payload)
+    noiseSheetRef.value?.finishUpload(true)
+    toast.added()
+  } catch (e) {
+    noiseSheetRef.value?.finishUpload(false)
+    toast.show(e?.message || 'Upload failed')
+  }
+}
+
+async function onNoiseRemoved(id) {
+  try {
+    await removeSharedNoise(currentUser.value?.id, id)
+    stopFocusAudio()
+    toast.removed()
+  } catch {
+    toast.show('Could not remove')
+  }
+}
+
 function pickNoise(id) {
   setSound(id)
   syncAudio()
   persistSession()
-}
-
-function orbStyle(n) {
-  if (n.id === 'silence') return {}
-  return { background: n.color }
-}
-
-function canDeleteNoise(n) {
-  if (n.source === 'shared') return isAdmin.value
-  if (n.source === 'local') return n.userId === currentUser.value?.id
-  return false
-}
-
-function onNoiseLongPress(n) {
-  if (!canDeleteNoise(n)) return
-  uni.showModal({
-    title: 'Remove sound?',
-    confirmText: 'Remove',
-    success: async (res) => {
-      if (!res.confirm) return
-      try {
-        if (n.source === 'shared') await removeSharedNoise(currentUser.value?.id, n.id)
-        else await removeLocalNoise(currentUser.value?.id, n.id)
-        stopFocusAudio()
-        toast.removed()
-      } catch {
-        toast.show('Could not remove')
-      }
-    },
-  })
-}
-
-async function addLocalSound() {
-  try {
-    await addLocalNoise(currentUser.value?.id)
-    toast.added()
-  } catch (e) {
-    if (String(e?.errMsg || e?.message || '').includes('cancel')) return
-    toast.show(e?.message || 'Upload failed')
-  }
-}
-
-async function onAddLongPress() {
-  if (!isAdmin.value) return
-  try {
-    await addSharedNoise(currentUser.value?.id)
-    toast.added()
-  } catch (e) {
-    if (String(e?.errMsg || e?.message || '').includes('cancel')) return
-    toast.show(e?.message || 'Upload failed')
-  }
 }
 
 function syncAudio() {
@@ -985,13 +857,11 @@ function toggleVisibility() {
 
 watch([running, () => prefs.value.soundId], syncAudio)
 
-watch(isDarkTheme, (dark) => {
-  if (running.value && dark) startAuroraMotion()
-  else stopAuroraMotion()
-})
-
 onShow(async () => {
-  await refreshNoiseLibrary(currentUser.value?.id)
+  await Promise.all([
+    refreshNoiseLibrary(),
+    fetchFocusSessions(currentUser.value?.id),
+  ])
   restoreSession()
   syncAudio()
 })
@@ -1004,21 +874,36 @@ onBeforeUnmount(() => {
   stopFocusAudio()
   clearChromeFadeTimer()
   clearBgShiftTimer()
-  stopAuroraMotion()
   stopBgAnimation()
 })
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page {
+  min-height: 100vh;
+  position: relative;
+  overflow: hidden;
+}
+
+.page.t-dark {
+  background: #0a0c0e;
+}
+
+.focusCanvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.page.t-dark .focusCanvas {
+  filter: invert(1) hue-rotate(180deg);
+}
+
 .bg {
   position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(900rpx 640rpx at 50% 8%, rgba(46, 99, 255, 0.12), transparent 62%),
     linear-gradient(180deg, #f8faff, #eef1f7);
-}
-.t-dark .bg {
-  background: radial-gradient(900rpx 640rpx at 50% 8%, rgba(40, 90, 255, 0.07), transparent 62%),
-    linear-gradient(180deg, #0e1012, #0a0c0e);
 }
 .bgLiveStack {
   position: absolute;
@@ -1030,43 +915,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 .bgLiveStack.active { opacity: 1; }
-
-.auroraStack {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-  opacity: 0;
-  transition: opacity 2.2s ease;
-  clip-path: inset(0 0 46% 0);
-}
-.auroraStack.active { opacity: 1; }
-.auroraBand {
-  position: absolute;
-  border-radius: 46% 54% 40% 60%;
-  pointer-events: none;
-  filter: blur(42px);
-  mix-blend-mode: screen;
-  will-change: left, top, transform, opacity;
-  transition:
-    left 7s ease-in-out,
-    top 6s ease-in-out,
-    transform 8s ease-in-out,
-    opacity 5s ease,
-    background 6s ease;
-  animation: auroraFloat ease-in-out infinite alternate;
-}
-@keyframes auroraFloat {
-  0% {
-    translate: 0 0;
-    scale: 1;
-  }
-  100% {
-    translate: 24rpx -14rpx;
-    scale: 1.05;
-  }
-}
 
 .bgLiveLayer {
   position: absolute;
@@ -1095,7 +943,6 @@ onBeforeUnmount(() => {
   transform: rotate(var(--region-tilt, 0deg));
   transition: opacity 6s ease-in-out;
 }
-.t-dark .bgRegion { opacity: 0.78; }
 .bgBridge {
   position: absolute;
   pointer-events: none;
@@ -1103,7 +950,6 @@ onBeforeUnmount(() => {
   opacity: 0.88;
   mix-blend-mode: normal;
 }
-.t-dark .bgBridge { opacity: 0.62; }
 @keyframes focusBgDrift {
   0% {
     transform: scale(1) translate3d(0, 0, 0);
@@ -1129,7 +975,13 @@ onBeforeUnmount(() => {
   z-index: 2;
 }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx)); }
+.scroll {
+  position: relative;
+  z-index: 1;
+  height: 100vh;
+  box-sizing: border-box;
+  padding-top: var(--shell-header-offset, 148rpx);
+}
 .safe {
   padding: 12rpx 24rpx 48rpx;
   display: flex;
@@ -1146,10 +998,23 @@ onBeforeUnmount(() => {
   padding-top: 16rpx;
 }
 
+.dialStage {
+  --ring-center-r: 178rpx;
+  --ring-inner-r: 178rpx;
+  --ring-outer-r: 246rpx;
+  --ring-groove-r: calc(var(--ring-inner-r) + (var(--ring-outer-r) - var(--ring-inner-r) * 0.62));
+  --dial-btn-gap: 36rpx;
+  width: calc(var(--ring-outer-r) * 2 + var(--dial-btn-gap) * 2);
+  min-height: calc(var(--ring-outer-r) * 2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .resetDot {
   position: absolute;
-  top: 0;
-  right: calc(50% - 230rpx);
+  top: calc(50% - var(--ring-outer-r) - 52rpx);
+  right: calc(50% - var(--ring-outer-r) - 52rpx);
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
@@ -1166,123 +1031,193 @@ onBeforeUnmount(() => {
   border-top-color: transparent;
   transform: rotate(-45deg);
 }
-.t-dark .resetDot {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-.t-dark .resetDot::after { border-color: rgba(245, 247, 255, 0.45); border-top-color: transparent; }
 
 .ringStack {
   position: relative;
-  width: 460rpx;
-  height: 460rpx;
+  width: calc(var(--ring-outer-r) * 2);
+  height: calc(var(--ring-outer-r) * 2);
   display: flex;
   align-items: center;
   justify-content: center;
-  --ring-track: 16rpx;
-  --ring-center-r: 166rpx;
-  filter: drop-shadow(0 14rpx 36rpx rgba(12, 20, 40, 0.05));
-}
-.t-dark .ringStack {
-  filter: drop-shadow(0 16rpx 40rpx rgba(0, 0, 0, 0.22));
+  flex-shrink: 0;
 }
 
-.ringPlate {
+.knobShadow {
   position: absolute;
-  inset: 0;
+  left: 12%;
+  right: 12%;
+  bottom: -6rpx;
+  height: 20rpx;
   border-radius: 50%;
-  background:
-    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.42), transparent 52%),
-    linear-gradient(158deg, rgba(255, 255, 255, 0.28) 0%, rgba(244, 247, 255, 0.06) 48%, rgba(228, 234, 248, 0.14) 100%);
-  box-shadow:
-    inset 0 2rpx 4rpx rgba(255, 255, 255, 0.55),
-    inset 0 -10rpx 28rpx rgba(16, 24, 40, 0.035);
-  mask: radial-gradient(closest-side, transparent var(--ring-center-r), #000 calc(var(--ring-center-r) + 1rpx));
-  -webkit-mask: radial-gradient(closest-side, transparent var(--ring-center-r), #000 calc(var(--ring-center-r) + 1rpx));
-}
-.t-dark .ringPlate {
-  background:
-    radial-gradient(circle at 32% 26%, rgba(255, 255, 255, 0.07), transparent 52%),
-    linear-gradient(158deg, rgba(255, 255, 255, 0.05) 0%, rgba(18, 21, 26, 0.02) 48%, rgba(28, 32, 38, 0.12) 100%);
-  box-shadow:
-    inset 0 1rpx 3rpx rgba(255, 255, 255, 0.08),
-    inset 0 -10rpx 28rpx rgba(0, 0, 0, 0.18);
+  background: rgba(16, 24, 40, 0.07);
+  filter: blur(10rpx);
+  pointer-events: none;
 }
 
-.ringBg, .ringFill, .ringGlow, .ringOuterRim, .ringInnerRim {
+.ringGroove,
+.ringTexture,
+.ringTrack,
+.ringFill,
+.ringGlow,
+.ringTipWrap {
   position: absolute;
   inset: 0;
   border-radius: 50%;
   pointer-events: none;
 }
 
-.ringOuterRim {
-  mask: radial-gradient(closest-side, transparent calc(50% - 1rpx), #000 calc(50% - 1rpx), transparent 50%);
-  -webkit-mask: radial-gradient(closest-side, transparent calc(50% - 1rpx), #000 calc(50% - 1rpx), transparent 50%);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(16, 24, 40, 0.05));
-  opacity: 0.65;
-}
-.t-dark .ringOuterRim {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.1), rgba(0, 0, 0, 0.22));
-  opacity: 0.5;
-}
-
-.ringBg {
-  mask: radial-gradient(closest-side, transparent calc(50% - var(--ring-track)), #000 calc(50% - var(--ring-track)));
-  -webkit-mask: radial-gradient(closest-side, transparent calc(50% - var(--ring-track)), #000 calc(50% - var(--ring-track)));
-  opacity: 0.55;
-  background:
-    conic-gradient(
-      from 0deg,
-      hsla(222, 11%, 74%, 0.1) 0deg,
-      hsla(228, 10%, 72%, 0.06) 180deg,
-      hsla(222, 11%, 70%, 0.08) 360deg
-    ),
-    linear-gradient(165deg, rgba(16, 24, 40, 0.03) 0%, rgba(255, 255, 255, 0.05) 42%, rgba(16, 24, 40, 0.025) 100%);
-}
-.t-dark .ringBg {
-  opacity: 0.5;
-  background:
-    conic-gradient(
-      from 0deg,
-      hsla(222, 10%, 50%, 0.14) 0deg,
-      hsla(228, 9%, 48%, 0.08) 180deg,
-      hsla(222, 10%, 46%, 0.11) 360deg
-    ),
-    linear-gradient(165deg, rgba(0, 0, 0, 0.12) 0%, rgba(255, 255, 255, 0.03) 42%, rgba(0, 0, 0, 0.08) 100%);
-}
-
-.ringInnerRim {
+.ringGroove,
+.ringTexture,
+.ringTrack,
+.ringFill,
+.ringGlow {
   mask:
-    radial-gradient(closest-side, transparent var(--ring-center-r), #000 calc(var(--ring-center-r) + 1rpx), #000 calc(50% - var(--ring-track) - 1rpx), transparent calc(50% - var(--ring-track) + 2rpx));
+    radial-gradient(
+      circle,
+      transparent var(--ring-inner-r),
+      #000 var(--ring-inner-r),
+      #000 var(--ring-outer-r),
+      transparent var(--ring-outer-r)
+    );
   -webkit-mask:
-    radial-gradient(closest-side, transparent var(--ring-center-r), #000 calc(var(--ring-center-r) + 1rpx), #000 calc(50% - var(--ring-track) - 1rpx), transparent calc(50% - var(--ring-track) + 2rpx));
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(16, 24, 40, 0.03));
-  opacity: 0.7;
+    radial-gradient(
+      circle,
+      transparent var(--ring-inner-r),
+      #000 var(--ring-inner-r),
+      #000 var(--ring-outer-r),
+      transparent var(--ring-outer-r)
+    );
 }
-.t-dark .ringInnerRim {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07), rgba(0, 0, 0, 0.14));
-  opacity: 0.55;
+
+.ringGroove {
+  background:
+    linear-gradient(180deg, rgba(16, 24, 40, 0.05) 0%, rgba(255, 255, 255, 0.06) 100%);
+  box-shadow:
+    inset 0 5rpx 14rpx rgba(16, 24, 40, 0.07),
+    inset 0 -2rpx 8rpx rgba(255, 255, 255, 0.55);
+}
+
+.ringTexture {
+  opacity: 0.28;
+  background:
+    repeating-conic-gradient(
+      from 0deg,
+      rgba(255, 255, 255, 0.05) 0deg 1.5deg,
+      transparent 1.5deg 7deg
+    ),
+    radial-gradient(circle at 50% 38%, rgba(255, 255, 255, 0.08), transparent 62%);
+}
+
+.ringTrack {
+  background: rgba(142, 142, 147, 0.08);
 }
 
 .ringFill {
-  transition: background 500ms linear, opacity 500ms linear, filter 500ms linear;
-  mask: radial-gradient(closest-side, transparent calc(50% - var(--ring-track)), #000 calc(50% - var(--ring-track)));
-  -webkit-mask: radial-gradient(closest-side, transparent calc(50% - var(--ring-track)), #000 calc(50% - var(--ring-track)));
+  transition: background 500ms linear, opacity 500ms linear;
 }
 .ringGlow {
-  mask: radial-gradient(closest-side, transparent calc(50% - var(--ring-track)), #000 calc(50% - var(--ring-track)));
-  -webkit-mask: radial-gradient(closest-side, transparent calc(50% - var(--ring-track)), #000 calc(50% - var(--ring-track)));
   transition: opacity 500ms linear, background 500ms linear;
+}
+
+.ringTipWrap {
+  z-index: 5;
+  transform-origin: center center;
+  transition: transform 500ms linear;
+}
+
+.ringStartMark {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.ringStartMark::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--ring-groove-r));
+  width: 2.5rpx;
+  height: 16rpx;
+  margin-left: -1.25rpx;
+  margin-top: -8rpx;
+  border-radius: 999rpx;
+  background: hsla(220, 8%, 46%, 0.34);
+  box-shadow: 0 0 8rpx hsla(220, 10%, 40%, 0.12);
+}
+
+.ringPointerSpan {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--ring-outer-r));
+  width: 2.5rpx;
+  height: calc(var(--ring-outer-r) - var(--ring-inner-r));
+  margin-left: -1.25rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(
+    180deg,
+    hsla(220, 14%, 16%, 0.56) 0%,
+    hsla(220, 12%, 24%, 0.46) 48%,
+    hsla(220, 10%, 32%, 0.38) 100%
+  );
+  box-shadow: 0 0 8rpx hsla(220, 12%, 18%, 0.22);
+  pointer-events: none;
+}
+
+.ringPointerMark {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--ring-outer-r));
+  width: 3.5rpx;
+  height: 26rpx;
+  margin-left: -1.75rpx;
+  margin-top: -13rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(
+    180deg,
+    hsl(220, 14%, 12%) 0%,
+    hsl(220, 12%, 20%) 42%,
+    hsl(220, 10%, 28%) 100%
+  );
+  box-shadow:
+    0 1rpx 3rpx rgba(8, 10, 16, 0.38),
+    0 0 10rpx rgba(16, 20, 28, 0.18);
+}
+
+.ringTip {
+  position: absolute;
+  left: 50%;
+  top: calc(50% - var(--ring-outer-r));
+  width: 11rpx;
+  height: 11rpx;
+  margin-left: -5.5rpx;
+  margin-top: -5.5rpx;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, hsl(220, 8%, 58%) 0%, hsl(220, 9%, 44%) 42%, hsl(220, 10%, 32%) 78%, hsl(220, 10%, 24%) 100%);
+  box-shadow:
+    0 1rpx 1rpx rgba(255, 255, 255, 0.22) inset,
+    0 2rpx 10rpx rgba(16, 24, 40, 0.28),
+    0 0 14rpx rgba(48, 48, 54, 0.22);
+}
+.ringTip::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2rpx;
+  height: 2rpx;
+  margin: -1rpx 0 0 -1rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.56);
 }
 
 .timeStepRow {
   position: absolute;
   left: 50%;
   top: 50%;
-  z-index: 4;
-  width: 520rpx;
-  margin-left: -260rpx;
+  z-index: 6;
+  width: calc(var(--ring-outer-r) * 2 + var(--dial-btn-gap) * 2 + 52rpx);
+  margin-left: calc((var(--ring-outer-r) * 2 + var(--dial-btn-gap) * 2 + 52rpx) / -2);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -1291,58 +1226,76 @@ onBeforeUnmount(() => {
 }
 .timeStepBtn {
   pointer-events: auto;
-  width: 56rpx;
-  height: 56rpx;
+  width: 52rpx;
+  height: 52rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.82);
-  border: 1rpx solid rgba(46, 99, 255, 0.12);
-  box-shadow: 0 8rpx 24rpx rgba(46, 99, 255, 0.12);
+  background: rgba(255, 255, 255, 0.72);
+  border: 1rpx solid rgba(142, 142, 147, 0.18);
+  box-shadow: none;
   transition: transform 150ms ease, background 180ms ease;
 }
-.t-dark .timeStepBtn {
-  background: rgba(26, 29, 33, 0.88);
-  border-color: rgba(120, 160, 255, 0.18);
-  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.28);
-}
-.timeStepBtn:active { transform: scale(0.92); background: rgba(46, 99, 255, 0.1); }
+.timeStepBtn:active { transform: scale(0.92); background: rgba(142, 142, 147, 0.12); }
 .timeStepGlyph {
-  font-size: 34rpx;
+  font-size: 32rpx;
   font-weight: 300;
   line-height: 1;
-  color: rgba(46, 99, 255, 0.92);
+  color: rgba(60, 60, 67, 0.72);
 }
-.t-dark .timeStepGlyph { color: rgba(170, 200, 255, 0.92); }
 
 .centerCol {
   position: relative;
-  z-index: 3;
-  width: calc(var(--ring-center-r, 166rpx) * 2);
-  height: calc(var(--ring-center-r, 166rpx) * 2);
+  z-index: 4;
+  width: calc(var(--ring-center-r, 188rpx) * 2);
+  height: calc(var(--ring-center-r, 188rpx) * 2);
   border-radius: 50%;
-  background: linear-gradient(152deg, rgba(255, 255, 255, 0.58) 0%, rgba(255, 255, 255, 0.42) 52%, rgba(248, 250, 255, 0.48) 100%);
-  backdrop-filter: blur(24px) saturate(1.06);
-  -webkit-backdrop-filter: blur(24px) saturate(1.06);
-  border: 1rpx solid rgba(255, 255, 255, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 12rpx 36rpx rgba(12, 20, 40, 0.04),
-    0 1rpx 6rpx rgba(255, 255, 255, 0.35) inset,
-    0 -2rpx 8rpx rgba(16, 24, 40, 0.02) inset;
-}
-.t-dark .centerCol {
-  background: linear-gradient(152deg, rgba(36, 40, 46, 0.58) 0%, rgba(24, 27, 32, 0.48) 52%, rgba(30, 34, 40, 0.52) 100%);
-  border-color: rgba(255, 255, 255, 0.07);
-  box-shadow:
-    0 14rpx 40rpx rgba(0, 0, 0, 0.2),
-    0 1rpx 5rpx rgba(255, 255, 255, 0.04) inset,
-    0 -3rpx 10rpx rgba(0, 0, 0, 0.14) inset;
 }
 .centerCol.editable { cursor: grab; }
+
+.centerCap {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.52;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  background:
+    radial-gradient(circle at 38% 32%, rgba(248, 250, 255, 0.42) 0%, rgba(238, 241, 247, 0.28) 42%, rgba(238, 241, 247, 0.22) 100%);
+  box-shadow:
+    0 2rpx 8rpx rgba(16, 24, 40, 0.025),
+    inset 0 1rpx 3rpx rgba(255, 255, 255, 0.35),
+    inset 0 -6rpx 14rpx rgba(16, 24, 40, 0.03);
+}
+
+.centerDimple {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44rpx;
+  height: 22rpx;
+  margin-left: -22rpx;
+  margin-top: -8rpx;
+  border-radius: 0 0 22rpx 22rpx;
+  opacity: 0.65;
+  background:
+    radial-gradient(ellipse 100% 90% at 50% 0%, rgba(16, 24, 40, 0.08), rgba(16, 24, 40, 0.02) 68%, transparent 100%);
+  box-shadow:
+    inset 0 4rpx 10rpx rgba(16, 24, 40, 0.07),
+    inset 0 1rpx 2rpx rgba(255, 255, 255, 0.12);
+}
+
+.centerContent {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 
 .digitRow {
   display: flex;
@@ -1352,79 +1305,67 @@ onBeforeUnmount(() => {
 }
 
 .minField {
-  width: 128rpx;
+  width: 140rpx;
   text-align: center;
-  font-size: 80rpx;
+  font-size: 92rpx;
   font-weight: 200;
-  letter-spacing: -3rpx;
-  color: rgba(16, 24, 40, 0.92);
+  letter-spacing: -4rpx;
+  color: rgba(16, 24, 40, 0.94);
   font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
   background: transparent;
   border: none;
   padding: 0;
   line-height: 1;
 }
-.t-dark .minField { color: rgba(245, 247, 255, 0.92); }
 
 .sep {
-  font-size: 60rpx;
+  font-size: 68rpx;
   font-weight: 200;
-  color: rgba(16, 24, 40, 0.28);
+  color: rgba(16, 24, 40, 0.24);
   line-height: 1;
 }
-.t-dark .sep { color: rgba(245, 247, 255, 0.28); }
 
 .secField {
-  font-size: 80rpx;
+  font-size: 92rpx;
   font-weight: 200;
-  letter-spacing: -3rpx;
-  color: rgba(16, 24, 40, 0.32);
+  letter-spacing: -4rpx;
+  color: rgba(16, 24, 40, 0.28);
   font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.t-dark .secField { color: rgba(245, 247, 255, 0.32); }
 
 .timer {
-  font-size: 88rpx;
+  font-size: 96rpx;
   font-weight: 200;
-  letter-spacing: -3rpx;
-  color: rgba(16, 24, 40, 0.92);
+  letter-spacing: -4rpx;
+  color: rgba(16, 24, 40, 0.94);
   font-feature-settings: 'tnum';
+  font-variant-numeric: tabular-nums;
   line-height: 1;
 }
-.t-dark .timer { color: rgba(245, 247, 255, 0.92); }
 
 .playOrb {
   position: absolute;
   left: 50%;
-  bottom: 18rpx;
+  bottom: calc(50% - var(--ring-inner-r) + 20rpx);
   z-index: 4;
-  width: 88rpx;
-  height: 88rpx;
-  margin-left: -44rpx;
+  width: 76rpx;
+  height: 76rpx;
+  margin-left: -38rpx;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(168deg, #6898ff 0%, #2e63ff 58%, #2454e8 100%);
-  border: 1rpx solid rgba(255, 255, 255, 0.22);
-  box-shadow:
-    0 12rpx 32rpx rgba(46, 99, 255, 0.24),
-    0 2rpx 6rpx rgba(255, 255, 255, 0.28) inset;
-  transition: transform 180ms ease, background 220ms ease, box-shadow 220ms ease;
+  background: #007aff;
+  border: none;
+  box-shadow: none;
+  transition: transform 180ms ease, opacity 220ms ease;
 }
+.playOrb:active { transform: scale(0.96); opacity: 0.88; }
 .playOrb.pause {
-  background: linear-gradient(168deg, rgba(36, 42, 54, 0.96) 0%, rgba(16, 24, 40, 0.92) 100%);
-  border-color: rgba(255, 255, 255, 0.08);
-  box-shadow:
-    0 10rpx 28rpx rgba(16, 24, 40, 0.22),
-    0 1rpx 4rpx rgba(255, 255, 255, 0.06) inset;
-}
-.t-dark .playOrb.pause {
-  background: linear-gradient(168deg, rgba(52, 56, 64, 0.94) 0%, rgba(28, 32, 38, 0.9) 100%);
-  box-shadow:
-    0 10rpx 28rpx rgba(0, 0, 0, 0.32),
-    0 1rpx 4rpx rgba(255, 255, 255, 0.05) inset;
+  background: rgba(60, 60, 67, 0.88);
 }
 
 .playGlyph {
@@ -1448,149 +1389,165 @@ onBeforeUnmount(() => {
   max-width: 560rpx;
   display: flex;
   align-items: center;
-  gap: 12rpx;
+  justify-content: center;
+  opacity: 0.82;
 }
 
-.noiseScroll {
-  flex: 1;
-  min-width: 0;
-  white-space: nowrap;
-}
-
-.noiseTrack {
-  display: inline-flex;
-  align-items: center;
-  gap: 12rpx;
-  padding: 6rpx 4rpx;
-}
-
-.noiseChip {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.orbWrap {
-  position: relative;
-  width: 52rpx;
-  height: 52rpx;
+.noisePill {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12rpx;
+  padding: 10rpx 18rpx 10rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.42);
+  border: 1rpx solid rgba(16, 24, 40, 0.05);
+  backdrop-filter: blur(10px);
 }
 
-.orb {
+.noisePillOrb {
   width: 44rpx;
   height: 44rpx;
   border-radius: 50%;
-  transition: transform 180ms ease, box-shadow 220ms ease;
-}
-.orb.muted {
-  background: rgba(16, 24, 40, 0.12);
-  border: 2rpx dashed rgba(16, 24, 40, 0.22);
-}
-.t-dark .orb.muted {
-  background: rgba(245, 247, 255, 0.08);
-  border-color: rgba(245, 247, 255, 0.22);
-}
-
-.noiseChip.on .orb {
-  transform: scale(1.06);
-}
-
-.selRing {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  border: 2.4rpx solid rgba(46, 99, 255, 0.88);
-  box-shadow: 0 0 0 4rpx rgba(46, 99, 255, 0.14);
-}
-.t-dark .selRing {
-  border-color: rgba(170, 200, 255, 0.92);
-  box-shadow: 0 0 0 4rpx rgba(120, 160, 255, 0.18);
-}
-
-.localDot, .sharedDot {
-  position: absolute;
-  right: 2rpx;
-  bottom: 2rpx;
-  width: 10rpx;
-  height: 10rpx;
-  border-radius: 50%;
-  border: 1.5rpx solid rgba(255, 255, 255, 0.9);
-}
-.localDot { background: rgba(120, 90, 220, 0.95); }
-.sharedDot { background: rgba(36, 160, 110, 0.95); }
-
-.addOrb {
-  background: rgba(255, 255, 255, 0.55);
-  border: 1.6rpx dashed rgba(46, 99, 255, 0.42);
   display: flex;
   align-items: center;
   justify-content: center;
-  position: relative;
+  background: rgba(46, 99, 255, 0.1);
 }
-.t-dark .addOrb {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(170, 200, 255, 0.42);
+.noisePillOrb.muted {
+  background: transparent;
+  border: 2rpx dashed rgba(142, 142, 147, 0.32);
 }
-.plusBar {
-  position: absolute;
-  background: rgba(46, 99, 255, 0.82);
-  border-radius: 999rpx;
-}
-.t-dark .plusBar { background: rgba(170, 200, 255, 0.88); }
-.plusBar.h { width: 18rpx; height: 2.4rpx; }
-.plusBar.v { width: 2.4rpx; height: 18rpx; }
 
-.eyeDot {
-  width: 52rpx;
-  height: 52rpx;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1rpx solid rgba(16, 24, 40, 0.05);
+.noisePillLabel {
+  font-size: 24rpx;
+  font-weight: 560;
+  color: rgba(16, 24, 40, 0.58);
 }
-.t-dark .eyeDot {
-  background: rgba(26, 29, 33, 0.55);
-  border-color: rgba(255, 255, 255, 0.06);
-}
-.eyeDot.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.22); }
 
-.eyeMini {
-  width: 22rpx;
-  height: 12rpx;
-  border-radius: 999rpx;
-  border: 2rpx solid rgba(16, 24, 40, 0.38);
-  position: relative;
-}
-.t-dark .eyeMini { border-color: rgba(245, 247, 255, 0.38); }
-.eyeMini::after {
+.noiseGlyph { width: 22rpx; height: 22rpx; position: relative; }
+.ic-silence::before,
+.ic-silence::after {
   content: '';
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 5rpx;
-  height: 5rpx;
-  margin: -2.5rpx 0 0 -2.5rpx;
-  border-radius: 50%;
-  background: rgba(16, 24, 40, 0.45);
+  width: 14rpx;
+  height: 2rpx;
+  margin: -1rpx 0 0 -7rpx;
+  background: rgba(142, 142, 147, 0.68);
+  border-radius: 999rpx;
 }
-.t-dark .eyeMini::after { background: rgba(245, 247, 255, 0.45); }
-.eyeDot.on .eyeMini::after { background: rgba(46, 99, 255, 0.95); }
-.eyeMini:not(.open)::before {
+.ic-silence::after { transform: rotate(90deg); }
+
+.ic-water::before {
   content: '';
   position: absolute;
-  left: -3rpx;
-  right: -3rpx;
-  top: 50%;
+  left: 3rpx;
+  right: 3rpx;
+  bottom: 5rpx;
   height: 2rpx;
-  background: rgba(16, 24, 40, 0.45);
-  transform: rotate(-22deg);
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999rpx;
+  box-shadow: 0 -5rpx 0 rgba(255, 255, 255, 0.55);
 }
-.t-dark .eyeMini:not(.open)::before { background: rgba(245, 247, 255, 0.45); }
+
+.ic-forest::before,
+.ic-forest::after {
+  content: '';
+  position: absolute;
+  bottom: 3rpx;
+  width: 0;
+  height: 0;
+  border-left: 6rpx solid transparent;
+  border-right: 6rpx solid transparent;
+  border-bottom: 12rpx solid rgba(255, 255, 255, 0.88);
+}
+.ic-forest::before { left: 3rpx; }
+.ic-forest::after { right: 3rpx; transform: scale(0.82); opacity: 0.75; }
+
+.ic-beach::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3rpx;
+  width: 8rpx;
+  height: 8rpx;
+  margin-left: -4rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+}
+.ic-beach::after {
+  content: '';
+  position: absolute;
+  left: 2rpx;
+  right: 2rpx;
+  bottom: 4rpx;
+  height: 2rpx;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 999rpx;
+}
+
+.ic-cafe::before {
+  content: '';
+  position: absolute;
+  left: 6rpx;
+  right: 6rpx;
+  bottom: 4rpx;
+  height: 8rpx;
+  border: 2rpx solid rgba(255, 255, 255, 0.88);
+  border-top: none;
+  border-radius: 0 0 3rpx 3rpx;
+}
+
+.ic-library::before,
+.ic-library::after {
+  content: '';
+  position: absolute;
+  bottom: 4rpx;
+  width: 5rpx;
+  height: 12rpx;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 2rpx 2rpx 0 0;
+}
+.ic-library::before { left: 5rpx; }
+.ic-library::after { right: 5rpx; height: 10rpx; opacity: 0.72; }
+
+.ic-rain::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 3rpx;
+  width: 12rpx;
+  height: 7rpx;
+  margin-left: -6rpx;
+  border-radius: 7rpx 7rpx 3rpx 3rpx;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.ic-wind::before {
+  content: '';
+  position: absolute;
+  left: 3rpx;
+  top: 9rpx;
+  width: 14rpx;
+  height: 2rpx;
+  background: rgba(255, 255, 255, 0.82);
+  border-radius: 999rpx;
+  box-shadow: 0 -5rpx 0 rgba(255, 255, 255, 0.55);
+}
+
+.ic-fire::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 3rpx;
+  width: 0;
+  height: 0;
+  margin-left: -5rpx;
+  border-left: 5rpx solid transparent;
+  border-right: 5rpx solid transparent;
+  border-bottom: 12rpx solid rgba(255, 255, 255, 0.88);
+}
 
 .weekStrip {
   width: 100%;
@@ -1600,7 +1557,7 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   gap: 8rpx;
   padding: 0 8rpx;
-  opacity: 0.72;
+  opacity: 0.12;
 }
 .wBar {
   flex: 1;
@@ -1611,14 +1568,12 @@ onBeforeUnmount(() => {
   align-items: flex-end;
   overflow: hidden;
 }
-.t-dark .wBar { background: rgba(245, 247, 255, 0.04); }
 .wFill {
   width: 100%;
   background: rgba(46, 99, 255, 0.72);
   border-radius: 8rpx 8rpx 0 0;
   transition: height 380ms cubic-bezier(0.2, 0.7, 0.1, 1);
 }
-.t-dark .wFill { background: rgba(120, 160, 255, 0.78); }
 
 .spacer { height: 16rpx; }
 </style>

@@ -3,6 +3,7 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useStudyStore } from '@/composables/useStudyStore'
+import { useFocusStore } from '@/composables/useFocusStore'
 
 let _booting = null
 let _booted = false
@@ -29,6 +30,8 @@ export function bootstrapData({ force = false } = {}) {
     const noticesStore = useNotificationStore()
     const communityStore = useCommunityStore()
     const studyStore = useStudyStore()
+    const { fetchFocusSessions, bindUser } = useFocusStore()
+    bindUser(userStore.currentUser.value.id)
 
     await Promise.all([
       tasksStore.fetchTasks(),
@@ -38,6 +41,7 @@ export function bootstrapData({ force = false } = {}) {
       communityStore.fetchPosts(),
       studyStore.fetchSubjects(),
       studyStore.fetchResources(),
+      fetchFocusSessions(userStore.currentUser.value.id),
     ])
     _booted = true
   })().finally(() => {

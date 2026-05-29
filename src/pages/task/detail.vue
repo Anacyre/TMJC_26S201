@@ -40,7 +40,10 @@
             <view class="checklist">
               <view v-for="c in task.checklist" :key="c.id" class="checkRow" @tap="toggleCheck(c)" role="button">
                 <view class="check" :class="{ on: c.done }"><view class="checkDot" /></view>
-                <text class="checkText" :class="{ done: c.done }">{{ c.text }}</text>
+                <view class="checkMain">
+                  <text class="checkText" :class="{ done: c.done }">{{ c.text }}</text>
+                  <text v-if="stepDueLabel(c)" class="checkDue">{{ stepDueLabel(c) }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -79,7 +82,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
-import { taskDisplayStatus, taskBucketLabel } from '@/lib/taskDueDate'
+import { taskDisplayStatus, taskBucketLabel, formatTaskDueChipLabel, parseChecklistItemDeadline } from '@/lib/taskDueDate'
 import { toast } from '@/composables/useToast'
 import { navSibling } from '@/lib/navigation'
 
@@ -126,6 +129,12 @@ const relatedNoticeBlock = computed(() => {
 
 function toggleCheck(c) {
   toggleChecklist(task.value.id, c.id)
+}
+
+function stepDueLabel(step) {
+  const key = parseChecklistItemDeadline(step)
+  if (!key) return ''
+  return formatTaskDueChipLabel({ deadline: key })
 }
 
 function openNotice(nid) {
@@ -362,7 +371,7 @@ onLoad(async (query) => {
 
 .checkRow {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12rpx;
   padding: 14rpx 14rpx;
   border-radius: 20rpx;
@@ -429,6 +438,25 @@ onLoad(async (query) => {
 .checkText.done {
   opacity: 0.45;
   text-decoration: line-through;
+}
+
+.checkMain {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4rpx;
+  padding-top: 4rpx;
+}
+
+.checkDue {
+  font-size: 20rpx;
+  font-weight: 660;
+  color: rgba(46, 99, 255, 0.78);
+}
+
+.t-dark .checkDue {
+  color: rgba(170, 200, 255, 0.78);
 }
 
 .rel {

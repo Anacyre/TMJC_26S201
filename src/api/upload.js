@@ -30,7 +30,7 @@ function fileDisplayName(file, fallback = 'file') {
 /**
  * Upload a file to Supabase Storage
  * @param {File|Blob|object} file - file object from uni.chooseFile
- * @param {'avatar'|'resource'|'attachment'} type - usage category
+ * @param {'avatar'|'resource'|'attachment'|'focus-sound'} type - usage category
  * @returns {{ fileKey, fileName, fileUrl, fileSize, mimeType, error }}
  */
 export async function uploadFile(file, type = 'resource') {

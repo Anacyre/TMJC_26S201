@@ -4,6 +4,7 @@ import {
   enrichTask,
   normalizeTaskStatus,
   purgeStaleCompletedTasks,
+  resolveDoneAfterChecklistToggle,
   resolveTaskStatusFromForm,
   shouldRetainCompletedTask,
   toDbTaskStatus,
@@ -17,6 +18,19 @@ function parseDeadlineDate(deadline) {
   return iso ? iso[1] : ''
 }
 
+function normalizeChecklist(raw) {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 function rowToTask(row) {
   const task = {
     id: row.id,
@@ -28,7 +42,7 @@ function rowToTask(row) {
     status: normalizeTaskStatus(row.status),
     reminder: row.reminder || 'None',
     done: row.done || false,
-    checklist: row.checklist || [],
+    checklist: normalizeChecklist(row.checklist),
     relatedNotice: row.related_notice || null,
     sourceNoticeId: row.source_notice_id || '',
     createdAt: row.created_at,
@@ -224,19 +238,33 @@ export async function toggleChecklistItem(taskId, checklistId) {
   if (USE_MOCK) return mock.toggleChecklistItem(taskId, checklistId)
   const { data: taskRow, error: fetchError } = await supabase
     .from('tasks')
-    .select('checklist')
+    .select('*')
     .eq('id', taskId)
     .single()
 
   if (fetchError) return { error: fetchError }
 
-  const checklist = (taskRow.checklist || []).map((item) =>
+  const checklist = normalizeChecklist(taskRow.checklist).map((item) =>
     item.id === checklistId ? { ...item, done: !item.done } : item
+  )
+
+  const { done: nextDone } = resolveDoneAfterChecklistToggle(checklist, !!taskRow.done)
+  const now = new Date().toISOString()
+  const deadlineDate = parseDeadlineDate(taskRow.deadline)
+  const status = toDbTaskStatus(
+    nextDone ? 'completed' : resolveTaskStatusFromForm({ deadlineDate }),
+    { deadlineDate, done: nextDone },
   )
 
   const { data, error } = await supabase
     .from('tasks')
-    .update({ checklist, updated_at: new Date().toISOString() })
+    .update({
+      checklist,
+      done: nextDone,
+      status,
+      completed_at: nextDone ? taskRow.completed_at || now : null,
+      updated_at: now,
+    })
     .eq('id', taskId)
     .select()
     .single()

@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
 import * as tasksApi from '@/api/tasks'
-import { resolveTaskStatusFromForm, taskDueBucket } from '@/lib/taskDueDate'
+import { resolveTaskStatusFromForm, taskDueBucket, resolveDoneAfterChecklistToggle } from '@/lib/taskDueDate'
 
 const tasks = ref([])
 const loading = ref(false)
@@ -77,9 +77,29 @@ async function toggleTaskDone(id) {
 }
 
 async function toggleChecklist(taskId, checklistId) {
+  const target = getTaskById(taskId)
+  if (!target) return { data: null, error: new Error('Task not found') }
+
+  const checklist = (target.checklist || []).map((item) =>
+    item.id === checklistId ? { ...item, done: !item.done } : item
+  )
+  const { done: nextDone } = resolveDoneAfterChecklistToggle(checklist, !!target.done)
+  const deadlineDate = parseDeadlineDate(target.deadline)
+  upsertTask({
+    ...target,
+    checklist,
+    done: nextDone,
+    status: nextDone ? 'completed' : resolveTaskStatusFromForm({ deadlineDate }),
+    completedAt: nextDone ? target.completedAt || new Date().toISOString() : '',
+  })
+
   const { data, error } = await tasksApi.toggleChecklistItem(taskId, checklistId)
-  if (!error && data) upsertTask(data)
-  return { data, error }
+  if (error) {
+    upsertTask(target)
+    return { data: null, error }
+  }
+  if (data) upsertTask(data)
+  return { data, error: null }
 }
 
 async function updateTask(taskId, payload) {

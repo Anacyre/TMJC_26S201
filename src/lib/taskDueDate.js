@@ -26,7 +26,7 @@ export function sortTasksByPriority(a, b) {
 }
 
 export function dueDateSortKey(task) {
-  return parseDueDateKey(task?.deadline) || '9999-99-99'
+  return getEffectiveDueDateKey(task) || '9999-99-99'
 }
 
 export function sortTasksByDueDate(a, b) {
@@ -51,6 +51,52 @@ export function parseDueDateKey(deadline) {
   if (NO_DUE_MARKERS.has(raw.toLowerCase())) return ''
   const iso = raw.match(/(\d{4}-\d{2}-\d{2})/)
   return iso ? iso[1] : ''
+}
+
+export function parseChecklistItemDeadline(item) {
+  if (!item?.deadline) return ''
+  const raw = String(item.deadline).trim()
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw
+  return parseDueDateKey(item.deadline)
+}
+
+/** First incomplete step deadline, else task-level deadline. */
+export function getEffectiveDueDateKey(task) {
+  const checklist = task?.checklist || []
+  if (checklist.length) {
+    for (const item of checklist) {
+      if (!item?.done) {
+        const stepKey = parseChecklistItemDeadline(item)
+        if (stepKey) return stepKey
+      }
+    }
+  }
+  return parseDueDateKey(task?.deadline)
+}
+
+export function taskHasChecklistSteps(task) {
+  return Array.isArray(task?.checklist) && task.checklist.length > 0
+}
+
+export function getNextIncompleteStep(task) {
+  const checklist = task?.checklist || []
+  return checklist.find((item) => !item?.done) || null
+}
+
+export function isChecklistFullyDone(checklist) {
+  if (!Array.isArray(checklist) || !checklist.length) return false
+  return checklist.every((item) => item?.done)
+}
+
+/** Sync task `done` when checklist steps are toggled. */
+export function resolveDoneAfterChecklistToggle(checklist, wasDone) {
+  if (!Array.isArray(checklist) || !checklist.length) {
+    return { done: wasDone, changed: false }
+  }
+  const allDone = isChecklistFullyDone(checklist)
+  if (allDone && !wasDone) return { done: true, changed: true }
+  if (!allDone && wasDone) return { done: false, changed: true }
+  return { done: wasDone, changed: false }
 }
 
 export function formatDateKey(date) {
@@ -89,7 +135,7 @@ export function taskDueBucket(task) {
   if (task?.done || task?.status === 'completed') return 'completed'
   if (taskHasNoDueDate(task)) return 'no-deadline'
 
-  const key = parseDueDateKey(task.deadline)
+  const key = getEffectiveDueDateKey(task)
   if (key) {
     const today = todayDateKey()
     const recentEnd = recentEndDateKey()
@@ -159,13 +205,13 @@ export function toDbTaskStatus(status, { deadlineDate, done = false } = {}) {
 
 export function resolveTaskStatusFromTask(task) {
   if (task?.done) return 'completed'
-  const key = parseDueDateKey(task?.deadline)
+  const key = getEffectiveDueDateKey(task)
   if (key) return resolveActiveStatusFromDeadline(key)
   return 'recent'
 }
 
 export function taskHasDueDate(task) {
-  return !!parseDueDateKey(task?.deadline)
+  return !!getEffectiveDueDateKey(task)
 }
 
 export function taskHasNoDueDate(task) {
@@ -201,7 +247,7 @@ export function enrichTask(task) {
 
 export function formatTaskDueChipLabel(task) {
   if (taskHasNoDueDate(task)) return 'Anytime'
-  const key = parseDueDateKey(task?.deadline)
+  const key = getEffectiveDueDateKey(task)
   if (!key) return 'Anytime'
 
   const [y, m, d] = key.split('-').map(Number)
@@ -252,7 +298,7 @@ export function groupTasksByDueDate(tasks, { undatedLabel = '' } = {}) {
   const undated = []
 
   for (const task of tasks) {
-    const key = parseDueDateKey(task.deadline)
+    const key = getEffectiveDueDateKey(task)
     if (!key) {
       undated.push(task)
       continue

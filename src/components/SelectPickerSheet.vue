@@ -71,6 +71,7 @@ const createPlaceholder = computed(() =>
 )
 
 function colorClass(name) {
+  if (props.kind === 'filter') return filterColorClass(name)
   const n = String(name || '').toLowerCase()
   if (n.includes('math')) return 'c-blue'
   if (n.includes('phys')) return 'c-violet'
@@ -78,6 +79,21 @@ function colorClass(name) {
   if (n.includes('econ')) return 'c-amber'
   if (n === 'gp' || n.includes('general')) return 'c-rose'
   return 'c-slate'
+}
+
+const FILTER_COLORS = {
+  'all tasks': 'c-blue',
+  recent: 'c-green',
+  upcoming: 'c-violet',
+  'no deadline': 'c-amber',
+  overdue: 'c-rose',
+  done: '',
+}
+
+function filterColorClass(name) {
+  const key = String(name || '').toLowerCase()
+  if (key === 'done') return ''
+  return FILTER_COLORS[key] || 'c-blue'
 }
 
 function close() {

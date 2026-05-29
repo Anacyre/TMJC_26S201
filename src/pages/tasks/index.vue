@@ -23,7 +23,7 @@
           :open="filterPickerOpen"
           :options="filterPickerOptions"
           :selected="filterDisplayLabel"
-          kind="tag"
+          kind="filter"
           @close="filterPickerOpen = false"
           @pick="onFilterPick"
         />
@@ -64,13 +64,19 @@
             class="section"
             :class="{ divided: sectionIndex > 0 }"
           >
-            <text class="sectionLabel">{{ section.label }}</text>
-            <view class="sectionBody">
+            <view class="sectionHead tap" role="button" @tap="toggleSection(section.key)">
+              <text class="sectionLabel">{{ section.label }}</text>
+              <view class="sectionMeta">
+                <text class="sectionCount">{{ section.tasks.length }}</text>
+                <text class="sectionChev" :class="{ collapsed: isSectionCollapsed(section.key) }">›</text>
+              </view>
+            </view>
+            <view class="sectionBody" :class="{ collapsed: isSectionCollapsed(section.key) }">
               <view
                 v-for="t in section.tasks"
                 :key="t.id"
                 class="taskRow"
-                :class="{ completing: completingAnim.has(t.id) }"
+                :class="{ completing: completingAnim.has(t.id), expanded: isTaskExpanded(t.id) }"
               >
                 <SwipeRow
                   v-if="t.done && !completingIds.has(t.id)"
@@ -86,10 +92,13 @@
                     :sort-mode="sortMode"
                     :completing="completingAnim.has(t.id)"
                     :pressed="pressedKey === t.id"
+                    :expanded="isTaskExpanded(t.id)"
                     @press-start="pressedKey = t.id"
                     @press-end="pressedKey = ''"
                     @open="openTask(t)"
                     @toggle="toggleDone(t)"
+                    @toggle-step="toggleStep(t.id, $event)"
+                    @expand-change="onTaskExpand(t.id, $event)"
                   />
                 </SwipeRow>
                 <TaskListCard
@@ -98,10 +107,13 @@
                   :sort-mode="sortMode"
                   :completing="completingAnim.has(t.id)"
                   :pressed="pressedKey === t.id"
+                  :expanded="isTaskExpanded(t.id)"
                   @press-start="pressedKey = t.id"
                   @press-end="pressedKey = ''"
                   @open="openTask(t)"
                   @toggle="toggleDone(t)"
+                  @toggle-step="toggleStep(t.id, $event)"
+                  @expand-change="onTaskExpand(t.id, $event)"
                 />
               </view>
             </view>
@@ -138,7 +150,7 @@ import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { tasks, loading, toggleTaskDone, addTask, deleteTask, archiveTask } = useTasksStore()
+const { tasks, loading, toggleTaskDone, toggleChecklist, addTask, deleteTask, archiveTask, getTaskById } = useTasksStore()
 
 const taskSwipeActions = [
   { id: 'delete', icon: 'trash' },
@@ -153,9 +165,9 @@ const tabItems = [
   { id: '', label: 'All tasks' },
   { id: 'recent', label: 'Recent' },
   { id: 'upcoming', label: 'Upcoming' },
-  { id: 'completed', label: 'Done' },
   { id: 'no-deadline', label: 'No deadline' },
   { id: 'overdue', label: 'Overdue' },
+  { id: 'completed', label: 'Done' },
 ]
 
 const filterPickerOptions = tabItems.map((x) => x.label)
@@ -177,6 +189,8 @@ const completingAnim = ref(new Set())
 const completingBuckets = ref(new Map())
 const createOpen = ref(false)
 const createEditorRef = ref(null)
+const collapsedSections = ref(new Set())
+const expandedTaskIds = ref({})
 const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', reminder: '', checklist: [] })
 
 const filterDisplayLabel = computed(() => filterLabelById[filterTab.value] || 'All tasks')
@@ -234,6 +248,46 @@ function onFilterPick(label) {
 function onSortPick(label) {
   sortMode.value = sortModeByLabel[label] || 'due-date'
   sortPickerOpen.value = false
+}
+
+function isSectionCollapsed(key) {
+  return collapsedSections.value.has(key)
+}
+
+function toggleSection(key) {
+  const next = new Set(collapsedSections.value)
+  if (next.has(key)) next.delete(key)
+  else next.add(key)
+  collapsedSections.value = next
+}
+
+async function toggleStep(taskId, stepId) {
+  const before = getTaskById(taskId)
+  const wasDone = !!before?.done
+  const { data, error } = await toggleChecklist(taskId, stepId)
+  if (error) {
+    toast.show(error.message || 'Could not update step')
+    return
+  }
+  if (data?.done && !wasDone && willHideOnComplete(data)) {
+    beginCompleteHide(before || data)
+    delete expandedTaskIds.value[taskId]
+    expandedTaskIds.value = { ...expandedTaskIds.value }
+    await nextTick()
+    requestAnimationFrame(() => startCompleteAnim(taskId))
+    setTimeout(() => endCompleteHide(taskId), COMPLETE_ANIM_MS)
+  }
+}
+
+function isTaskExpanded(id) {
+  return !!expandedTaskIds.value[id]
+}
+
+function onTaskExpand(taskId, open) {
+  const next = { ...expandedTaskIds.value }
+  if (open) next[taskId] = true
+  else delete next[taskId]
+  expandedTaskIds.value = next
 }
 
 function willHideOnComplete(task) {
@@ -377,9 +431,19 @@ function onTaskSwipeAction(id, actionId) {
 }
 .t-dark .section.divided { border-top-color: rgba(255, 255, 255, 0.08); }
 
-.sectionLabel {
-  display: block;
+.sectionHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
   padding: 0 4rpx 12rpx;
+  min-height: 44rpx;
+}
+.sectionHead.tap:active { opacity: 0.72; }
+
+.sectionLabel {
+  flex: 1;
+  min-width: 0;
   font-size: 22rpx;
   font-weight: 700;
   color: rgba(16, 24, 40, 0.58);
@@ -387,17 +451,58 @@ function onTaskSwipeAction(id, actionId) {
 }
 .t-dark .sectionLabel { color: rgba(245, 247, 255, 0.52); }
 
-.sectionBody { display: flex; flex-direction: column; gap: var(--list-stack-gap); }
+.sectionMeta {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  flex-shrink: 0;
+}
+.sectionCount {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: rgba(16, 24, 40, 0.38);
+  min-width: 28rpx;
+  text-align: right;
+}
+.t-dark .sectionCount { color: rgba(245, 247, 255, 0.38); }
+.sectionChev {
+  font-size: 26rpx;
+  line-height: 1;
+  color: rgba(16, 24, 40, 0.42);
+  transform: rotate(-90deg);
+  transition: transform 280ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.t-dark .sectionChev { color: rgba(245, 247, 255, 0.42); }
+.sectionChev.collapsed { transform: rotate(90deg); }
+
+.sectionBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--list-stack-gap);
+  overflow: visible;
+  opacity: 1;
+  transition:
+    max-height 320ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 260ms ease,
+    margin-top 260ms ease;
+}
+.sectionBody.collapsed {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  margin-top: 0;
+  pointer-events: none;
+}
 
 .taskRow {
-  overflow: hidden;
-  max-height: 260rpx;
+  overflow: visible;
   transition:
     max-height 500ms cubic-bezier(0.4, 0, 0.2, 1),
     opacity 500ms ease,
     transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .taskRow.completing {
+  overflow: hidden;
   max-height: 0;
   opacity: 0;
   transform: scale(0.97) translateY(-6rpx);
