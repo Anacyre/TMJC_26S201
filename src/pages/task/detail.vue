@@ -147,7 +147,7 @@ async function completeTask() {
     toast.show(error.message || 'Could not update task')
     return
   }
-  toast.updated()
+  toast.taskUpdated()
 }
 
 async function saveTask(payload) {
@@ -161,7 +161,7 @@ async function saveTask(payload) {
     editEditorRef.value?.resetSaving?.()
     return
   }
-  toast.saved()
+  toast.taskUpdated()
   editOpen.value = false
 }
 

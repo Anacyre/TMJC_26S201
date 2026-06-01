@@ -16,7 +16,7 @@ export const NOISE_ICON_PRESETS = [
   { id: 'fire', label: 'Fire', color: 'hsl(18, 62%, 50%)' },
 ]
 
-export const MAX_FOCUS_SOUND_SECONDS = 600
+export const MAX_FOCUS_SOUND_SECONDS = 30 * 60
 const ALLOWED_EXT = ['.mp3', '.wav']
 
 export function iconPreset(id) {
@@ -135,7 +135,7 @@ export async function chooseFocusSoundFile() {
   const blob = await fileToBlob(picked)
   const duration = await readAudioDuration(blob)
   if (duration > MAX_FOCUS_SOUND_SECONDS) {
-    throw new Error('Audio must be 10 minutes or less')
+    throw new Error('Audio must be 30 minutes or less')
   }
 
   const baseName = picked.name?.replace(/\.[^.]+$/, '') || picked.path?.split('/').pop()?.replace(/\.[^.]+$/, '') || 'Sound'

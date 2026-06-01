@@ -194,7 +194,7 @@ async function promote(m) {
   }
   await adminSetRole(m.id, 'admin')
   await fetchMembers()
-  toast.updated()
+  toast.memberUpdated()
 }
 
 async function stepDown() {
@@ -202,7 +202,7 @@ async function stepDown() {
   currentUser.value.role = 'student'
   currentUser.value.is_admin = false
   await fetchMembers()
-  toast.updated()
+  toast.memberUpdated()
 }
 </script>
 

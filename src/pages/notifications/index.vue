@@ -226,6 +226,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { toast } from '@/composables/useToast'
+import { deleteConfirm } from '@/composables/useConfirmDelete'
 import TagSelect from '@/components/TagSelect.vue'
 import DateField from '@/components/DateField.vue'
 import { useTheme } from '@/composables/useTheme'
@@ -260,7 +261,7 @@ const {
 const { addTaskFromNotice } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
-const { isAdminActive, isRealAdmin } = useAdminMode()
+const { isAdminActive } = useAdminMode()
 
 const typeFilterOptions = ['All types', 'Homework', 'General', 'VIA', 'Events', 'Important']
 const typeFilterValueByLabel = {
@@ -337,7 +338,7 @@ const hasDraftContent = computed(() => noticeDraftHasContent(draft.value))
 
 function persistNoticeDraft() {
   const userId = currentUser.value?.id
-  if (!userId || !isRealAdmin.value) return
+  if (!userId || !isAdminActive.value) return
   saveNoticeDraft(userId, draft.value)
   draftSavedAt.value = Date.now()
   clearTimeout(draftSavedHintTimer)
@@ -466,23 +467,16 @@ function onNoticeAction(n, actionId) {
   if (actionId === 'hide') onHide(n)
 }
 
-function confirmDeleteNotice(n) {
+async function confirmDeleteNotice(n) {
   if (!canDeleteNotice(n)) return
-  uni.showModal({
-    title: 'Delete notice?',
-    content: 'This permanently removes the notice for everyone.',
-    confirmText: 'Delete',
-    confirmColor: '#dc5050',
-    success: async (res) => {
-      if (!res.confirm) return
-      const { error } = await removeNotification(n.id)
-      if (error) {
-        toast.show('Could not delete')
-        return
-      }
-      toast.removed()
-    },
-  })
+  const ok = await deleteConfirm.notice()
+  if (!ok) return
+  const { error } = await removeNotification(n.id)
+  if (error) {
+    toast.show('Could not delete')
+    return
+  }
+  toast.noticeDeleted()
 }
 
 function onHide(n) {
@@ -499,7 +493,7 @@ function openHidden() {
 }
 
 function openCreate() {
-  if (!isRealAdmin.value) {
+  if (!isAdminActive.value) {
     toast.show('Admins only')
     return
   }
@@ -530,7 +524,7 @@ function formatDeadline(value) {
 
 async function publish() {
   if (publishing.value) return
-  if (!isRealAdmin.value) {
+  if (!isAdminActive.value) {
     toast.show('Admins only')
     return
   }
@@ -544,7 +538,7 @@ async function publish() {
   }
   publishing.value = true
   try {
-    await addNotification({
+    const { error } = await addNotification({
       type: String(draft.value.type).trim(),
       title: String(draft.value.title).trim(),
       subject: draft.value.type === 'Homework' ? String(draft.value.subject || '').trim() : '',
@@ -554,13 +548,17 @@ async function publish() {
       by: currentUser.value?.name || 'Admin',
       important: false,
     })
+    if (error) {
+      toast.show(error.message || 'Could not publish')
+      return
+    }
     clearNoticeDraft(currentUser.value?.id)
     draft.value = emptyDraft()
     descExpanded.value = false
     subjectExpanded.value = false
     draftSavedAt.value = 0
     showCreate.value = false
-    toast.published()
+    toast.noticePublished()
   } catch (err) {
     toast.show('Could not publish')
   } finally {

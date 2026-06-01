@@ -30,7 +30,7 @@ function fileDisplayName(file, fallback = 'file') {
 /**
  * Upload a file to Supabase Storage
  * @param {File|Blob|object} file - file object from uni.chooseFile
- * @param {'avatar'|'resource'|'attachment'|'focus-sound'} type - usage category
+ * @param {'avatar'|'resource'|'attachment'|'focus-sound'|'post'} type - usage category
  * @returns {{ fileKey, fileName, fileUrl, fileSize, mimeType, error }}
  */
 export async function uploadFile(file, type = 'resource') {
@@ -96,6 +96,46 @@ export function inferResourceType(fileName = '') {
   if (['ppt', 'pptx'].includes(ext)) return 'PPTX'
   if (['mp4', 'mov', 'webm'].includes(ext)) return 'Video'
   return ext ? ext.toUpperCase() : 'File'
+}
+
+export function choosePostFile() {
+  return new Promise((resolve, reject) => {
+    uni.chooseFile({
+      count: 1,
+      extension: [
+        '.png', '.jpg', '.jpeg', '.webp', '.gif',
+        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+        '.zip', '.txt', '.mp4', '.mov',
+      ],
+      success: (res) => {
+        const file = res.tempFiles?.[0]
+        if (file) {
+          resolve({
+            file: file.file || file,
+            path: file.path || res.tempFilePaths?.[0] || '',
+            name: file.name || '',
+            size: file.size || 0,
+            type: file.type || '',
+          })
+          return
+        }
+        const path = res.tempFilePaths?.[0]
+        if (path) {
+          resolve({ path, name: path.split('/').pop() || '', size: 0 })
+          return
+        }
+        reject(new Error('No file selected'))
+      },
+      fail: (err) => reject(err || new Error('Pick cancelled')),
+    })
+  })
+}
+
+export function isPostImageFile(fileOrName, mimeType = '') {
+  const name = String(fileOrName?.name || fileOrName || '').toLowerCase()
+  const mime = String(mimeType || fileOrName?.type || '').toLowerCase()
+  if (mime.startsWith('image/')) return true
+  return /\.(png|jpe?g|webp|gif)$/i.test(name)
 }
 
 export function chooseStudyFile() {

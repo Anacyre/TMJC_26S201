@@ -79,12 +79,12 @@
                 :class="{ completing: completingAnim.has(t.id), expanded: isTaskExpanded(t.id) }"
               >
                 <SwipeRow
-                  v-if="t.done && !completingIds.has(t.id)"
+                  v-if="!completingAnim.has(t.id)"
                   side="left"
+                  action-style="strip"
                   :actions="taskSwipeActions"
                   commit-action="delete"
-                  :context-items="taskContextItems"
-                  @commit="deleteTaskRow(t.id)"
+                  @commit="onTaskSwipeCommit(t.id)"
                   @action="onTaskSwipeAction(t.id, $event)"
                 >
                   <TaskListCard
@@ -105,7 +105,7 @@
                   v-else
                   :task="t"
                   :sort-mode="sortMode"
-                  :completing="completingAnim.has(t.id)"
+                  :completing="true"
                   :pressed="pressedKey === t.id"
                   :expanded="isTaskExpanded(t.id)"
                   @press-start="pressedKey = t.id"
@@ -148,17 +148,14 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { buildTaskSections, taskDueBucket } from '@/lib/taskDueDate'
 import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
+import { pushUndoable } from '@/composables/useUndo'
 
 const { themeClass } = useTheme()
 const { tasks, loading, toggleTaskDone, toggleChecklist, addTask, deleteTask, archiveTask, getTaskById } = useTasksStore()
 
 const taskSwipeActions = [
-  { id: 'delete', icon: 'trash' },
-  { id: 'archive', icon: 'archive' },
-]
-const taskContextItems = [
-  { id: 'delete', label: 'Delete', icon: 'trash', danger: true },
-  { id: 'archive', label: 'Archive', icon: 'archive' },
+  { id: 'archive', label: 'Archive' },
+  { id: 'delete', label: 'Delete', danger: true },
 ]
 
 const tabItems = [
@@ -178,6 +175,9 @@ const sortLabelByMode = { 'due-date': 'Due date', priority: 'Priority' }
 const sortModeByLabel = { 'Due date': 'due-date', Priority: 'priority' }
 
 const COMPLETE_ANIM_MS = 500
+const SWIPE_ACTION_MS = 220
+
+const hiddenTaskIds = ref(new Set())
 
 const filterTab = ref('')
 const filterPickerOpen = ref(false)
@@ -196,8 +196,20 @@ const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', p
 const filterDisplayLabel = computed(() => filterLabelById[filterTab.value] || 'All tasks')
 const sortDisplayLabel = computed(() => sortLabelByMode[sortMode.value] || 'Due date')
 
+function hideTask(id) {
+  hiddenTaskIds.value = new Set([...hiddenTaskIds.value, id])
+}
+
+function unhideTask(id) {
+  const next = new Set(hiddenTaskIds.value)
+  next.delete(id)
+  hiddenTaskIds.value = next
+}
+
 const tabTasks = computed(() => {
-  const pool = tasks.value.filter((x) => x.status !== 'archived')
+  const pool = tasks.value.filter(
+    (x) => x.status !== 'archived' && !hiddenTaskIds.value.has(x.id)
+  )
   return pool.filter((x) => {
     if (completingIds.value.has(x.id)) return true
     if (!filterTab.value) return !x.done
@@ -352,23 +364,51 @@ async function createTask(payload) {
     createEditorRef.value?.resetSaving?.()
     return
   }
-  toast.added()
+  toast.taskCreated()
   createOpen.value = false
 }
 
 function deleteTaskRow(id) {
-  deleteTask(id)
-  toast.taskDeleted()
+  const task = getTaskById(id)
+  if (!task) return
+  hideTask(id)
+  pushUndoable({
+    message: 'Task deleted',
+    menuLabel: `Delete “${task.title || 'Task'}”`,
+    undo: () => unhideTask(id),
+    commit: async () => {
+      unhideTask(id)
+      const { error } = await deleteTask(id)
+      if (error) toast.show(error.message || 'Could not delete task')
+    },
+  })
 }
 
 function archiveTaskRow(id) {
-  archiveTask(id)
-  toast.taskArchived()
+  const task = getTaskById(id)
+  if (!task) return
+  hideTask(id)
+  pushUndoable({
+    message: 'Task archived',
+    menuLabel: `Archive “${task.title || 'Task'}”`,
+    undo: () => unhideTask(id),
+    commit: async () => {
+      unhideTask(id)
+      const { error } = await archiveTask(id)
+      if (error) toast.show(error.message || 'Could not archive task')
+    },
+  })
+}
+
+function onTaskSwipeCommit(id) {
+  setTimeout(() => deleteTaskRow(id), SWIPE_ACTION_MS)
 }
 
 function onTaskSwipeAction(id, actionId) {
-  if (actionId === 'archive') archiveTaskRow(id)
-  else deleteTaskRow(id)
+  setTimeout(() => {
+    if (actionId === 'archive') archiveTaskRow(id)
+    else deleteTaskRow(id)
+  }, SWIPE_ACTION_MS)
 }
 </script>
 

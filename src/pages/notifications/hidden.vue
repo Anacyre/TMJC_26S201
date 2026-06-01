@@ -60,7 +60,7 @@ onShow(() => {
 
 function restore(id) {
   unhide(id)
-  toast.updated()
+  toast.show('Notice restored')
 }
 
 function canDelete(notice) {
@@ -75,7 +75,7 @@ async function remove(id) {
     toast.show('Could not delete')
     return
   }
-  toast.removed()
+  toast.noticeDeleted()
 }
 </script>
 

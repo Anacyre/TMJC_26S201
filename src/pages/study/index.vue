@@ -153,7 +153,7 @@ async function createSubject() {
     }
     showAddSubject.value = false
     subjectDraft.value = { name: '', icon: '📘' }
-    toast.show('Subject created')
+    toast.subjectCreated()
   } finally {
     savingSubject.value = false
   }

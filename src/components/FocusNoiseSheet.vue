@@ -10,7 +10,7 @@
         </view>
         <view v-else class="head">
           <text class="title">Add sound</text>
-          <text class="sub">MP3 or WAV, up to 10 minutes</text>
+          <text class="sub">MP3 or WAV, up to 30 minutes</text>
         </view>
 
         <scroll-view v-if="mode === 'pick'" class="body" scroll-y :show-scrollbar="false">
@@ -66,7 +66,7 @@
         </scroll-view>
 
         <view class="foot">
-          <view v-if="mode === 'pick'" class="ghostRow">
+          <view v-if="mode === 'pick' && isAdmin" class="ghostRow">
             <view class="ghostBtn tap" role="button" @tap="toggleVis">
               <view class="eyeMini" :class="{ open: visibility === 'public' }" />
               <text class="ghostText">Public hours</text>
@@ -100,6 +100,7 @@
 <script setup>
 import { computed, ref, watch, nextTick } from 'vue'
 import { useTheme } from '@/composables/useTheme'
+import { deleteConfirm } from '@/composables/useConfirmDelete'
 import { NOISE_ICON_PRESETS, chooseFocusSoundFile } from '@/lib/focusNoise'
 
 const props = defineProps({
@@ -191,16 +192,10 @@ async function submitAdd() {
   })
 }
 
-function onLongPress(n) {
+async function onLongPress(n) {
   if (!props.isAdmin || n.source !== 'shared' || n.id === 'silence') return
-  uni.showModal({
-    title: 'Remove sound?',
-    content: n.name,
-    confirmText: 'Remove',
-    success: (res) => {
-      if (res.confirm) emit('removed', n.id)
-    },
-  })
+  const ok = await deleteConfirm.focusNoise(n.name)
+  if (ok) emit('removed', n.id)
 }
 
 watch(mode, (v) => {
@@ -326,19 +321,19 @@ defineExpose({ finishUpload })
 .noiseIcon { width: 28rpx; height: 28rpx; position: relative; }
 .iconOrb.sm .noiseIcon { width: 24rpx; height: 24rpx; }
 
-.ic-silence::before,
-.ic-silence::after {
+.ic-silence::before {
   content: '';
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 18rpx;
-  height: 2rpx;
-  margin: -1rpx 0 0 -9rpx;
-  background: rgba(142, 142, 147, 0.72);
-  border-radius: 999rpx;
+  width: 20rpx;
+  height: 20rpx;
+  margin: -10rpx 0 0 -10rpx;
+  border: 2rpx solid rgba(142, 142, 147, 0.72);
+  border-radius: 50%;
+  background: transparent;
+  box-sizing: border-box;
 }
-.ic-silence::after { transform: rotate(90deg); }
 
 .ic-water::before {
   content: '';

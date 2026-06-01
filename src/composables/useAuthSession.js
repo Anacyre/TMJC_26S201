@@ -1,6 +1,7 @@
 import { bootstrapData } from '@/composables/useBootstrap'
 import { hasActiveSession } from '@/api/auth'
 import { useUserStore } from '@/composables/useUserStore'
+import { resetAdminMode } from '@/composables/adminModeState'
 
 const REMEMBER_KEY = 'auth_remember_v1'
 
@@ -37,4 +38,5 @@ export async function tryRestoreSession() {
 
 export function clearAuthSession() {
   setRememberPref({ enabled: false })
+  resetAdminMode()
 }

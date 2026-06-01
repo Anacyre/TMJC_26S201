@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
-import { isAdminMember } from '@/lib/classMembers'
+import { isAdminMember, mergeProfilesWithClassRoster } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -44,7 +44,8 @@ export async function getMembers() {
     .from('profiles')
     .select('id, username, display_name, name, birthday, email, role, is_admin, mbti, interests, bio, links, avatar_url')
     .order('display_name')
-  return { data, error }
+  if (error) return { data, error }
+  return { data: mergeProfilesWithClassRoster(data || []), error: null }
 }
 
 /**

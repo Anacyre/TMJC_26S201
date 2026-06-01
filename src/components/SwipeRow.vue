@@ -1,6 +1,7 @@
 <template>
   <view class="swipeWrap" :class="themeClass">
     <view
+      v-if="peekActions"
       class="bg"
       :class="['side-' + side, { 'bg-fade': snapBack }]"
       :style="bgStyle"
@@ -9,18 +10,22 @@
         v-for="act in actions"
         :key="act.id"
         class="action"
-        :class="['act-' + act.id, { wide: actions.length === 1 }]"
+        :class="[
+          'act-' + act.id,
+          { wide: actions.length === 1, strip: actionStyle === 'strip', danger: act.danger },
+        ]"
         :style="actStyle(act)"
         role="button"
         @tap="onActionTap(act.id)"
       >
-        <view class="actionIcon" :class="'ic-' + (act.icon || act.id)" />
+        <text v-if="actionStyle === 'strip' && act.label" class="actionLabel">{{ act.label }}</text>
+        <view v-else class="actionIcon" :class="'ic-' + (act.icon || act.id)" />
       </view>
     </view>
     <view
       class="surface"
-      :style="{ transform: `translateX(${displayOffset}px)` }"
-      :class="{ snap: snapBack, vanish }"
+      :style="{ transform: surfaceTransform }"
+      :class="{ snap: snapBack && !vanish, vanish }"
       @touchstart="onTouchStart"
       @touchmove.stop="onTouchMove"
       @touchend="onTouchEnd"
@@ -62,6 +67,10 @@ const props = defineProps({
   /** Action id fired on full swipe */
   commitAction: { type: String, default: '' },
   contextItems: { type: Array, default: () => [] },
+  /** When false: no action buttons under the row; swipe far enough to commit directly */
+  peekActions: { type: Boolean, default: true },
+  /** strip = full-height labeled bar; icon = compact square buttons */
+  actionStyle: { type: String, default: 'icon' },
 })
 
 const emit = defineEmits(['action', 'commit'])
@@ -71,6 +80,9 @@ const { isDesktop } = useDevice()
 
 const revealWidth = computed(() => {
   if (props.maxReveal > 0) return props.maxReveal
+  if (props.actionStyle === 'strip') {
+    return Math.max(160, props.actions.length * 88)
+  }
   return Math.max(72, props.actions.length * 64)
 })
 
@@ -87,7 +99,12 @@ const extraCommitTravel = computed(() => {
   return Math.max(64, Math.round(revealWidth.value * 0.85))
 })
 
-const commitReleaseAt = computed(() => revealWidth.value + extraCommitTravel.value * 0.68)
+const commitReleaseAt = computed(() => {
+  if (!props.peekActions) {
+    return Math.round(revealWidth.value * 0.55)
+  }
+  return revealWidth.value + extraCommitTravel.value * 0.68
+})
 
 const startX = ref(0)
 const startY = ref(0)
@@ -102,6 +119,17 @@ const menuX = ref(0)
 const menuY = ref(0)
 
 const displayOffset = computed(() => baseOffset.value + dragOffset.value)
+
+/** Inline transform wins over CSS — keep slide-out when vanishing */
+const surfaceTransform = computed(() => {
+  if (vanish.value) {
+    const slide = Math.round(revealWidth.value * 1.12)
+    return props.side === 'left'
+      ? `translateX(${slide}px)`
+      : `translateX(${-slide}px)`
+  }
+  return `translateX(${displayOffset.value}px)`
+})
 
 /** 0 = hidden, 1 = fully visible — tracks swipe progress */
 const actionsOpacity = computed(() => {
@@ -153,6 +181,15 @@ function rubberBand(over, limit) {
 function clampOffset(rawTotal) {
   const reveal = revealWidth.value
   const extra = extraCommitTravel.value
+
+  if (!props.peekActions) {
+    if (props.side === 'left') {
+      if (rawTotal <= 0) return rawTotal * 0.15
+      return rawTotal * 0.88
+    }
+    if (rawTotal >= 0) return rawTotal * 0.15
+    return rawTotal * 0.88
+  }
 
   if (props.side === 'left') {
     if (rawTotal <= 0) return rawTotal * 0.22
@@ -231,12 +268,14 @@ function onTouchEnd() {
   if (props.side === 'left') {
     if (total >= commitAt) {
       vanish.value = true
-      baseOffset.value = 0
+      snapBack.value = false
       dragOffset.value = 0
-      setTimeout(() => emit('commit', commitId.value), 180)
+      setTimeout(() => emit('commit', commitId.value), 200)
       return
     }
-    if (total >= openThreshold.value) {
+    if (!props.peekActions) {
+      baseOffset.value = 0
+    } else if (total >= openThreshold.value) {
       baseOffset.value = reveal
     } else {
       baseOffset.value = 0
@@ -244,12 +283,14 @@ function onTouchEnd() {
   } else {
     if (total <= -commitAt) {
       vanish.value = true
-      baseOffset.value = 0
+      snapBack.value = false
       dragOffset.value = 0
-      setTimeout(() => emit('commit', commitId.value), 180)
+      setTimeout(() => emit('commit', commitId.value), 200)
       return
     }
-    if (total <= -openThreshold.value) {
+    if (!props.peekActions) {
+      baseOffset.value = 0
+    } else if (total <= -openThreshold.value) {
       baseOffset.value = -reveal
     } else {
       baseOffset.value = 0
@@ -260,8 +301,9 @@ function onTouchEnd() {
 
 function onActionTap(id) {
   vanish.value = true
-  baseOffset.value = 0
-  setTimeout(() => emit('action', id), 160)
+  snapBack.value = false
+  dragOffset.value = 0
+  setTimeout(() => emit('action', id), 200)
 }
 
 function openContextMenuAt(e) {
@@ -323,6 +365,25 @@ function onMenuSelect(item) {
   align-items: center;
   justify-content: center;
   transition: transform 150ms cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.action.strip {
+  width: auto;
+  flex: 1;
+  min-width: 88px;
+  padding: 0 20rpx;
+}
+.action.strip.danger,
+.action.strip.act-delete {
+  background: linear-gradient(180deg, rgba(255, 90, 90, 0.95), rgba(220, 60, 60, 0.95));
+}
+.action.strip.act-archive {
+  background: rgba(46, 99, 255, 0.82);
+}
+.actionLabel {
+  font-size: 22rpx;
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: 0.3rpx;
 }
 .action.wide { width: 72px; }
 .action:active { transform: scale(0.96); }

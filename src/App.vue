@@ -3,22 +3,28 @@ import { useTheme } from '@/composables/useTheme'
 import { useFocusTheme } from '@/composables/useFocusTheme'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { USE_MOCK, resetMockBackend } from '@/lib/mockBackend'
-import ToastHost from '@/components/ToastHost.vue'
-import FocusAmbient from '@/components/FocusAmbient.vue'
+import GlobalHosts from '@/components/GlobalHosts.vue'
+import { scheduleMountGlobalOverlays } from '@/lib/mountGlobalOverlays'
 
 export default {
-  components: { ToastHost, FocusAmbient },
+  components: { GlobalHosts },
   onLaunch: function () {
     useTheme()
     useFocusTheme()
     bootstrapData()
+    tryMountOverlays()
   },
   onShow: function () {
     useTheme()
     useFocusTheme()
     bootstrapData()
+    tryMountOverlays()
   },
   onHide: function () {},
+}
+
+function tryMountOverlays() {
+  scheduleMountGlobalOverlays()
 }
 
 if (typeof window !== 'undefined') {
@@ -55,8 +61,7 @@ if (typeof window !== 'undefined') {
 </script>
 
 <template>
-  <FocusAmbient />
-  <ToastHost />
+  <GlobalHosts />
 </template>
 
 <style>

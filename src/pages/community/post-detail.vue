@@ -5,16 +5,45 @@
 
     <PageContent>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <view class="card pad">
+      <view
+        class="card pad"
+        @longpress="onPostLongPress"
+        @contextmenu.prevent="onPostContextMenu"
+        @mousedown="onPostMouseDown"
+        @mouseup="onPostMouseUp"
+        @mouseleave="onPostMouseUp"
+      >
         <text class="title">{{ post.title }}</text>
         <text class="meta">{{ post.anonymous ? 'Anonymous' : post.author }} · {{ postTimeLabel }}</text>
         <text class="content">{{ post.content || 'No content yet.' }}</text>
+        <image v-if="post.image" class="postImg" :src="post.image" mode="widthFix" @tap="openAttachment(post.image)" />
+        <view
+          v-if="post.attachment && !post.image"
+          class="attachRow tap"
+          role="button"
+          @tap="openAttachment(post.attachmentUrl)"
+        >
+          <text class="attachName">{{ post.attachment }}</text>
+          <text class="attachAction">Open</text>
+        </view>
+        <view
+          v-else-if="post.attachment && post.image"
+          class="attachRow tap"
+          role="button"
+          @tap="openAttachment(post.attachmentUrl)"
+        >
+          <text class="attachName">{{ post.attachment }}</text>
+          <text class="attachAction">Download</text>
+        </view>
         <view class="actions">
           <view class="btn tap" :class="{ on: post.liked }" role="button" @tap="onToggleLike">
             <text class="btnText">{{ post.liked ? `♥ ${post.likesCount}` : `♥ ${post.likesCount || 0}` }}</text>
           </view>
           <view class="btn tap" :class="{ on: saved }" role="button" @tap="saved = !saved">
             <text class="btnText">{{ saved ? '★ Saved' : '☆ Save' }}</text>
+          </view>
+          <view v-if="showDeleteBtn" class="btn tap danger" role="button" @tap="confirmDelete">
+            <text class="btnTextDanger">Delete</text>
           </view>
         </view>
       </view>
@@ -44,16 +73,24 @@ import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
+import { useUserStore } from '@/composables/useUserStore'
+import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
 const { getPostById, getComments, addComment, fetchComments, togglePostLike } = useCommunityStore()
+const { canDelete, confirmDeletePost } = usePostDelete()
+const { isDesktop } = useDevice()
 const id = ref('p1')
+let mouseHoldTimer = null
+const MOUSE_HOLD_MS = 500
 const saved = ref(false)
 const reply = ref('')
 const post = computed(() => getPostById(id.value))
 const comments = computed(() => getComments(id.value))
 const postTimeLabel = computed(() => shortTimeLabel(post.value?.createdAt))
+
+const showDeleteBtn = computed(() => canDelete(post.value))
 
 function shortTimeLabel(iso) {
   if (!iso) return 'just now'
@@ -71,13 +108,66 @@ function shortTimeLabel(iso) {
 function onToggleLike() {
   if (!post.value?.id) return
   togglePostLike(post.value.id)
-  toast.updated()
+}
+
+function openAttachment(url) {
+  if (!url) return
+  // #ifdef H5
+  if (typeof window !== 'undefined') {
+    window.open(url, '_blank')
+    return
+  }
+  // #endif
+  uni.setClipboardData({
+    data: url,
+    success: () => toast.show('Link copied'),
+  })
+}
+
+function confirmDelete() {
+  confirmDeletePost(post.value, {
+    onDeleted: () => setTimeout(() => uni.navigateBack({ delta: 1 }), 180),
+  })
+}
+
+function onPostLongPress() {
+  if (!canDelete(post.value)) return
+  confirmDeletePost(post.value, {
+    onDeleted: () => setTimeout(() => uni.navigateBack({ delta: 1 }), 180),
+  })
+}
+
+function onPostContextMenu(e) {
+  if (!isDesktop.value || !canDelete(post.value)) return
+  e?.preventDefault?.()
+  onPostLongPress()
+}
+
+function clearMouseHold() {
+  if (mouseHoldTimer) {
+    clearTimeout(mouseHoldTimer)
+    mouseHoldTimer = null
+  }
+}
+
+function onPostMouseDown(e) {
+  if (!isDesktop.value || !canDelete(post.value)) return
+  if (e?.button !== 0) return
+  clearMouseHold()
+  mouseHoldTimer = setTimeout(() => {
+    mouseHoldTimer = null
+    onPostLongPress()
+  }, MOUSE_HOLD_MS)
+}
+
+function onPostMouseUp() {
+  clearMouseHold()
 }
 
 function send() {
   if (!reply.value.trim()) return
   addComment(id.value, reply.value)
-  toast.added()
+  toast.commentAdded()
   reply.value = ''
 }
 onLoad((q) => {
@@ -149,9 +239,43 @@ onLoad((q) => {
 .t-dark .content {
   color: rgba(245, 247, 255, 0.74);
 }
+.postImg {
+  width: 100%;
+  margin-top: 14rpx;
+  border-radius: 16rpx;
+  display: block;
+}
+.attachRow {
+  margin-top: 12rpx;
+  padding: 12rpx 14rpx;
+  border-radius: 16rpx;
+  background: rgba(46, 99, 255, 0.06);
+  border: 1rpx solid rgba(46, 99, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10rpx;
+}
+.attachName {
+  flex: 1;
+  font-size: 22rpx;
+  color: rgba(46, 99, 255, 0.92);
+}
+.t-dark .attachName {
+  color: rgba(170, 200, 255, 0.92);
+}
+.attachAction {
+  font-size: 20rpx;
+  font-weight: 640;
+  color: rgba(16, 24, 40, 0.55);
+}
+.t-dark .attachAction {
+  color: rgba(245, 247, 255, 0.55);
+}
 .actions {
   margin-top: 16rpx;
   display: flex;
+  flex-wrap: wrap;
   gap: 10rpx;
 }
 .btn {
@@ -175,6 +299,10 @@ onLoad((q) => {
   background: rgba(46, 99, 255, 0.14);
   border-color: rgba(46, 99, 255, 0.22);
 }
+.btn.danger {
+  background: rgba(220, 80, 110, 0.08);
+  border-color: rgba(220, 80, 110, 0.2);
+}
 .btnText {
   font-size: 20rpx;
   color: rgba(16, 24, 40, 0.78);
@@ -184,6 +312,10 @@ onLoad((q) => {
 }
 .btn.on .btnText {
   color: rgba(46, 99, 255, 0.96);
+}
+.btnTextDanger {
+  font-size: 20rpx;
+  color: rgba(220, 80, 110, 0.96);
 }
 .sec {
   font-size: 22rpx;

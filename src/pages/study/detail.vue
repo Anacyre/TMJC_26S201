@@ -72,7 +72,7 @@ function shortTimeLabel(iso) {
 function onLike() {
   if (!resource.value?.id) return
   toggleResourceLike(resource.value.id)
-  toast.updated()
+  toast.resourceUpdated()
 }
 
 async function onDownload() {

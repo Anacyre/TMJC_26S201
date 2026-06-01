@@ -163,7 +163,7 @@ async function createCommunity() {
   }
   showAddCommunity.value = false
   draft.value = { name: '', desc: '', icon: '#' }
-  toast.show('Space created')
+  toast.communityCreated()
 }
 </script>
 

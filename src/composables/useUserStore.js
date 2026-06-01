@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { getCurrentUser } from '@/api/auth'
 import { updateProfile as apiUpdateProfile } from '@/api/profile'
 import { isAdminMember } from '@/lib/classMembers'
+import { resetAdminMode, syncAdminModeForUser } from '@/composables/adminModeState'
 
 const currentUser = ref({
   id: '',
@@ -27,7 +28,10 @@ async function fetchCurrentUser() {
   loading.value = true
   try {
     const { user, profile, error } = await getCurrentUser()
-    if (error || !user) return
+    if (error || !user) {
+      resetAdminMode()
+      return
+    }
 
     currentUser.value = {
       id: user.id,
@@ -43,6 +47,7 @@ async function fetchCurrentUser() {
       birthdayVisibility: profile?.birthday_visibility || 'Friends',
       avatar: profile?.avatar_url || '',
     }
+    syncAdminModeForUser(currentUser.value)
   } finally {
     loading.value = false
   }

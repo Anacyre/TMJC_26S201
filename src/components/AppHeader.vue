@@ -4,7 +4,9 @@
     <view class="bar">
       <view class="side left">
         <view v-if="navMode === 'brand'" class="brand" role="button" @tap="goHome">
-          <ClassLogo size="lg" />
+          <view class="logoHit" @longpress.stop="openUndoMenu">
+            <ClassLogo size="lg" />
+          </view>
           <text class="brandText">26S201</text>
         </view>
         <BackButton v-else />
@@ -44,6 +46,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import AdminToggle from '@/components/AdminToggle.vue'
 import ClassLogo from '@/components/ClassLogo.vue'
 import BackButton from '@/components/BackButton.vue'
+import { useUndoMenu } from '@/composables/useUndoMenu'
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -55,6 +58,7 @@ const { themeClass } = useTheme()
 const { openSearch } = useGlobalSearch()
 const { currentUser } = useUserStore()
 const { isRealAdmin } = useAdminMode()
+const { openUndoMenu } = useUndoMenu()
 const initials = computed(() =>
   (currentUser.value.name || '?')
     .split(' ')
@@ -152,6 +156,13 @@ function openProfile() {
   transition: transform 180ms ease;
 }
 .brand:active { transform: scale(0.96); }
+.logoHit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx;
+  margin: -8rpx;
+}
 .brandText {
   font-size: 26rpx;
   font-weight: 740;

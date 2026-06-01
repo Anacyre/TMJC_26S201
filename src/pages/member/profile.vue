@@ -243,7 +243,7 @@ async function saveProfile() {
       birthdayVisibility: draft.value.birthdayVisibility,
     })
     editOpen.value = false
-    toast.saved()
+    toast.profileSaved()
   } catch (e) {
     toast.error('Could not save profile')
   }
@@ -269,7 +269,7 @@ function confirmLogout() {
 function saveAlias() {
   setQuickLoginAlias(currentUser.value.id, aliasDraft.value.trim())
   aliasOpen.value = false
-  toast.saved()
+  toast.show('Alias saved')
 }
 
 function barHeight(minutes) {

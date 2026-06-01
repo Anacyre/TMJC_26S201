@@ -113,6 +113,19 @@ async function togglePostLike(postId) {
   }
 }
 
+async function deletePost(postId) {
+  const { error } = await communityApi.deletePost(postId)
+  if (error) return { error }
+  const idx = posts.value.findIndex((p) => p.id === postId)
+  if (idx >= 0) posts.value.splice(idx, 1)
+  if (commentsByPost.value[postId]) {
+    const next = { ...commentsByPost.value }
+    delete next[postId]
+    commentsByPost.value = next
+  }
+  return { error: null }
+}
+
 // ─── Computed ────────────────────────────────────────────────────
 
 const hotPosts = computed(() => [...posts.value].sort((a, b) => b.likesCount - a.likesCount))
@@ -141,5 +154,6 @@ export function useCommunityStore() {
     addCommunity,
     addPost,
     togglePostLike,
+    deletePost,
   }
 }

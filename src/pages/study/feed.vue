@@ -186,7 +186,7 @@ async function submitUpload() {
     }
     showUpload.value = false
     uploadDraft.value = { title: '', fileName: '', file: null }
-    toast.show('Uploaded')
+    toast.resourceUploaded()
   } finally {
     uploading.value = false
   }

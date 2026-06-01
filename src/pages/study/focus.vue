@@ -26,6 +26,12 @@
           </view>
       </view>
 
+      <view
+        v-if="running"
+        class="focusRunVeil"
+        aria-hidden="true"
+      />
+
       <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
 
@@ -164,7 +170,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import FocusNoiseSheet from '@/components/FocusNoiseSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useFocusStore } from '@/composables/useFocusStore'
-import { playFocusAudio, stopFocusAudio } from '@/composables/useFocusAudio'
+import { playFocusAudio, pauseFocusAudio, stopFocusAudio } from '@/composables/useFocusAudio'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
@@ -218,6 +224,7 @@ const bgFront = ref(0)
 const bgMotionMs = ref(9000)
 let chromeFadeTimer = null
 let bgShiftTimer = null
+let hiddenAt = null
 
 const CHROME_FADE_MS = 1500
 const BG_CROSSFADE_MS = 6000
@@ -712,7 +719,8 @@ function persistSession() {
     elapsed: totalSeconds.value - remaining.value,
     creditedSeconds: creditedSeconds.value,
     soundId: prefs.value.soundId,
-    running: false,
+    running: running.value,
+    hiddenAt: hiddenAt || null,
   })
 }
 
@@ -742,6 +750,20 @@ function restoreSession() {
   if (typeof snap.elapsed === 'number') elapsed.value = snap.elapsed
   if (typeof snap.creditedSeconds === 'number') creditedSeconds.value = snap.creditedSeconds
   if (snap.soundId) setSound(snap.soundId)
+  if (snap.hiddenAt) hiddenAt = new Date(snap.hiddenAt).getTime()
+}
+
+function resumeRunningTimerIfNeeded() {
+  const snap = loadActiveSession()
+  if (!snap?.running || running.value) return
+  applyBackgroundElapsed()
+  if (remaining.value <= 0) return
+  running.value = true
+  if (tickRef.value) clearInterval(tickRef.value)
+  tickRef.value = setInterval(tick, 1000)
+  persistSession()
+  startBgAnimation()
+  enterImmersiveChrome()
 }
 
 function tick() {
@@ -770,15 +792,17 @@ function start() {
   enterImmersiveChrome()
 }
 
-function stopTimer({ credit = false } = {}) {
+function stopTimer({ credit = false, stopAudio = false } = {}) {
   running.value = false
+  hiddenAt = null
   if (tickRef.value) {
     clearInterval(tickRef.value)
     tickRef.value = null
   }
   if (credit && sessionStarted.value) creditElapsedFocus()
   persistSession()
-  stopFocusAudio()
+  if (stopAudio) stopFocusAudio()
+  else pauseFocusAudio()
   stopBgAnimation()
   exitImmersiveChrome()
 }
@@ -788,7 +812,7 @@ function pause() {
 }
 
 function reset() {
-  stopTimer({ credit: false })
+  stopTimer({ credit: false, stopAudio: true })
   remaining.value = totalSeconds.value
   elapsed.value = 0
   creditedSeconds.value = 0
@@ -797,9 +821,9 @@ function reset() {
 }
 
 function completeSession() {
-  stopTimer({ credit: false })
+  stopTimer({ credit: false, stopAudio: true })
   creditElapsedFocus()
-  toast.saved()
+  toast.focusSessionSaved()
   remaining.value = selectedMinutes.value * 60
   elapsed.value = 0
   creditedSeconds.value = 0
@@ -819,7 +843,7 @@ async function onNoiseUpload(payload) {
   try {
     await uploadSharedNoise(payload)
     noiseSheetRef.value?.finishUpload(true)
-    toast.added()
+    toast.soundUploaded()
   } catch (e) {
     noiseSheetRef.value?.finishUpload(false)
     toast.show(e?.message || 'Upload failed')
@@ -830,7 +854,7 @@ async function onNoiseRemoved(id) {
   try {
     await removeSharedNoise(currentUser.value?.id, id)
     stopFocusAudio()
-    toast.removed()
+    toast.soundRemoved()
   } catch {
     toast.show('Could not remove')
   }
@@ -846,8 +870,28 @@ function syncAudio() {
   const noise = getNoiseById(prefs.value.soundId)
   if (running.value && noise?.audioUrl) {
     playFocusAudio(noise.audioUrl)
+  } else if (noise?.audioUrl) {
+    pauseFocusAudio()
   } else {
     stopFocusAudio()
+  }
+}
+
+function applyBackgroundElapsed() {
+  if (!hiddenAt) return
+  const elapsedSec = Math.floor((Date.now() - hiddenAt) / 1000)
+  hiddenAt = null
+  if (elapsedSec <= 0) return
+  remaining.value = Math.max(0, remaining.value - elapsedSec)
+  elapsed.value = totalSeconds.value - remaining.value
+  if (remaining.value === 0) {
+    if (running.value) completeSession()
+    else {
+      remaining.value = 0
+      clearActiveSession()
+    }
+  } else {
+    persistSession()
   }
 }
 
@@ -863,15 +907,20 @@ onShow(async () => {
     fetchFocusSessions(currentUser.value?.id),
   ])
   restoreSession()
+  resumeRunningTimerIfNeeded()
+  applyBackgroundElapsed()
   syncAudio()
 })
 onHide(() => {
-  pause()
-  stopFocusAudio()
+  if (running.value) {
+    hiddenAt = Date.now()
+    persistSession()
+    return
+  }
+  pauseFocusAudio()
 })
 onBeforeUnmount(() => {
-  pause()
-  stopFocusAudio()
+  stopTimer({ credit: false, stopAudio: true })
   clearChromeFadeTimer()
   clearBgShiftTimer()
   stopBgAnimation()
@@ -915,6 +964,24 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 .bgLiveStack.active { opacity: 1; }
+
+.focusRunVeil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.5);
+  pointer-events: none;
+  opacity: 0;
+  animation: focusVeilIn 1.5s ease forwards;
+}
+.page.t-dark .focusRunVeil {
+  background: rgba(0, 0, 0, 0.5);
+  filter: invert(1) hue-rotate(180deg);
+}
+@keyframes focusVeilIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
 
 .bgLiveLayer {
   position: absolute;
@@ -977,7 +1044,7 @@ onBeforeUnmount(() => {
 
 .scroll {
   position: relative;
-  z-index: 1;
+  z-index: 2;
   height: 100vh;
   box-sizing: border-box;
   padding-top: var(--shell-header-offset, 148rpx);
@@ -1013,7 +1080,7 @@ onBeforeUnmount(() => {
 
 .resetDot {
   position: absolute;
-  top: calc(50% - var(--ring-outer-r) - 52rpx);
+  top: calc(50% + var(--ring-outer-r) - 44rpx);
   right: calc(50% - var(--ring-outer-r) - 52rpx);
   width: 44rpx;
   height: 44rpx;
@@ -1425,19 +1492,19 @@ onBeforeUnmount(() => {
 }
 
 .noiseGlyph { width: 22rpx; height: 22rpx; position: relative; }
-.ic-silence::before,
-.ic-silence::after {
+.ic-silence::before {
   content: '';
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 14rpx;
-  height: 2rpx;
-  margin: -1rpx 0 0 -7rpx;
-  background: rgba(142, 142, 147, 0.68);
-  border-radius: 999rpx;
+  width: 16rpx;
+  height: 16rpx;
+  margin: -8rpx 0 0 -8rpx;
+  border: 2rpx solid rgba(142, 142, 147, 0.68);
+  border-radius: 50%;
+  background: transparent;
+  box-sizing: border-box;
 }
-.ic-silence::after { transform: rotate(90deg); }
 
 .ic-water::before {
   content: '';

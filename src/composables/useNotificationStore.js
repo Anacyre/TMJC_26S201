@@ -126,6 +126,7 @@ async function addNotification(payload) {
   const { data, error } = await notificationsApi.createNotification(payload)
   if (!error && data) notifications.value.unshift(data)
   else if (error) console.error('[useNotificationStore] addNotification:', error.message)
+  return { data, error }
 }
 
 // ─── Computed ────────────────────────────────────────────────────

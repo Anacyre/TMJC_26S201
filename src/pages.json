@@ -116,7 +116,10 @@
 			"path": "pages/study/focus",
 			"style": {
 				"navigationStyle": "custom",
-				"navigationBarTitleText": "Focus"
+				"navigationBarTitleText": "Focus",
+				"mp-weixin": {
+					"requiredBackgroundModes": ["audio"]
+				}
 			}
 		},
 		{

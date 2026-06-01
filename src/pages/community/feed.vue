@@ -30,13 +30,21 @@
         :key="p.id"
         class="card tap"
         role="button"
-        @tap="openPost(p.id)"
+        @tap="onCardTap(p)"
+        @longpress="onPostLongPress(p)"
+        @contextmenu.prevent="onPostContextMenu(p, $event)"
+        @mousedown="onPostMouseDown(p, $event)"
+        @mouseup="onPostMouseUp"
+        @mouseleave="onPostMouseUp"
       >
         <text class="title">{{ p.title }}</text>
         <view class="metaRow">
           <text class="meta">{{ p.anonymous ? 'Anonymous' : p.author }}</text>
           <text class="metaDot">·</text>
           <text class="meta">{{ p.timeLabel }}</text>
+        </view>
+        <view v-if="p.image || p.attachment" class="attachHint">
+          <text class="attachHintText">{{ p.image ? 'Image' : p.attachment }}</text>
         </view>
         <view class="stats">
           <view class="stat">
@@ -72,13 +80,19 @@
           placeholder="Write something…"
           placeholder-class="ph"
         />
-        <input class="input" v-model="draft.image" placeholder="Image URL" placeholder-class="ph" />
+        <view class="fileRow tap" role="button" @tap="pickAttachment">
+          <text class="fileLabel">{{ draft.fileName || 'Attach file (optional)' }}</text>
+          <text v-if="draft.fileName" class="fileClear" @tap.stop="clearAttachment">Remove</text>
+        </view>
+        <view v-if="draft.previewUrl && draft.isImage" class="previewWrap">
+          <image class="previewImg" :src="draft.previewUrl" mode="widthFix" />
+        </view>
         <view class="anonRow tap" role="button" @tap="draft.anonymous = !draft.anonymous">
           <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>
           <text class="anonText">Anonymous</text>
         </view>
-        <view class="commit tap" role="button" @tap="createPost">
-          <text class="commitText">Post</text>
+        <view class="commit tap" :class="{ busy: posting }" role="button" @tap="createPost">
+          <text class="commitText">{{ posting ? '…' : 'Post' }}</text>
         </view>
       </view>
     </view>
@@ -98,19 +112,33 @@ import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
+import { usePostDelete } from '@/composables/usePostDelete'
+import { useDevice } from '@/composables/useDevice'
 import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
+import { choosePostFile, isPostImageFile, uploadFile } from '@/api/upload'
 
 const { themeClass } = useTheme()
-const { getCommunityById, hotPosts, newPosts, topPosts, addPost, loading } = useCommunityStore()
+const { hotPosts, newPosts, topPosts, addPost, loading } = useCommunityStore()
 const { currentUser } = useUserStore()
+const { canDelete, confirmDeletePost } = usePostDelete()
+const { isDesktop } = useDevice()
 const id = ref('c1')
+const suppressTap = ref(false)
+let mouseHoldTimer = null
+const MOUSE_HOLD_MS = 500
 const filter = ref('hot')
 const showCreate = ref(false)
-const draft = ref({ text: '', image: '', anonymous: false })
-
-const community = computed(() => getCommunityById(id.value) || { name: 'Space' })
+const posting = ref(false)
+const draft = ref({
+  text: '',
+  anonymous: false,
+  file: null,
+  fileName: '',
+  previewUrl: '',
+  isImage: false,
+})
 
 function filterLabel(f) {
   if (f === 'hot') return 'Hot'
@@ -144,7 +172,72 @@ function openPost(postId) {
   navSibling(`/pages/community/post-detail?id=${postId}`)
 }
 
+function onCardTap(p) {
+  if (suppressTap.value) {
+    suppressTap.value = false
+    return
+  }
+  openPost(p.id)
+}
+
+function onPostLongPress(p) {
+  if (!canDelete(p)) return
+  suppressTap.value = true
+  confirmDeletePost(p)
+}
+
+function onPostContextMenu(p, e) {
+  if (!isDesktop.value || !canDelete(p)) return
+  e?.preventDefault?.()
+  e?.stopPropagation?.()
+  suppressTap.value = true
+  confirmDeletePost(p)
+}
+
+function clearMouseHold() {
+  if (mouseHoldTimer) {
+    clearTimeout(mouseHoldTimer)
+    mouseHoldTimer = null
+  }
+}
+
+function onPostMouseDown(p, e) {
+  if (!isDesktop.value || !canDelete(p)) return
+  if (e?.button !== 0) return
+  clearMouseHold()
+  mouseHoldTimer = setTimeout(() => {
+    mouseHoldTimer = null
+    suppressTap.value = true
+    confirmDeletePost(p)
+  }, MOUSE_HOLD_MS)
+}
+
+function onPostMouseUp() {
+  clearMouseHold()
+}
+
+function clearAttachment() {
+  draft.value.file = null
+  draft.value.fileName = ''
+  draft.value.previewUrl = ''
+  draft.value.isImage = false
+}
+
+async function pickAttachment() {
+  try {
+    const picked = await choosePostFile()
+    draft.value.file = picked
+    draft.value.fileName = picked.name || 'file'
+    draft.value.isImage = isPostImageFile(picked)
+    draft.value.previewUrl = picked.path || ''
+  } catch (e) {
+    if (String(e?.errMsg || e?.message || '').includes('cancel')) return
+    toast.show(e?.message || 'Could not pick file')
+  }
+}
+
 async function createPost() {
+  if (posting.value) return
   if (!draft.value.text.trim()) {
     toast.show('Write something')
     return
@@ -153,21 +246,49 @@ async function createPost() {
     toast.show('Missing space')
     return
   }
-  const { error } = await addPost({
-    communityId: id.value,
-    title: draft.value.text.trim(),
-    content: draft.value.text.trim(),
-    image: draft.value.image.trim(),
-    author: currentUser.value.name,
-    anonymous: draft.value.anonymous,
-  })
-  if (error) {
-    toast.show(error.message || 'Could not post')
-    return
+
+  posting.value = true
+  try {
+    let image = ''
+    let attachment = ''
+    let attachmentUrl = ''
+    let fileKey = ''
+
+    if (draft.value.file) {
+      const up = await uploadFile(draft.value.file, 'post')
+      if (up.error) {
+        toast.show(up.error.message || 'Upload failed')
+        return
+      }
+      fileKey = up.fileKey || ''
+      attachment = up.fileName || draft.value.fileName
+      attachmentUrl = up.fileUrl || ''
+      if (isPostImageFile(draft.value.file, up.mimeType)) {
+        image = up.fileUrl || ''
+      }
+    }
+
+    const { error } = await addPost({
+      communityId: id.value,
+      title: draft.value.text.trim(),
+      content: draft.value.text.trim(),
+      image,
+      attachment,
+      attachmentUrl,
+      fileKey,
+      author: currentUser.value.name,
+      anonymous: draft.value.anonymous,
+    })
+    if (error) {
+      toast.show(error.message || 'Could not post')
+      return
+    }
+    showCreate.value = false
+    draft.value = { text: '', anonymous: false, file: null, fileName: '', previewUrl: '', isImage: false }
+    toast.postPublished()
+  } finally {
+    posting.value = false
   }
-  showCreate.value = false
-  draft.value = { text: '', image: '', anonymous: false }
-  toast.published()
 }
 
 onLoad((q) => { id.value = q?.id || '' })
@@ -198,6 +319,9 @@ onLoad((q) => { id.value = q?.id || '' })
 .t-dark .meta { color: rgba(245, 247, 255, 0.45); }
 .metaDot { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.3); }
 .t-dark .metaDot { color: rgba(245, 247, 255, 0.3); }
+.attachHint { margin-top: 8rpx; }
+.attachHintText { font-size: 20rpx; color: rgba(46, 99, 255, 0.82); }
+.t-dark .attachHintText { color: rgba(170, 200, 255, 0.88); }
 
 .stats { margin-top: 14rpx; display: flex; gap: 18rpx; }
 .stat { display: flex; align-items: center; gap: 6rpx; }
@@ -228,13 +352,29 @@ onLoad((q) => { id.value = q?.id || '' })
 .t-dark .grabber { background: rgba(245,247,255,.2); }
 .sheetTitle { font-size: 26rpx; font-weight: 740; color: rgba(16, 24, 40, 0.92); }
 .t-dark .sheetTitle { color: #f5f7fa; }
-.sheetSub { display: block; margin-top: 6rpx; font-size: 20rpx; color: rgba(16, 24, 40, 0.5); }
-.t-dark .sheetSub { color: rgba(245, 247, 255, 0.5); }
-.input { width: 100%; min-height: 80rpx; margin-top: 12rpx; padding: 0 16rpx; border-radius: 20rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.06); color: rgba(16, 24, 40, 0.92); font-size: 23rpx; }
+.input { width: 100%; min-height: 80rpx; margin-top: 12rpx; padding: 0 16rpx; border-radius: 20rpx; background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.06); color: rgba(16, 24, 40, 0.92); font-size: 23rpx; box-sizing: border-box; }
 .t-dark .input { background: #23272d; border-color: rgba(255, 255, 255, 0.06); color: #f5f7fa; }
 .area { min-height: 220rpx; padding-top: 14rpx; }
 .ph { color: rgba(16, 24, 40, 0.35); }
 .t-dark .ph { color: rgba(245, 247, 255, 0.32); }
+.fileRow {
+  margin-top: 12rpx;
+  min-height: 72rpx;
+  padding: 0 16rpx;
+  border-radius: 20rpx;
+  background: rgba(46, 99, 255, 0.06);
+  border: 1rpx dashed rgba(46, 99, 255, 0.22);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+.fileLabel { flex: 1; font-size: 22rpx; color: rgba(46, 99, 255, 0.9); }
+.t-dark .fileLabel { color: rgba(170, 200, 255, 0.92); }
+.fileClear { font-size: 20rpx; color: rgba(16, 24, 40, 0.5); }
+.t-dark .fileClear { color: rgba(245, 247, 255, 0.5); }
+.previewWrap { margin-top: 10rpx; border-radius: 16rpx; overflow: hidden; }
+.previewImg { width: 100%; display: block; }
 .anonRow { margin-top: 14rpx; display: flex; align-items: center; gap: 10rpx; }
 .check { width: 32rpx; height: 32rpx; border-radius: 10rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; }
 .t-dark .check { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
@@ -244,5 +384,6 @@ onLoad((q) => { id.value = q?.id || '' })
 .anonText { font-size: 21rpx; color: rgba(16, 24, 40, 0.7); }
 .t-dark .anonText { color: rgba(245, 247, 255, 0.7); }
 .commit { margin-top: 18rpx; height: 84rpx; border-radius: 22rpx; display: flex; align-items: center; justify-content: center; background: linear-gradient(180deg, #5a8eff, #2e63ff); box-shadow: 0 16rpx 40rpx rgba(46, 99, 255, 0.28); }
+.commit.busy { opacity: 0.7; }
 .commitText { color: #fff; font-size: 23rpx; font-weight: 720; }
 </style>

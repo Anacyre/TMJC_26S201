@@ -37,10 +37,11 @@ export const CLASS_MEMBERS = [
   { username: 'chu_jing_cheryl_wong', display_name: 'Chu Jing Cheryl Wong', role: 'teacher_admin', is_admin: true },
   { username: 'mao_yu_yan', display_name: 'Mao Yu Yan', role: 'teacher_admin', is_admin: true },
   { username: 'michelle_lee', display_name: 'Michelle Lee', role: 'teacher_admin', is_admin: true },
+  { username: 'chen_zhiling', display_name: 'Chen Zhiling', role: 'teacher_admin', is_admin: true },
 ]
 
 export const DEFAULT_MEMBER_PASSWORD = '123456'
-export const ROSTER_VERSION = '26s201_roster_v1'
+export const ROSTER_VERSION = '26s201_roster_v2'
 
 export function slugifyUsername(value) {
   return String(value || '')
@@ -68,10 +69,30 @@ export function authLoginEmail(username, role = 'student') {
   return `${username}@students.edu.sg`
 }
 
+export function findClassMember(username) {
+  const key = slugifyUsername(username)
+  if (!key) return null
+  return CLASS_MEMBERS.find((m) => m.username === key) || null
+}
+
+/** Admin check: roster wins for class members; ignores stale is_admin on students. */
 export function isAdminMember(profileOrRole) {
   if (!profileOrRole) return false
   if (typeof profileOrRole === 'object') {
-    return !!(profileOrRole.is_admin || profileOrRole.role === 'admin' || profileOrRole.role === 'teacher_admin')
+    const username =
+      profileOrRole.username ||
+      slugifyUsername(profileOrRole.display_name || profileOrRole.name)
+    const member = findClassMember(username)
+    if (member) {
+      if (member.is_admin) return true
+      if (member.role === 'student') return profileOrRole.role === 'admin'
+      return false
+    }
+    return !!(
+      profileOrRole.is_admin ||
+      profileOrRole.role === 'admin' ||
+      profileOrRole.role === 'teacher_admin'
+    )
   }
   return profileOrRole === 'admin' || profileOrRole === 'teacher_admin'
 }
@@ -113,4 +134,83 @@ export function createMemberRecords(member, id) {
 
 export function buildRosterRecords(idFactory) {
   return CLASS_MEMBERS.map((member) => createMemberRecords(member, idFactory()))
+}
+
+const rosterUsernameSet = () => new Set(CLASS_MEMBERS.map((m) => m.username))
+
+/**
+ * Member list for UI: canonical CLASS_MEMBERS merged with stored/remote profiles.
+ * Non-roster accounts (preview admin, manually added) are appended.
+ */
+export function mergeProfilesWithClassRoster(dbProfiles = []) {
+  const rosterNames = rosterUsernameSet()
+  const byUsername = new Map()
+  for (const p of dbProfiles) {
+    const key = p.username || slugifyUsername(p.display_name || p.name)
+    if (key) byUsername.set(key, p)
+  }
+
+  const out = []
+
+  for (const member of CLASS_MEMBERS) {
+    const row = byUsername.get(member.username)
+    const base = row
+      ? { ...row }
+      : {
+          id: `roster_${member.username}`,
+          username: member.username,
+          mbti: '',
+          interests: '',
+          bio: '',
+          links: [],
+          birthday: member.birthday || '',
+          avatar_url: '',
+        }
+
+    out.push({
+      ...base,
+      id: base.id,
+      username: member.username,
+      display_name: member.display_name,
+      name: member.display_name,
+      role: member.role,
+      is_admin: member.is_admin,
+      email:
+        member.role === 'teacher_admin'
+          ? ''
+          : base.email || memberEmail(member.username, member.role),
+      birthday: base.birthday ?? member.birthday ?? '',
+      mbti: base.mbti ?? '',
+      interests: base.interests ?? '',
+      bio: base.bio ?? '',
+      links: base.links ?? [],
+      avatar_url: base.avatar_url ?? '',
+    })
+  }
+
+  for (const p of dbProfiles) {
+    const key = p.username || slugifyUsername(p.display_name || p.name)
+    if (!key || rosterNames.has(key)) continue
+    out.push({
+      ...p,
+      id: p.id,
+      username: key,
+      display_name: p.display_name || p.name || '',
+      name: p.display_name || p.name || '',
+      role: p.role || 'student',
+      is_admin: !!p.is_admin,
+      email: p.email || '',
+      birthday: p.birthday || '',
+      mbti: p.mbti || '',
+      interests: p.interests || '',
+      bio: p.bio || '',
+      links: p.links || [],
+      avatar_url: p.avatar_url || '',
+    })
+  }
+
+  out.sort((a, b) =>
+    String(a.display_name || a.name).localeCompare(String(b.display_name || b.name))
+  )
+  return out
 }

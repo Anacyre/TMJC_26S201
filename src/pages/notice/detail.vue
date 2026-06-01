@@ -47,6 +47,7 @@ import { useTasksStore } from '@/composables/useTasksStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
+import { deleteConfirm } from '@/composables/useConfirmDelete'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
 
 const { themeClass } = useTheme()
@@ -99,7 +100,7 @@ function markAsRead() {
 function togglePinned() {
   if (!notice.value?.id) return
   toggleImportant(notice.value.id)
-  toast.updated()
+  toast.noticeUpdated()
 }
 
 function hideNotice() {
@@ -109,24 +110,17 @@ function hideNotice() {
   setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
 }
 
-function deleteNotice() {
+async function deleteNotice() {
   if (!notice.value?.id || !canDelete.value) return
-  uni.showModal({
-    title: 'Delete notice?',
-    content: 'This permanently removes the notice for everyone.',
-    confirmText: 'Delete',
-    confirmColor: '#dc5050',
-    success: async (res) => {
-      if (!res.confirm) return
-      const { error } = await removeNotification(notice.value.id)
-      if (error) {
-        toast.show('Could not delete')
-        return
-      }
-      toast.removed()
-      setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
-    },
-  })
+  const ok = await deleteConfirm.notice()
+  if (!ok) return
+  const { error } = await removeNotification(notice.value.id)
+  if (error) {
+    toast.show('Could not delete')
+    return
+  }
+  toast.noticeDeleted()
+  setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
 }
 
 function addToPlanner() {

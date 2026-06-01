@@ -16,6 +16,7 @@ import {
   ROSTER_VERSION,
   slugifyUsername,
   CLASS_MEMBERS,
+  mergeProfilesWithClassRoster,
 } from '@/lib/classMembers'
 import {
   enrichTask,
@@ -371,32 +372,68 @@ function setSession(value) {
 function persist() { safeSet(STORAGE_KEY, _state) }
 
 function ensureClassRoster(state) {
-  if (state.roster_version === ROSTER_VERSION) return state
-
   const demoIds = ['usr_peer_a', 'usr_peer_b', 'usr_peer_c', 'usr_peer_d']
-  state.authUsers = (state.authUsers || []).filter((u) => !demoIds.includes(u.id))
-  state.profiles = (state.profiles || []).filter((p) => !demoIds.includes(p.id))
+  if (state.roster_version !== ROSTER_VERSION) {
+    state.authUsers = (state.authUsers || []).filter((u) => !demoIds.includes(u.id))
+    state.profiles = (state.profiles || []).filter((p) => !demoIds.includes(p.id))
+  }
 
-  const existingUsernames = new Set(
-    (state.profiles || []).map((p) => p.username).filter(Boolean)
+  const rosterNames = new Set(CLASS_MEMBERS.map((m) => m.username))
+  state.authUsers = state.authUsers || []
+  state.profiles = state.profiles || []
+
+  const byUsername = new Map(
+    state.profiles.filter((p) => p.username).map((p) => [p.username, p])
   )
 
   for (const member of CLASS_MEMBERS) {
-    if (existingUsernames.has(member.username)) continue
+    const profile = byUsername.get(member.username)
+    if (profile) {
+      profile.display_name = member.display_name
+      profile.name = member.display_name
+      profile.role = member.role
+      profile.is_admin = member.is_admin
+      profile.email =
+        member.role === 'teacher_admin' ? '' : memberEmail(member.username, member.role)
+      if (member.birthday) profile.birthday = member.birthday
+
+      const auth = state.authUsers.find((u) => u.id === profile.id)
+      if (auth) {
+        auth.username = member.username
+        auth.display_name = member.display_name
+        auth.email = authLoginEmail(member.username, member.role)
+      }
+      continue
+    }
+
     const record = createMemberRecords(member, uid('usr'))
     state.authUsers.push(record.auth)
     state.profiles.push(record.profile)
-    existingUsernames.add(member.username)
+    byUsername.set(member.username, record.profile)
   }
 
-  for (const p of state.profiles || []) {
+  const removable = state.profiles.filter((p) => {
+    if (!p.username || rosterNames.has(p.username)) return false
+    if (p.id === 'usr_test_admin') return false
+    if (String(p.name || p.display_name || '').trim().toLowerCase().startsWith('test')) {
+      return false
+    }
+    const auth = state.authUsers.find((u) => u.id === p.id)
+    return !!auth?.must_change_password
+  })
+  for (const p of removable) {
+    state.profiles = state.profiles.filter((x) => x.id !== p.id)
+    state.authUsers = state.authUsers.filter((u) => u.id !== p.id)
+  }
+
+  for (const p of state.profiles) {
     if (!p.display_name && p.name) p.display_name = p.name
     if (!p.username && p.display_name) p.username = slugifyUsername(p.display_name)
     if (p.is_admin === undefined) p.is_admin = isAdminMember(p)
     if (!p.birthday) p.birthday = ''
   }
 
-  for (const u of state.authUsers || []) {
+  for (const u of state.authUsers) {
     const profile = state.profiles.find((p) => p.id === u.id)
     if (!u.username && profile?.username) u.username = profile.username
     if (!u.display_name && profile?.display_name) u.display_name = profile.display_name
@@ -511,6 +548,9 @@ function rowToPost(row, likedSet = new Set()) {
     likesCount: row.likes_count || 0,
     commentsCount: row.comments_count || 0,
     image: row.image || '',
+    attachment: row.attachment || '',
+    attachmentUrl: row.attachment_url || '',
+    fileKey: row.file_key || '',
     liked: likedSet.has(row.id),
     createdAt: row.created_at,
   }
@@ -641,26 +681,26 @@ export async function getProfile(userId) {
 
 export async function getMembers() {
   await tick()
-  const data = _state.profiles.map((p) => {
-    const auth = findAuthUser(p.id)
-    return {
-      id: p.id,
-      username: p.username || '',
-      display_name: p.display_name || p.name || '',
-      name: p.display_name || p.name || '',
-      birthday: p.birthday || '',
-      mbti: p.mbti,
-      interests: p.interests,
-      bio: p.bio,
-      links: p.links,
-      role: p.role || 'student',
-      is_admin: !!p.is_admin,
-      email: p.role === 'teacher_admin' ? '' : (p.email || memberEmail(p.username, p.role)),
-      avatar_url: p.avatar_url,
-    }
-  })
-  data.sort((a, b) => a.display_name.localeCompare(b.display_name))
-  return { data, error: null }
+  _state = ensureClassRoster(_state)
+  persist()
+
+  const rows = _state.profiles.map((p) => ({
+    id: p.id,
+    username: p.username || '',
+    display_name: p.display_name || p.name || '',
+    name: p.display_name || p.name || '',
+    birthday: p.birthday || '',
+    mbti: p.mbti,
+    interests: p.interests,
+    bio: p.bio,
+    links: p.links,
+    role: p.role || 'student',
+    is_admin: !!p.is_admin,
+    email: p.role === 'teacher_admin' ? '' : (p.email || memberEmail(p.username, p.role)),
+    avatar_url: p.avatar_url,
+  }))
+
+  return { data: mergeProfilesWithClassRoster(rows), error: null }
 }
 
 export async function updateProfile(userId, payload) {
@@ -1060,6 +1100,9 @@ export async function createPost(payload) {
     content: payload.content || '',
     anonymous: !!payload.anonymous,
     image: payload.image || '',
+    attachment: payload.attachment || '',
+    attachment_url: payload.attachmentUrl || '',
+    file_key: payload.fileKey || '',
     likes_count: 0,
     comments_count: 0,
     created_at: nowIso(),
@@ -1067,6 +1110,24 @@ export async function createPost(payload) {
   _state.posts.unshift(row)
   persist()
   return { data: rowToPost(row), error: null }
+}
+
+export async function deletePost(postId) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { error: new Error('Not signed in') }
+  const idx = _state.posts.findIndex((p) => p.id === postId)
+  if (idx < 0) return { error: new Error('Post not found') }
+  const post = _state.posts[idx]
+  const profile = findProfile(userId)
+  if (post.user_id !== userId && !isAdminMember(profile)) {
+    return { error: new Error('Not allowed') }
+  }
+  _state.posts.splice(idx, 1)
+  _state.comments = _state.comments.filter((c) => c.post_id !== postId)
+  _state.postLikes = _state.postLikes.filter((l) => l.post_id !== postId)
+  persist()
+  return { error: null }
 }
 
 export async function togglePostLike(postId, currentLiked, currentCount) {

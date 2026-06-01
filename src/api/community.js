@@ -46,6 +46,9 @@ function rowToPost(row) {
     likesCount: row.likes_count || 0,
     commentsCount: row.comments_count || 0,
     image: row.image || '',
+    attachment: row.attachment || '',
+    attachmentUrl: row.attachment_url || '',
+    fileKey: row.file_key || '',
     liked: row.liked || false,
     createdAt: row.created_at,
   }
@@ -143,6 +146,9 @@ export async function createPost(payload) {
       content: payload.content || payload.title || '',
       anonymous: payload.anonymous || false,
       image: payload.image || '',
+      attachment: payload.attachment || '',
+      attachment_url: payload.attachmentUrl || '',
+      file_key: payload.fileKey || '',
       likes_count: 0,
       comments_count: 0,
     })
@@ -151,6 +157,28 @@ export async function createPost(payload) {
 
   if (error) return { data: null, error }
   return { data: await hydratePostRow(data, user.id), error: null }
+}
+
+/**
+ * Delete a post (author or admin; RLS enforced)
+ */
+export async function deletePost(postId) {
+  if (USE_MOCK) return mock.deletePost(postId)
+  const { data: row, error: fetchError } = await supabase
+    .from('posts')
+    .select('id, file_key')
+    .eq('id', postId)
+    .maybeSingle()
+  if (fetchError) return { error: fetchError }
+  if (!row) return { error: new Error('Post not found') }
+
+  const { error } = await supabase.from('posts').delete().eq('id', postId)
+  if (error) return { error }
+
+  if (row.file_key) {
+    await supabase.storage.from('class-os-files').remove([row.file_key])
+  }
+  return { error: null }
 }
 
 /**
