@@ -196,6 +196,36 @@ export async function archiveTask(taskId) {
 }
 
 /**
+ * Restore an archived task back to active or completed bucket
+ */
+export async function unarchiveTask(taskId) {
+  if (USE_MOCK) return mock.unarchiveTask(taskId)
+  const { data: existing, error: fetchError } = await supabase
+    .from('tasks')
+    .select('*')
+    .eq('id', taskId)
+    .maybeSingle()
+
+  if (fetchError || !existing) return { data: null, error: fetchError || new Error('Task not found') }
+
+  const deadlineDate = parseDeadlineDate(existing.deadline)
+  const status = toDbTaskStatus(null, { deadlineDate, done: false })
+
+  const { data, error } = await supabase
+    .from('tasks')
+    .update({
+      status,
+      done: false,
+      completed_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', taskId)
+    .select()
+    .single()
+  return { data: data ? rowToTask(data) : null, error }
+}
+
+/**
  * Toggle task done state
  */
 export async function toggleTaskDone(taskId, currentDone) {

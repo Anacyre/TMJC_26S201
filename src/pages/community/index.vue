@@ -55,7 +55,7 @@
             title="No spaces"
           />
         </view>
-        <view v-for="c in communities" :key="c.id" class="card" role="button" @tap="openFeed(c.id)">
+        <view v-for="c in communities" :key="c.id" class="card" data-reveal-card role="button" @tap="openFeed(c.id)">
           <view class="row">
             <view class="icon">{{ c.icon }}</view>
             <view class="meta">
@@ -74,7 +74,7 @@
             title="No members"
           />
         </view>
-        <view v-for="m in visibleMembers" :key="m.id" class="mCard" role="button" @tap="openMember(m.id)">
+        <view v-for="m in visibleMembers" :key="m.id" class="mCard" data-reveal-card role="button" @tap="openMember(m.id)">
           <view class="mAvatar">{{ initials(m.name) }}</view>
           <text class="mName">{{ m.name }}</text>
           <view class="mMetaRow">

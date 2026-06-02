@@ -2,7 +2,7 @@
   <view class="taskCardWrap" :class="{ stepsExpanded: expanded && hasSteps }">
     <view
       class="card task"
-      :class="[{ pressed, overdue: isOverdue, completing, expanded }, 'st-' + task.status]"
+      :class="[{ pressed, overdue: isOverdue, completing, completingFade, expanded }, 'st-' + task.status]"
       @touchstart="$emit('press-start')"
       @touchend="$emit('press-end')"
       @touchcancel="$emit('press-end')"
@@ -97,6 +97,7 @@ const props = defineProps({
   pressed: { type: Boolean, default: false },
   sortMode: { type: String, default: 'due-date' },
   completing: { type: Boolean, default: false },
+  completingFade: { type: Boolean, default: false },
   expanded: { type: Boolean, default: false },
 })
 
@@ -160,8 +161,20 @@ function stepDeadlineLabel(step) {
   border-bottom-right-radius: 0;
   border-bottom-color: transparent;
 }
-.card.completing {
-  opacity: 0.72;
+.card.completing .title {
+  opacity: 0.52;
+  text-decoration: line-through;
+  text-decoration-thickness: 2rpx;
+  transition:
+    opacity 380ms cubic-bezier(0.4, 0, 0.2, 1),
+    text-decoration-color 380ms ease;
+}
+.card.completingFade {
+  opacity: 0;
+  transform: scale(0.985) translateY(-4rpx);
+  transition:
+    opacity 480ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 480ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 .t-dark .card {
   background: rgba(255, 255, 255, 0.04);
@@ -238,8 +251,7 @@ function stepDeadlineLabel(step) {
 .t-dark .title { color: rgba(245, 247, 255, 0.92); }
 .card.overdue .title { color: rgba(130, 28, 24, 0.92); }
 .t-dark .card.overdue .title { color: rgba(255, 210, 206, 0.92); }
-.title.done,
-.title.completing {
+.title.done {
   opacity: 0.48;
   text-decoration: line-through;
   text-decoration-thickness: 2rpx;

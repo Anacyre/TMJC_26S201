@@ -35,7 +35,7 @@
         />
       </view>
       <view v-else class="grid">
-        <view v-for="s in subjectsView" :key="s.id" class="card" role="button" @tap="openSubject(s.id)">
+        <view v-for="s in subjectsView" :key="s.id" class="card" data-reveal-card role="button" @tap="openSubject(s.id)">
           <view class="icon">{{ s.icon }}</view>
           <text class="name">{{ s.name }}</text>
           <text class="meta">{{ s.filesCount }} files · {{ s.updatedLabel }}</text>
@@ -55,7 +55,7 @@
         />
       </view>
       <view v-else>
-        <view v-for="r in latestResourcesView.slice(0,3)" :key="r.id" class="row" role="button" @tap="openResource(r.id)">
+        <view v-for="r in latestResourcesView.slice(0,3)" :key="r.id" class="row" data-reveal-card role="button" @tap="openResource(r.id)">
           <text class="rTitle">{{ r.title }}</text>
           <text class="rMeta">{{ r.type }} · {{ r.uploaderName }}</text>
         </view>

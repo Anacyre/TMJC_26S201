@@ -132,6 +132,7 @@ export function taskIsOverdue(task) {
 }
 
 export function taskDueBucket(task) {
+  if (task?.status === 'archived') return 'archived'
   if (task?.done || task?.status === 'completed') return 'completed'
   if (taskHasNoDueDate(task)) return 'no-deadline'
 
@@ -225,7 +226,26 @@ export function taskCompletedAtMs(task) {
   return Number.isNaN(ms) ? 0 : ms
 }
 
+export function taskInDonePool(task) {
+  if (!task) return false
+  if (task.done) return true
+  if (task.status === 'archived' || task.status === 'completed') return true
+  const bucket = taskDueBucket(task)
+  return bucket === 'completed' || bucket === 'archived'
+}
+
+/** Active tabs (All / Recent / …) — never show done or archived rows */
+export function taskIsActiveForTab(task, filterId = '') {
+  if (!task) return false
+  if (task.status === 'archived') return false
+  if (task.done) return false
+  if (taskInDonePool(task)) return false
+  if (!filterId) return true
+  return taskDueBucket(task) === filterId
+}
+
 export function shouldRetainCompletedTask(task, referenceDate = new Date()) {
+  if (task?.status === 'archived') return true
   if (!task?.done && task?.status !== 'completed') return true
   const completedAt = taskCompletedAtMs(task)
   if (!completedAt) return true
@@ -239,9 +259,13 @@ export function purgeStaleCompletedTasks(tasks, referenceDate = new Date()) {
 
 export function enrichTask(task) {
   if (!task) return task
+  if (task.status === 'archived' && task.done) {
+    return { ...task, status: 'archived', done: true }
+  }
   return {
     ...task,
     status: resolveTaskStatusFromTask(task),
+    done: !!task.done,
   }
 }
 
@@ -348,7 +372,10 @@ export function groupTasksByPriority(tasks) {
 
 export function buildTaskListSectionsByDate(tasks) {
   const undated = tasks.filter((t) => taskDueBucket(t) === 'no-deadline')
-  const done = tasks.filter((t) => taskDueBucket(t) === 'completed')
+  const done = tasks.filter((t) => {
+    const bucket = taskDueBucket(t)
+    return bucket === 'completed' || bucket === 'archived'
+  })
   const overdueItems = tasks.filter((t) => taskDueBucket(t) === 'overdue')
   const recentItems = tasks.filter((t) => taskDueBucket(t) === 'recent')
   const upcomingItems = tasks.filter((t) => taskDueBucket(t) === 'upcoming')

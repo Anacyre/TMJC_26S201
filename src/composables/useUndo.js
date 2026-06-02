@@ -1,7 +1,10 @@
 import { computed, ref } from 'vue'
 import { showUndoToast, dismissToast, toast } from '@/composables/useToast'
 
-export const UNDO_WINDOW_MS = 6000
+/** Toast undo button visibility */
+export const UNDO_TOAST_VISIBLE_MS = 6000
+/** Global undo menu + delayed commit (independent of toast dismiss) */
+export const UNDO_COMMIT_MS = 240000
 
 /** Reactive undo queue — import this in UI for live updates */
 export const undoStack = ref([])
@@ -10,7 +13,7 @@ let entrySeq = 0
 const commitTimers = new Map()
 
 export const pendingUndoEntries = computed(() =>
-  undoStack.value.filter((e) => e.status === 'pending')
+  undoStack.value.filter((e) => e.status === 'pending' && (!e.expiresAt || e.expiresAt > Date.now()))
 )
 
 export function getPendingUndoEntries() {
@@ -29,6 +32,7 @@ export function pushUndoable({ message, menuLabel, undo, commit }) {
     commit,
     status: 'pending',
     toastId: null,
+    expiresAt: Date.now() + UNDO_COMMIT_MS,
   }
 
   undoStack.value = [entry, ...undoStack.value.filter((e) => e.status === 'pending')].slice(0, 12)
@@ -46,7 +50,7 @@ export function pushUndoable({ message, menuLabel, undo, commit }) {
       console.error('[undo] commit failed:', err)
       toast.error('Could not complete action')
     }
-  }, UNDO_WINDOW_MS)
+  }, UNDO_COMMIT_MS)
   commitTimers.set(entry.id, timer)
 
   return entry
@@ -60,6 +64,7 @@ export function runUndo(entryOrId) {
   const id = typeof entryOrId === 'object' ? entryOrId?.id : entryOrId
   const entry = undoStack.value.find((e) => e.id === id)
   if (!entry || entry.status !== 'pending') return false
+  if (entry.expiresAt && entry.expiresAt <= Date.now()) return false
 
   const timer = commitTimers.get(entry.id)
   if (timer) clearTimeout(timer)

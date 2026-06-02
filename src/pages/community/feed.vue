@@ -29,6 +29,7 @@
         v-for="p in visiblePostsView"
         :key="p.id"
         class="card tap"
+        data-reveal-card
         role="button"
         @tap="onCardTap(p)"
         @longpress="onPostLongPress(p)"

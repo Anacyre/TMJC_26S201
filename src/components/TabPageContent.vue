@@ -9,13 +9,14 @@
       class="tabDataShell"
       :class="{ waiting: animateReveal && !contentVisible }"
     >
-      <view
-        class="tabDataReveal"
-        :class="{ reveal: contentVisible, instant: !animateReveal }"
-        :style="revealStyle"
+      <PageRevealLayer
+        :content-visible="contentVisible"
+        :animate-reveal="animateReveal"
+        :direction="direction"
+        :duration-ms="durationMs"
       >
         <slot />
-      </view>
+      </PageRevealLayer>
     </view>
 
     <view v-else-if="$slots.default" class="tabPageChrome">
@@ -25,9 +26,8 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import PageRevealLayer from '@/components/PageRevealLayer.vue'
 import { usePageEnter } from '@/composables/usePageEnter'
-import { PAGE_REVEAL_MS } from '@/lib/navigation'
 
 const props = defineProps({
   tabId: { type: String, default: '' },
@@ -35,11 +35,7 @@ const props = defineProps({
   chromeOnly: { type: Boolean, default: false },
 })
 
-const { contentVisible, animateReveal } = usePageEnter(props.tabId)
-
-const revealStyle = computed(() => ({
-  transitionDuration: `${PAGE_REVEAL_MS}ms`,
-}))
+const { contentVisible, animateReveal, direction, durationMs } = usePageEnter(props.tabId)
 </script>
 
 <style scoped>
@@ -69,45 +65,7 @@ const revealStyle = computed(() => ({
   width: 100%;
 }
 
-.tabDataReveal {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  width: 100%;
-  opacity: 0;
-  transform: translateY(-24rpx);
-  -webkit-mask-image: linear-gradient(to bottom, #000 40%, transparent 40%);
-  mask-image: linear-gradient(to bottom, #000 40%, transparent 40%);
-  -webkit-mask-size: 100% 280%;
-  mask-size: 100% 280%;
-  -webkit-mask-position: 0 100%;
-  mask-position: 0 100%;
-  transition-property: opacity, transform, -webkit-mask-position, mask-position;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  pointer-events: none;
-}
-
-.tabDataReveal.reveal {
-  opacity: 1;
-  transform: translateY(0);
-  -webkit-mask-position: 0 0;
-  mask-position: 0 0;
-  pointer-events: auto;
-}
-
-.tabDataReveal.instant {
-  opacity: 1;
-  transform: translateY(0);
-  -webkit-mask-position: 0 0;
-  mask-position: 0 0;
-  transition: none;
-  pointer-events: auto;
-}
-
-.tabDataShell.waiting .tabDataReveal:not(.reveal):not(.instant) {
-  position: absolute;
-  inset: 0;
-  flex: none;
+.tabDataShell.waiting {
+  overflow: hidden;
 }
 </style>

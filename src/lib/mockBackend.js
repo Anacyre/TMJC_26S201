@@ -905,6 +905,20 @@ export async function archiveTask(taskId) {
   return { data: rowToTask(_state.tasks[idx]), error: null }
 }
 
+export async function unarchiveTask(taskId) {
+  await tick()
+  const idx = _state.tasks.findIndex((t) => t.id === taskId)
+  if (idx < 0) return { data: null, error: new Error('Task not found') }
+  const row = _state.tasks[idx]
+  const deadlineDate = parseDueDateKey(row.deadline)
+  row.done = false
+  row.status = resolveTaskStatusFromForm({ deadlineDate })
+  row.completed_at = null
+  row.updated_at = nowIso()
+  persist()
+  return { data: rowToTask(row), error: null }
+}
+
 export async function deleteTask(taskId) {
   await tick()
   _state.tasks = _state.tasks.filter((t) => t.id !== taskId)

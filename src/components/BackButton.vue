@@ -8,15 +8,18 @@
 
 <script setup>
 import { useTheme } from '@/composables/useTheme'
+import { navBack } from '@/lib/navigation'
+import { writePageTransition } from '@/lib/pageTransitionStore'
 
 const { themeClass } = useTheme()
 
 function go() {
   const pages = typeof getCurrentPages === 'function' ? getCurrentPages() : []
   if (pages.length > 1) {
-    uni.navigateBack({ delta: 1 })
+    navBack(1)
   } else {
-    uni.reLaunch({ url: '/pages/index/index' })
+    writePageTransition({ kind: 'tab', direction: 'neutral', to: 'home' })
+    uni.reLaunch({ url: '/pages/index/index', animationType: 'none', animationDuration: 0 })
   }
 }
 </script>

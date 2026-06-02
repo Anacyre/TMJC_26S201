@@ -7,7 +7,7 @@
     <PageContent>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
-        <view class="card pad">
+        <view class="card pad" data-reveal-card>
           <view class="head">
             <view class="state" :class="'state-' + statusBucket"><text class="stateText">{{ statusLabel }}</text></view>
             <text class="time">{{ task.deadline }}</text>

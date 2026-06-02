@@ -1,44 +1,56 @@
 import { ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
-import { PAGE_ENTER_KEY, PAGE_TRANSITION_MS, setCurrentTab } from '@/lib/navigation'
-
-function peekEnterPending() {
-  try {
-    return !!uni.getStorageSync(PAGE_ENTER_KEY)
-  } catch {
-    return false
-  }
-}
+import { setCurrentTab, PAGE_ENTER_KEY } from '@/lib/navigation'
+import { getCurrentPageRoute, shouldSkipPageEnterTransition, PAGE_MS } from '@/lib/pageTransition'
+import { readPageTransition, getTransitionDurationMs } from '@/lib/pageTransitionStore'
 
 export function usePageEnter(tabId = '') {
   const animateReveal = ref(false)
-  const contentVisible = ref(!peekEnterPending())
+  const contentVisible = ref(true)
+  const direction = ref('neutral')
+  const durationMs = ref(PAGE_MS)
 
   function runEnter() {
     if (tabId) setCurrentTab(tabId)
 
-    let pending = false
-    try {
-      pending = !!uni.getStorageSync(PAGE_ENTER_KEY)
-      if (pending) uni.removeStorageSync(PAGE_ENTER_KEY)
-    } catch {
-      /* ignore */
-    }
-
-    if (!pending) {
+    if (shouldSkipPageEnterTransition(getCurrentPageRoute())) {
       animateReveal.value = false
       contentVisible.value = true
+      direction.value = 'neutral'
+      durationMs.value = PAGE_MS
+      return
+    }
+
+    let meta = readPageTransition()
+    if (!meta) {
+      try {
+        if (uni.getStorageSync(PAGE_ENTER_KEY)) {
+          uni.removeStorageSync(PAGE_ENTER_KEY)
+          meta = { direction: 'neutral', clickedAt: Date.now() }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+    if (!meta) {
+      animateReveal.value = false
+      contentVisible.value = true
+      direction.value = 'neutral'
+      durationMs.value = PAGE_MS
       return
     }
 
     animateReveal.value = true
     contentVisible.value = false
-    setTimeout(() => {
+    direction.value = meta.direction || 'neutral'
+    durationMs.value = getTransitionDurationMs(meta.clickedAt)
+
+    requestAnimationFrame(() => {
       contentVisible.value = true
-    }, PAGE_TRANSITION_MS)
+    })
   }
 
   onShow(runEnter)
 
-  return { contentVisible, animateReveal }
+  return { contentVisible, animateReveal, direction, durationMs }
 }

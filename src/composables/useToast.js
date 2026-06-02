@@ -74,6 +74,7 @@ export const toast = {
   taskUpdated: () => show('Task updated'),
   taskDeleted: (onUndo) => (onUndo ? showUndoToast('Task deleted', onUndo) : show('Task deleted')),
   taskArchived: (onUndo) => (onUndo ? showUndoToast('Task archived', onUndo) : show('Task archived')),
+  taskRestored: (onUndo) => (onUndo ? showUndoToast('Task restored', onUndo) : show('Task restored')),
 
   addedToPlanner: () => show('Added to planner'),
   alreadyInPlanner: () => show('Already in planner'),

@@ -42,7 +42,7 @@
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false" :enhanced="true">
       <view class="safe">
-        <view class="section">
+        <view class="section" data-reveal-card>
           <text class="sectionTitle">Recent notices</text>
 
           <SkeletonList v-if="noticesLoading" variant="notifications" :count="2" />
@@ -73,7 +73,7 @@
           </view>
         </view>
 
-        <view class="section">
+        <view class="section" data-reveal-card>
           <text class="sectionTitle">Today's focus</text>
 
           <SkeletonList v-if="tasksLoading" variant="tasks" :count="2" />

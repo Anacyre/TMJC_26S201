@@ -36,7 +36,7 @@
           @pick="onSortPick"
         />
 
-        <view class="addFab" role="button" @tap="openCreate" aria-label="Add task">
+        <view v-if="showAddAction" class="addFab" role="button" @tap="openCreate" aria-label="Add task">
           <view class="plus">
             <view class="hLine" />
             <view class="vLine" />
@@ -62,6 +62,7 @@
             v-for="(section, sectionIndex) in groupedSections"
             :key="section.key"
             class="section"
+            data-reveal-card
             :class="{ divided: sectionIndex > 0 }"
           >
             <view class="sectionHead tap" role="button" @tap="toggleSection(section.key)">
@@ -71,26 +72,35 @@
                 <text class="sectionChev" :class="{ collapsed: isSectionCollapsed(section.key) }">›</text>
               </view>
             </view>
-            <view class="sectionBody" :class="{ collapsed: isSectionCollapsed(section.key) }">
+            <TransitionGroup
+              :name="isDoneView ? 'doneReflow' : 'listReflow'"
+              tag="view"
+              class="sectionBody"
+              :class="{ collapsed: isSectionCollapsed(section.key) }"
+            >
               <view
                 v-for="t in section.tasks"
                 :key="t.id"
                 class="taskRow"
-                :class="{ completing: completingAnim.has(t.id), expanded: isTaskExpanded(t.id) }"
+                :class="{
+                  completing: completingAnim.has(t.id),
+                  completingStrike: completingStrike.has(t.id),
+                  doneLeaving: isDoneView && leavingTaskIds.has(t.id),
+                  activeLeaving: !isDoneView && exitingActiveTaskIds.has(t.id),
+                  expanded: isTaskExpanded(t.id),
+                }"
               >
-                <SwipeRow
+                <TaskSwipeRow
                   v-if="!completingAnim.has(t.id)"
-                  side="left"
-                  action-style="strip"
-                  :actions="taskSwipeActions"
-                  commit-action="delete"
-                  @commit="onTaskSwipeCommit(t.id)"
+                  :mode="taskSwipeMode(t)"
+                  @commit="onTaskSwipeCommit(t.id, $event)"
                   @action="onTaskSwipeAction(t.id, $event)"
                 >
                   <TaskListCard
                     :task="t"
                     :sort-mode="sortMode"
-                    :completing="completingAnim.has(t.id)"
+                    :completing="completingStrike.has(t.id) || completingAnim.has(t.id)"
+                    :completing-fade="completingAnim.has(t.id)"
                     :pressed="pressedKey === t.id"
                     :expanded="isTaskExpanded(t.id)"
                     @press-start="pressedKey = t.id"
@@ -100,12 +110,13 @@
                     @toggle-step="toggleStep(t.id, $event)"
                     @expand-change="onTaskExpand(t.id, $event)"
                   />
-                </SwipeRow>
+                </TaskSwipeRow>
                 <TaskListCard
                   v-else
                   :task="t"
                   :sort-mode="sortMode"
                   :completing="true"
+                  :completing-fade="true"
                   :pressed="pressedKey === t.id"
                   :expanded="isTaskExpanded(t.id)"
                   @press-start="pressedKey = t.id"
@@ -116,7 +127,7 @@
                   @expand-change="onTaskExpand(t.id, $event)"
                 />
               </view>
-            </view>
+            </TransitionGroup>
           </view>
         </view>
 
@@ -132,31 +143,44 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick } from 'vue'
+import { computed, ref, nextTick, TransitionGroup } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
 import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import TaskEditorSheet from '@/components/TaskEditorSheet.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import SwipeRow from '@/components/SwipeRow.vue'
+import TaskSwipeRow from '@/components/TaskSwipeRow.vue'
 import TaskListCard from '@/components/TaskListCard.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
-import { buildTaskSections, taskDueBucket } from '@/lib/taskDueDate'
+import {
+  buildTaskSections,
+  taskDueBucket,
+  resolveTaskStatusFromForm,
+  taskInDonePool,
+  taskIsActiveForTab,
+} from '@/lib/taskDueDate'
+import { TASK_COMPLETE_STRIKE_MS, TASK_COMPLETE_FADE_MS, DONE_LIST_REFLOW_MS } from '@/lib/taskCompleteAnim'
 import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { pushUndoable } from '@/composables/useUndo'
 
 const { themeClass } = useTheme()
-const { tasks, loading, toggleTaskDone, toggleChecklist, addTask, deleteTask, archiveTask, getTaskById } = useTasksStore()
-
-const taskSwipeActions = [
-  { id: 'archive', label: 'Archive' },
-  { id: 'delete', label: 'Delete', danger: true },
-]
+const {
+  tasks,
+  loading,
+  toggleTaskDone,
+  toggleChecklist,
+  addTask,
+  deleteTask,
+  archiveTask,
+  unarchiveTask,
+  getTaskById,
+  patchTask,
+} = useTasksStore()
 
 const tabItems = [
   { id: '', label: 'All tasks' },
@@ -164,7 +188,7 @@ const tabItems = [
   { id: 'upcoming', label: 'Upcoming' },
   { id: 'no-deadline', label: 'No deadline' },
   { id: 'overdue', label: 'Overdue' },
-  { id: 'completed', label: 'Done' },
+  { id: 'done', label: 'Done' },
 ]
 
 const filterPickerOptions = tabItems.map((x) => x.label)
@@ -174,17 +198,25 @@ const filterIdByLabel = Object.fromEntries(tabItems.map((x) => [x.label, x.id]))
 const sortLabelByMode = { 'due-date': 'Due date', priority: 'Priority' }
 const sortModeByLabel = { 'Due date': 'due-date', Priority: 'priority' }
 
-const COMPLETE_ANIM_MS = 500
 const SWIPE_ACTION_MS = 220
 
 const hiddenTaskIds = ref(new Set())
+const leavingTaskIds = ref(new Set())
+/** Briefly keep row on active tabs while archive/delete leave anim runs */
+const exitingActiveTaskIds = ref(new Set())
 
 const filterTab = ref('')
+const isDoneView = computed(() => filterTab.value === 'done')
+
+function taskSwipeMode(task) {
+  return task?.status === 'archived' ? 'archived' : 'active'
+}
 const filterPickerOpen = ref(false)
 const sortPickerOpen = ref(false)
 const sortMode = ref('due-date')
 const pressedKey = ref('')
 const completingIds = ref(new Set())
+const completingStrike = ref(new Set())
 const completingAnim = ref(new Set())
 const completingBuckets = ref(new Map())
 const createOpen = ref(false)
@@ -207,13 +239,19 @@ function unhideTask(id) {
 }
 
 const tabTasks = computed(() => {
-  const pool = tasks.value.filter(
-    (x) => x.status !== 'archived' && !hiddenTaskIds.value.has(x.id)
-  )
+  const pool = tasks.value.filter((x) => !hiddenTaskIds.value.has(x.id))
+  if (filterTab.value === 'done') {
+    return pool.filter(
+      (x) =>
+        taskInDonePool(x) ||
+        completingIds.value.has(x.id) ||
+        leavingTaskIds.value.has(x.id)
+    )
+  }
   return pool.filter((x) => {
     if (completingIds.value.has(x.id)) return true
-    if (!filterTab.value) return !x.done
-    return taskDueBucket(x) === filterTab.value
+    if (exitingActiveTaskIds.value.has(x.id)) return true
+    return taskIsActiveForTab(x, filterTab.value)
   })
 })
 
@@ -225,10 +263,13 @@ const groupedSections = computed(() => {
   if (completingBuckets.value.size) {
     displayItems = items.map((t) => {
       const bucket = completingBuckets.value.get(t.id)
-      if (!bucket || bucket === 'completed') return t
+      const striking = completingStrike.value.has(t.id) || completingAnim.value.has(t.id)
+      if (!bucket || bucket === 'completed' || bucket === 'archived') {
+        return striking ? { ...t, done: true } : t
+      }
       return {
         ...t,
-        done: false,
+        done: striking ? true : false,
         status: bucket === 'no-deadline' ? 'recent' : bucket,
       }
     })
@@ -237,24 +278,25 @@ const groupedSections = computed(() => {
   return buildTaskSections(displayItems, sortMode.value)
 })
 
-const showAddAction = computed(() => {
-  if (!filterTab.value) return true
-  return filterTab.value !== 'completed'
-})
+const showAddAction = computed(() => filterTab.value !== 'done')
 
 const emptyTitle = computed(() => {
   if (!filterTab.value) return 'No tasks'
   if (filterTab.value === 'no-deadline') return 'No tasks without deadline'
   if (filterTab.value === 'overdue') return 'Nothing overdue'
-  if (filterTab.value === 'completed') return 'No completed tasks'
+  if (filterTab.value === 'done') return 'No completed tasks'
   if (filterTab.value === 'upcoming') return 'Nothing upcoming'
   if (filterTab.value === 'recent') return 'Nothing recent'
   return 'No matching tasks'
 })
 
 function onFilterPick(label) {
-  filterTab.value = filterIdByLabel[label] ?? ''
+  const next = filterIdByLabel[label] ?? ''
+  filterTab.value = next
   filterPickerOpen.value = false
+  leavingTaskIds.value = new Set()
+  exitingActiveTaskIds.value = new Set()
+  pressedKey.value = ''
 }
 
 function onSortPick(label) {
@@ -281,14 +323,35 @@ async function toggleStep(taskId, stepId) {
     toast.show(error.message || 'Could not update step')
     return
   }
-  if (data?.done && !wasDone && willHideOnComplete(data)) {
-    beginCompleteHide(before || data)
-    delete expandedTaskIds.value[taskId]
-    expandedTaskIds.value = { ...expandedTaskIds.value }
-    await nextTick()
-    requestAnimationFrame(() => startCompleteAnim(taskId))
-    setTimeout(() => endCompleteHide(taskId), COMPLETE_ANIM_MS)
+  if (data?.done && !wasDone) {
+    playTaskCompleteAnimation(taskId, before || data)
   }
+}
+
+function parseDeadlineDate(deadline) {
+  if (!deadline) return ''
+  const iso = String(deadline).match(/(\d{4}-\d{2}-\d{2})/)
+  return iso ? iso[1] : ''
+}
+
+function taskStatusSnapshot(task) {
+  return {
+    status: task.status,
+    done: task.done,
+    completedAt: task.completedAt,
+  }
+}
+
+/** Unified strike-through then fade-out whenever a task becomes done. */
+async function playTaskCompleteAnimation(taskId, task) {
+  beginCompleteHide(task)
+  delete expandedTaskIds.value[taskId]
+  expandedTaskIds.value = { ...expandedTaskIds.value }
+  await nextTick()
+  setTimeout(() => {
+    startCompleteAnim(taskId)
+    setTimeout(() => endCompleteHide(taskId), TASK_COMPLETE_FADE_MS)
+  }, TASK_COMPLETE_STRIKE_MS)
 }
 
 function isTaskExpanded(id) {
@@ -302,17 +365,12 @@ function onTaskExpand(taskId, open) {
   expandedTaskIds.value = next
 }
 
-function willHideOnComplete(task) {
-  if (task.done) return false
-  if (!filterTab.value) return true
-  return filterTab.value !== 'completed'
-}
-
 function beginCompleteHide(task) {
   const buckets = new Map(completingBuckets.value)
   buckets.set(task.id, taskDueBucket(task))
   completingBuckets.value = buckets
   completingIds.value = new Set([...completingIds.value, task.id])
+  completingStrike.value = new Set([...completingStrike.value, task.id])
 }
 
 function startCompleteAnim(id) {
@@ -329,23 +387,21 @@ function endCompleteHide(id) {
   const anim = new Set(completingAnim.value)
   anim.delete(id)
   completingAnim.value = anim
+  const strike = new Set(completingStrike.value)
+  strike.delete(id)
+  completingStrike.value = strike
 }
 
 async function toggleDone(t) {
-  const willHide = willHideOnComplete(t)
-  if (willHide) beginCompleteHide(t)
-
+  const wasDone = !!t.done
   const { error } = await toggleTaskDone(t.id)
   if (error) {
-    if (willHide) endCompleteHide(t.id)
     toast.show(error.message || 'Could not update task')
     return
   }
-
-  if (willHide) {
-    await nextTick()
-    requestAnimationFrame(() => startCompleteAnim(t.id))
-    setTimeout(() => endCompleteHide(t.id), COMPLETE_ANIM_MS)
+  if (!wasDone) {
+    const after = getTaskById(t.id)
+    if (after?.done) await playTaskCompleteAnimation(t.id, t)
   }
 }
 
@@ -368,10 +424,52 @@ async function createTask(payload) {
   createOpen.value = false
 }
 
+function beginDoneListLeave(id) {
+  leavingTaskIds.value = new Set([...leavingTaskIds.value, id])
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        const next = new Set(leavingTaskIds.value)
+        next.delete(id)
+        leavingTaskIds.value = next
+      }, DONE_LIST_REFLOW_MS)
+    })
+  })
+}
+
+function buildRestoredTaskPatch(task) {
+  const deadlineDate = parseDeadlineDate(task.deadline)
+  return {
+    status: resolveTaskStatusFromForm({ deadlineDate, done: false }),
+    done: false,
+    completedAt: '',
+  }
+}
+
+function scheduleActiveTabLeave(id, afterLeave) {
+  exitingActiveTaskIds.value = new Set([...exitingActiveTaskIds.value, id])
+  nextTick(() => {
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        afterLeave?.()
+        const next = new Set(exitingActiveTaskIds.value)
+        next.delete(id)
+        exitingActiveTaskIds.value = next
+      }, DONE_LIST_REFLOW_MS)
+    })
+  })
+}
+
 function deleteTaskRow(id) {
   const task = getTaskById(id)
   if (!task) return
-  hideTask(id)
+  const hide = () => hideTask(id)
+  if (filterTab.value === 'done') {
+    beginDoneListLeave(id)
+    setTimeout(hide, DONE_LIST_REFLOW_MS)
+  } else {
+    scheduleActiveTabLeave(id, hide)
+  }
   pushUndoable({
     message: 'Task deleted',
     menuLabel: `Delete “${task.title || 'Task'}”`,
@@ -387,24 +485,89 @@ function deleteTaskRow(id) {
 function archiveTaskRow(id) {
   const task = getTaskById(id)
   if (!task) return
-  hideTask(id)
+  const snap = taskStatusSnapshot(task)
+  const applyArchive = () =>
+    patchTask(id, {
+      status: 'archived',
+      done: true,
+      completedAt: task.completedAt || new Date().toISOString(),
+    })
+
+  if (filterTab.value === 'done') {
+    beginDoneListLeave(id)
+    applyArchive()
+  } else {
+    scheduleActiveTabLeave(id, applyArchive)
+  }
+
   pushUndoable({
     message: 'Task archived',
     menuLabel: `Archive “${task.title || 'Task'}”`,
-    undo: () => unhideTask(id),
+    undo: () => {
+      const ex = new Set(exitingActiveTaskIds.value)
+      ex.delete(id)
+      exitingActiveTaskIds.value = ex
+      const leaving = new Set(leavingTaskIds.value)
+      leaving.delete(id)
+      leavingTaskIds.value = leaving
+      patchTask(id, snap)
+    },
     commit: async () => {
-      unhideTask(id)
       const { error } = await archiveTask(id)
-      if (error) toast.show(error.message || 'Could not archive task')
+      if (error) {
+        patchTask(id, snap)
+        toast.show(error.message || 'Could not archive task')
+      }
     },
   })
 }
 
-function onTaskSwipeCommit(id) {
-  setTimeout(() => deleteTaskRow(id), SWIPE_ACTION_MS)
+function restoreTaskRow(id) {
+  const task = getTaskById(id)
+  if (!task) return
+  const snap = taskStatusSnapshot(task)
+  const restoredPatch = buildRestoredTaskPatch(task)
+  patchTask(id, restoredPatch)
+
+  if (filterTab.value === 'done') beginDoneListLeave(id)
+
+  pushUndoable({
+    message: 'Task restored',
+    menuLabel: `Restore “${task.title || 'Task'}”`,
+    undo: () => {
+      const leaving = new Set(leavingTaskIds.value)
+      leaving.delete(id)
+      leavingTaskIds.value = leaving
+      patchTask(id, snap)
+    },
+    commit: async () => {
+      const { data, error } = await unarchiveTask(id)
+      if (error) {
+        patchTask(id, snap)
+        toast.show(error.message || 'Could not restore task')
+      } else if (data) {
+        patchTask(id, { ...data, ...buildRestoredTaskPatch(data) })
+      }
+    },
+  })
+}
+
+function onTaskSwipeCommit(id, actionId) {
+  if (actionId === 'restore') {
+    restoreTaskRow(id)
+    return
+  }
+  setTimeout(() => {
+    if (actionId === 'archive') archiveTaskRow(id)
+    else deleteTaskRow(id)
+  }, SWIPE_ACTION_MS)
 }
 
 function onTaskSwipeAction(id, actionId) {
+  if (actionId === 'restore') {
+    restoreTaskRow(id)
+    return
+  }
   setTimeout(() => {
     if (actionId === 'archive') archiveTaskRow(id)
     else deleteTaskRow(id)
@@ -516,6 +679,7 @@ function onTaskSwipeAction(id, actionId) {
 .sectionChev.collapsed { transform: rotate(90deg); }
 
 .sectionBody {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: var(--list-stack-gap);
@@ -536,10 +700,50 @@ function onTaskSwipeAction(id, actionId) {
 
 .taskRow {
   overflow: visible;
+  max-height: 800rpx;
   transition:
-    max-height 500ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 500ms ease,
-    transform 500ms cubic-bezier(0.4, 0, 0.2, 1);
+    max-height 200ms cubic-bezier(0.32, 0.72, 0.28, 1),
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.32, 0.72, 0.28, 1),
+    margin-bottom 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+.taskRow.doneLeaving,
+.taskRow.activeLeaving {
+  overflow: hidden;
+  max-height: 0 !important;
+  opacity: 0;
+  margin-bottom: 0 !important;
+  transform: scale(0.96) translateY(-8rpx);
+  pointer-events: none;
+}
+
+.listReflow-move {
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0.28, 1);
+}
+.listReflow-leave-active {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 0;
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    max-height 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    margin-bottom 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.listReflow-leave-to {
+  opacity: 0;
+  max-height: 0 !important;
+  margin-bottom: 0 !important;
+  transform: scale(0.96) translateY(-8rpx);
+}
+.listReflow-leave-from {
+  max-height: 800rpx;
+}
+.taskRow.completingStrike {
+  transition: opacity 320ms ease;
 }
 .taskRow.completing {
   overflow: hidden;
@@ -547,6 +751,37 @@ function onTaskSwipeAction(id, actionId) {
   opacity: 0;
   transform: scale(0.97) translateY(-6rpx);
   pointer-events: none;
+  transition:
+    max-height 480ms cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 480ms ease,
+    transform 480ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Done view: FLIP reflow when cards leave (delete / restore) */
+.doneReflow-move {
+  transition: transform 200ms cubic-bezier(0.32, 0.72, 0.28, 1);
+}
+.doneReflow-leave-active {
+  position: absolute;
+  left: 0;
+  right: 0;
+  width: 100%;
+  z-index: 0;
+  transition:
+    opacity 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    max-height 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    margin-bottom 200ms cubic-bezier(0.4, 0, 0.2, 1),
+    transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: hidden;
+}
+.doneReflow-leave-to {
+  opacity: 0;
+  max-height: 0 !important;
+  margin-bottom: 0 !important;
+  transform: scale(0.96) translateY(-8rpx);
+}
+.doneReflow-leave-from {
+  max-height: 320rpx;
 }
 
 .spacer { height: 18rpx; }

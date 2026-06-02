@@ -47,8 +47,16 @@ function getTaskById(id) {
 function upsertTask(task) {
   if (!task?.id) return
   const idx = tasks.value.findIndex((x) => x.id === task.id)
-  if (idx >= 0) tasks.value[idx] = task
-  else tasks.value.unshift(task)
+  const next = [...tasks.value]
+  if (idx >= 0) next[idx] = task
+  else next.unshift(task)
+  tasks.value = next
+}
+
+function patchTask(id, partial) {
+  const target = getTaskById(id)
+  if (!target) return
+  upsertTask({ ...target, ...partial })
 }
 
 // ─── Writes (local first, then sync) ───────────────────────────────────
@@ -157,6 +165,12 @@ async function archiveTask(id) {
   return { data, error }
 }
 
+async function unarchiveTask(id) {
+  const { data, error } = await tasksApi.unarchiveTask(id)
+  if (!error && data) upsertTask(data)
+  return { data, error }
+}
+
 async function deleteTask(id) {
   const { error } = await tasksApi.deleteTask(id)
   if (!error) {
@@ -180,12 +194,14 @@ export function useTasksStore() {
     fetchTasks,
     loadTaskById,
     getTaskById,
+    patchTask,
     toggleTaskDone,
     toggleChecklist,
     updateTask,
     addTask,
     addTaskFromNotice,
     archiveTask,
+    unarchiveTask,
     deleteTask,
   }
 }

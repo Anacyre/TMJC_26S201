@@ -4,7 +4,7 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="title">Undo</text>
-        <text class="sub">Recent actions you can reverse</text>
+        <text class="sub">Recent actions — undo within 4 minutes</text>
 
         <view v-if="!pending.length" class="empty">
           <text class="emptyText">No actions to undo</text>
