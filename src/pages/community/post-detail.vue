@@ -5,57 +5,69 @@
 
     <PageContent>
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
-      <view
-        class="card pad"
-        @longpress="onPostLongPress"
-        @contextmenu.prevent="onPostContextMenu"
-        @mousedown="onPostMouseDown"
-        @mouseup="onPostMouseUp"
-        @mouseleave="onPostMouseUp"
+      <CommunitySpaceProfile
+        v-if="community"
+        class="spaceHeader"
+        compact
+        tappable
+        :icon="community.icon"
+        :name="community.name"
+        :desc="community.desc"
+        :post-count="spacePostCount"
+        :member-count="memberCount"
+        @info="openSpaceInfo"
+        @tap="openSpaceFeed"
+      />
+
+      <SwipeRow
+        v-if="showDeleteBtn && post"
+        side="right"
+        action-style="strip"
+        :actions="deleteActions"
+        commit-action="delete"
+        @action="confirmDelete"
+        @commit="confirmDelete"
       >
-        <text class="title">{{ post.title }}</text>
-        <text class="meta">{{ post.anonymous ? 'Anonymous' : post.author }} · {{ postTimeLabel }}</text>
-        <text class="content">{{ post.content || 'No content yet.' }}</text>
-        <image v-if="post.image" class="postImg" :src="post.image" mode="widthFix" @tap="openAttachment(post.image)" />
-        <view
-          v-if="post.attachment && !post.image"
-          class="attachRow tap"
-          role="button"
-          @tap="openAttachment(post.attachmentUrl)"
-        >
-          <text class="attachName">{{ post.attachment }}</text>
-          <text class="attachAction">Open</text>
+        <CommunityPostBody
+          :post="post"
+          :time-label="postTimeLabel"
+          :saved="saved"
+          @toggle-like="onToggleLike"
+          @toggle-save="saved = !saved"
+          @open-attachment="openAttachment"
+        />
+      </SwipeRow>
+      <CommunityPostBody
+        v-else-if="post"
+        :post="post"
+        :time-label="postTimeLabel"
+        :saved="saved"
+        @toggle-like="onToggleLike"
+        @toggle-save="saved = !saved"
+        @open-attachment="openAttachment"
+      />
+
+      <view class="panel commentsPanel">
+        <view class="panelHead">
+          <text class="panelLabel">Comments</text>
+          <text class="panelCount">{{ comments.length }}</text>
         </view>
-        <view
-          v-else-if="post.attachment && post.image"
-          class="attachRow tap"
-          role="button"
-          @tap="openAttachment(post.attachmentUrl)"
-        >
-          <text class="attachName">{{ post.attachment }}</text>
-          <text class="attachAction">Download</text>
+
+        <view v-if="!comments.length" class="commentsEmpty">
+          <text class="commentsEmptyText">No replies yet. Start the conversation.</text>
         </view>
-        <view class="actions">
-          <view class="btn tap" :class="{ on: post.liked }" role="button" @tap="onToggleLike">
-            <text class="btnText">{{ post.liked ? `♥ ${post.likesCount}` : `♥ ${post.likesCount || 0}` }}</text>
+
+        <view v-for="c in comments" :key="c.id" class="commentRow">
+          <view class="commentAvatar">{{ initials(c.author) }}</view>
+          <view class="commentBody">
+            <text class="commentAuthor">{{ c.author }}</text>
+            <text class="commentText">{{ c.text }}</text>
           </view>
-          <view class="btn tap" :class="{ on: saved }" role="button" @tap="saved = !saved">
-            <text class="btnText">{{ saved ? '★ Saved' : '☆ Save' }}</text>
-          </view>
-          <view v-if="showDeleteBtn" class="btn tap danger" role="button" @tap="confirmDelete">
-            <text class="btnTextDanger">Delete</text>
-          </view>
         </view>
-      </view>
-      <view class="card pad">
-        <text class="sec">Comments</text>
-        <view v-for="c in comments" :key="c.id" class="comment">
-          <text class="cAuthor">{{ c.author }}</text>
-          <text class="cText">{{ c.text }}</text>
-        </view>
-        <view class="reply">
-          <input class="input" v-model="reply" placeholder="Reply…" placeholder-class="placeholder" />
-          <view class="send tap" role="button" @tap="send"><text class="sendText">Send</text></view>
+
+        <view class="replyRow">
+          <input class="replyInput" v-model="reply" placeholder="Write a reply…" placeholder-class="placeholder" />
+          <view class="replySend tap" role="button" @tap="send"><text class="replySendText">Send</text></view>
         </view>
       </view>
       <view class="gap" />
@@ -71,26 +83,41 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import SwipeRow from '@/components/SwipeRow.vue'
+import CommunitySpaceProfile from '@/components/CommunitySpaceProfile.vue'
+import CommunityPostBody from '@/components/CommunityPostBody.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
-import { useUserStore } from '@/composables/useUserStore'
-import { useAdminMode } from '@/composables/useAdminMode'
+import { useMemberStore } from '@/composables/useMemberStore'
+import { usePostDelete } from '@/composables/usePostDelete'
+import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
-const { getPostById, getComments, addComment, fetchComments, togglePostLike } = useCommunityStore()
+const { getPostById, getComments, addComment, fetchComments, togglePostLike, getCommunityById, getPostsByCommunity } = useCommunityStore()
+const { visibleMembers } = useMemberStore()
 const { canDelete, confirmDeletePost } = usePostDelete()
-const { isDesktop } = useDevice()
-const id = ref('p1')
-let mouseHoldTimer = null
-const MOUSE_HOLD_MS = 500
+const id = ref('')
 const saved = ref(false)
 const reply = ref('')
+const deleteActions = [{ id: 'delete', label: 'Delete', icon: 'trash', danger: true }]
 const post = computed(() => getPostById(id.value))
 const comments = computed(() => getComments(id.value))
+const community = computed(() => {
+  const cid = post.value?.communityId
+  return cid ? getCommunityById(cid) : null
+})
+const spacePostCount = computed(() => {
+  const cid = post.value?.communityId
+  return cid ? getPostsByCommunity(cid).length : null
+})
+const memberCount = computed(() => visibleMembers.value.length)
 const postTimeLabel = computed(() => shortTimeLabel(post.value?.createdAt))
-
 const showDeleteBtn = computed(() => canDelete(post.value))
+
+function initials(name) {
+  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
+}
 
 function shortTimeLabel(iso) {
   if (!iso) return 'just now'
@@ -124,44 +151,22 @@ function openAttachment(url) {
   })
 }
 
+function openSpaceInfo() {
+  const cid = post.value?.communityId
+  if (!cid) return
+  navSibling(`/pages/community/info?id=${cid}`)
+}
+
+function openSpaceFeed() {
+  const cid = post.value?.communityId
+  if (!cid) return
+  navSibling(`/pages/community/feed?id=${cid}`)
+}
+
 function confirmDelete() {
   confirmDeletePost(post.value, {
     onDeleted: () => setTimeout(() => uni.navigateBack({ delta: 1 }), 180),
   })
-}
-
-function onPostLongPress() {
-  if (!canDelete(post.value)) return
-  confirmDeletePost(post.value, {
-    onDeleted: () => setTimeout(() => uni.navigateBack({ delta: 1 }), 180),
-  })
-}
-
-function onPostContextMenu(e) {
-  if (!isDesktop.value || !canDelete(post.value)) return
-  e?.preventDefault?.()
-  onPostLongPress()
-}
-
-function clearMouseHold() {
-  if (mouseHoldTimer) {
-    clearTimeout(mouseHoldTimer)
-    mouseHoldTimer = null
-  }
-}
-
-function onPostMouseDown(e) {
-  if (!isDesktop.value || !canDelete(post.value)) return
-  if (e?.button !== 0) return
-  clearMouseHold()
-  mouseHoldTimer = setTimeout(() => {
-    mouseHoldTimer = null
-    onPostLongPress()
-  }, MOUSE_HOLD_MS)
-}
-
-function onPostMouseUp() {
-  clearMouseHold()
 }
 
 function send() {
@@ -170,8 +175,9 @@ function send() {
   toast.commentAdded()
   reply.value = ''
 }
+
 onLoad((q) => {
-  id.value = q?.id || 'p1'
+  id.value = q?.id || ''
   fetchComments(id.value)
 })
 </script>
@@ -197,185 +203,119 @@ onLoad((q) => {
   position: relative;
   z-index: 1;
   height: calc(100vh - var(--shell-header-offset, 148rpx));
-  padding: 4rpx 28rpx 40rpx;
+  padding: 12rpx 28rpx 40rpx;
 }
-.card {
-  margin-top: 10rpx;
-  border-radius: 22rpx;
-  background: rgba(255, 255, 255, 0.7);
-  border: 1rpx solid rgba(16, 24, 40, 0.04);
+
+.spaceHeader { margin-bottom: 12rpx; }
+
+.panel {
+  margin-top: 12rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(16, 24, 40, 0.05);
 }
-.t-dark .card {
+.t-dark .panel {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
 }
-.pad {
-  padding: 16rpx 18rpx;
-}
-.title {
-  font-size: 26rpx;
-  font-weight: 740;
-  color: rgba(16, 24, 40, 0.92);
-}
-.t-dark .title {
-  color: #f5f7fa;
-}
-.meta {
-  display: block;
-  margin-top: 8rpx;
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.56);
-}
-.t-dark .meta {
-  color: #9aa4b2;
-}
-.content {
-  display: block;
-  margin-top: 14rpx;
-  font-size: 22rpx;
-  line-height: 1.5;
-  color: rgba(16, 24, 40, 0.74);
-}
-.t-dark .content {
-  color: rgba(245, 247, 255, 0.74);
-}
-.postImg {
-  width: 100%;
-  margin-top: 14rpx;
-  border-radius: 16rpx;
-  display: block;
-}
-.attachRow {
-  margin-top: 12rpx;
-  padding: 12rpx 14rpx;
-  border-radius: 16rpx;
-  background: rgba(46, 99, 255, 0.06);
-  border: 1rpx solid rgba(46, 99, 255, 0.16);
+.panelHead {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10rpx;
+  margin-bottom: 12rpx;
 }
-.attachName {
-  flex: 1;
-  font-size: 22rpx;
-  color: rgba(46, 99, 255, 0.92);
-}
-.t-dark .attachName {
-  color: rgba(170, 200, 255, 0.92);
-}
-.attachAction {
+.panelLabel {
   font-size: 20rpx;
-  font-weight: 640;
-  color: rgba(16, 24, 40, 0.55);
+  font-weight: 700;
+  color: rgba(16, 24, 40, 0.42);
+  letter-spacing: 0.3rpx;
 }
-.t-dark .attachAction {
-  color: rgba(245, 247, 255, 0.55);
-}
-.actions {
-  margin-top: 16rpx;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10rpx;
-}
-.btn {
-  height: 56rpx;
-  padding: 0 16rpx;
-  border-radius: 16rpx;
+.t-dark .panelLabel { color: rgba(245, 247, 255, 0.38); }
+.panelCount {
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 99, 255, 0.1);
   display: flex;
   align-items: center;
-  background: rgba(16, 24, 40, 0.05);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-  transition: background 200ms ease, border-color 200ms ease, transform 160ms ease;
-}
-.t-dark .btn {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.08);
-}
-.btn:active {
-  transform: scale(0.98);
-}
-.btn.on {
-  background: rgba(46, 99, 255, 0.14);
-  border-color: rgba(46, 99, 255, 0.22);
-}
-.btn.danger {
-  background: rgba(220, 80, 110, 0.08);
-  border-color: rgba(220, 80, 110, 0.2);
-}
-.btnText {
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.78);
-}
-.t-dark .btnText {
-  color: rgba(245, 247, 255, 0.82);
-}
-.btn.on .btnText {
-  color: rgba(46, 99, 255, 0.96);
-}
-.btnTextDanger {
-  font-size: 20rpx;
-  color: rgba(220, 80, 110, 0.96);
-}
-.sec {
-  font-size: 22rpx;
-  font-weight: 640;
-  color: rgba(16, 24, 40, 0.62);
-}
-.t-dark .sec {
-  color: rgba(245, 247, 255, 0.62);
-}
-.comment {
-  margin-top: 12rpx;
-  padding: 12rpx 14rpx;
-  border-radius: 18rpx;
-  background: rgba(16, 24, 40, 0.04);
-  border: 1rpx solid rgba(16, 24, 40, 0.04);
-}
-.t-dark .comment {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.04);
-}
-.cAuthor {
-  font-size: 19rpx;
+  justify-content: center;
+  font-size: 18rpx;
+  font-weight: 720;
   color: rgba(46, 99, 255, 0.92);
 }
-.cText {
+.t-dark .panelCount {
+  background: rgba(120, 160, 255, 0.12);
+  color: rgba(170, 200, 255, 0.92);
+}
+
+.commentsEmpty { padding: 20rpx 0 8rpx; }
+.commentsEmptyText {
+  font-size: 21rpx;
+  color: rgba(16, 24, 40, 0.45);
+  line-height: 1.45;
+}
+.t-dark .commentsEmptyText { color: rgba(245, 247, 255, 0.4); }
+
+.commentRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid rgba(16, 24, 40, 0.05);
+}
+.commentRow:last-of-type { border-bottom: none; }
+.t-dark .commentRow { border-bottom-color: rgba(255, 255, 255, 0.05); }
+.commentAvatar {
+  width: 52rpx; height: 52rpx; border-radius: 50%; flex-shrink: 0;
+  background: rgba(46, 99, 255, 0.14);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(46, 99, 255, 0.96); font-size: 18rpx; font-weight: 760;
+}
+.t-dark .commentAvatar {
+  background: rgba(120, 160, 255, 0.16);
+  color: rgba(170, 200, 255, 0.96);
+}
+.commentBody { flex: 1; min-width: 0; }
+.commentAuthor {
+  font-size: 19rpx;
+  font-weight: 720;
+  color: rgba(46, 99, 255, 0.92);
+  display: block;
+}
+.commentText {
   display: block;
   margin-top: 4rpx;
   font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.86);
+  line-height: 1.45;
+  color: rgba(16, 24, 40, 0.82);
 }
-.t-dark .cText {
-  color: rgba(245, 247, 255, 0.86);
-}
-.reply {
+.t-dark .commentText { color: rgba(245, 247, 255, 0.82); }
+
+.replyRow {
   margin-top: 14rpx;
   display: flex;
   gap: 8rpx;
 }
-.input {
+.replyInput {
   flex: 1;
   height: 74rpx;
   border-radius: 18rpx;
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(16, 24, 40, 0.04);
   border: 1rpx solid rgba(16, 24, 40, 0.06);
   padding: 0 14rpx;
   font-size: 22rpx;
   color: rgba(16, 24, 40, 0.92);
 }
-.t-dark .input {
+.t-dark .replyInput {
   background: #23272d;
   border-color: rgba(255, 255, 255, 0.06);
   color: rgba(245, 247, 255, 0.92);
 }
-.placeholder {
-  color: rgba(16, 24, 40, 0.35);
-}
-.t-dark .placeholder {
-  color: rgba(245, 247, 255, 0.32);
-}
-.send {
+.placeholder { color: rgba(16, 24, 40, 0.35); }
+.t-dark .placeholder { color: rgba(245, 247, 255, 0.32); }
+.replySend {
   width: 110rpx;
   height: 74rpx;
   border-radius: 18rpx;
@@ -385,12 +325,10 @@ onLoad((q) => {
   justify-content: center;
   box-shadow: 0 12rpx 32rpx rgba(46, 99, 255, 0.24);
 }
-.sendText {
+.replySendText {
   font-size: 21rpx;
   font-weight: 720;
   color: #fff;
 }
-.gap {
-  height: 24rpx;
-}
+.gap { height: 24rpx; }
 </style>

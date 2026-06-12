@@ -1,5 +1,6 @@
 import { PAGE_MS } from '@/lib/pageTransition'
 import { writePageTransition } from '@/lib/pageTransitionStore'
+import { isPageTransitionsEnabled } from '@/composables/useAppearancePrefs'
 
 /** Unified transition length (0.2s from click) */
 export const PAGE_ANIM_MS = PAGE_MS
@@ -43,6 +44,7 @@ export function getCurrentTab() {
 }
 
 function markPageEnterPending(meta = {}) {
+  if (!isPageTransitionsEnabled()) return
   writePageTransition({ clickedAt: Date.now(), ...meta })
   try {
     uni.setStorageSync(PAGE_ENTER_KEY, '1')
@@ -71,19 +73,14 @@ export function navTab(toTabId, fromTabId = currentTabId) {
     to: toTabId,
   })
 
+  // App 端 redirectTo 在目标页已在栈中时会失败（常见：首页→子页→点 Home）
+  // 伪 tabBar 统一用 reLaunch，与 uni-app 自定义 tab 推荐一致
   return new Promise((resolve, reject) => {
-    uni.redirectTo({
+    uni.reLaunch({
       url,
       ...pageAnim.none,
       success: resolve,
-      fail: () => {
-        uni.reLaunch({
-          url,
-          ...pageAnim.none,
-          success: resolve,
-          fail: reject,
-        })
-      },
+      fail: reject,
     })
   })
 }

@@ -1,19 +1,19 @@
 <template>
   <view
     class="card"
-    :class="[{ unread: !notice.read, glow: notice.important, hiding: hiding || localHiding }, themeClass]"
+    :class="[{ unread: showUnread, glow: notice.important, hiding: hiding || localHiding }, themeClass]"
     :id="id"
     role="button"
     @tap="$emit('open')"
   >
     <view class="main">
-      <text class="title" :class="{ dim: notice.read }">{{ notice.title }}</text>
+      <text class="title" :class="{ dim: !showUnread && notice.read }">{{ notice.title }}</text>
       <view class="row">
-        <text class="tag">{{ notice.subject }}</text>
+        <view class="typeChip" :class="typeChipClass">
+          <text class="typeChipText">{{ displayTag }}</text>
+        </view>
         <text v-if="notice.deadline" class="ddl">{{ notice.deadline }}</text>
       </view>
-      <text class="preview text-word-wrap" :class="{ dim: notice.read }">{{ notice.description }}</text>
-      <text v-if="notice.attachment" class="attach">{{ notice.attachment }}</text>
     </view>
 
     <view class="actions" @tap.stop>
@@ -79,6 +79,8 @@
 import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
+import { isNoticeRelevantToUser } from '@/lib/noticeRelevance'
+import { useUserStore } from '@/composables/useUserStore'
 
 const props = defineProps({
   notice: { type: Object, required: true },
@@ -89,6 +91,7 @@ const props = defineProps({
 const emit = defineEmits(['open', 'planner', 'important'])
 
 const { themeClass } = useTheme()
+const { currentUser } = useUserStore()
 const starPop = ref(false)
 const checkAnimating = ref(false)
 const localHiding = ref(false)
@@ -96,9 +99,27 @@ const plannerBusy = ref(false)
 
 const canAddToPlanner = computed(() => canAddNoticeToTasks(props.notice))
 
+const showUnread = computed(
+  () => !props.notice.read && isNoticeRelevantToUser(props.notice, currentUser.value?.id || '')
+)
+
 const showPlus = computed(
   () => canAddToPlanner.value && !props.notice.inPlanner && !checkAnimating.value && !localHiding.value
 )
+
+const displayTag = computed(() => {
+  const subject = String(props.notice.subject || '').trim()
+  if (subject) return subject
+  return props.notice.type || 'General'
+})
+
+const typeChipClass = computed(() => {
+  const key = String(props.notice.type || '').toLowerCase()
+  if (key === 'homework') return 'sub-blue'
+  if (key === 'via') return 'sub-green'
+  if (key === 'event' || key === 'events') return 'sub-amber'
+  return 'sub-slate'
+})
 
 function onPlannerTapDone() {
   if (props.notice.inPlanner) {
@@ -178,34 +199,32 @@ function onImportant() {
   gap: 8rpx;
   margin-top: 8rpx;
   align-items: center;
+  justify-content: space-between;
 }
-.tag {
-  font-size: var(--list-meta-size);
+.typeChip {
   padding: var(--list-tag-pad-y) var(--list-tag-pad-x);
   border-radius: 999rpx;
   background: rgba(16, 24, 40, 0.06);
-  color: rgba(16, 24, 40, 0.65);
 }
-.t-dark .tag {
-  background: rgba(245, 247, 255, 0.08);
-  color: rgba(245, 247, 255, 0.62);
-}
-.ddl { font-size: var(--list-meta-size); color: rgba(46, 99, 255, 0.9); }
-.preview {
-  display: block;
-  margin-top: 8rpx;
-  font-size: var(--list-body-size);
-  color: rgba(16, 24, 40, 0.55);
-  line-height: 1.45;
-}
-.t-dark .preview { color: rgba(245, 247, 255, 0.5); }
-.preview.dim { opacity: 0.78; }
-.attach {
-  display: block;
-  margin-top: 6rpx;
+.t-dark .typeChip { background: rgba(245, 247, 255, 0.08); }
+.typeChip.sub-blue { background: rgba(46, 99, 255, 0.12); }
+.typeChip.sub-green { background: rgba(34, 160, 120, 0.14); }
+.typeChip.sub-amber { background: rgba(220, 140, 40, 0.16); }
+.typeChipText {
   font-size: var(--list-meta-size);
-  color: rgba(46, 99, 255, 0.88);
+  font-weight: 660;
+  color: rgba(16, 24, 40, 0.68);
 }
+.t-dark .typeChipText { color: rgba(245, 247, 255, 0.62); }
+.typeChip.sub-blue .typeChipText { color: rgba(46, 99, 255, 0.92); }
+.typeChip.sub-green .typeChipText { color: rgba(34, 140, 100, 0.95); }
+.typeChip.sub-amber .typeChipText { color: rgba(180, 110, 30, 0.95); }
+.ddl {
+  font-size: var(--list-meta-size);
+  color: rgba(46, 99, 255, 0.9);
+  margin-left: auto;
+}
+.t-dark .ddl { color: rgba(170, 200, 255, 0.9); }
 
 .actions {
   display: flex;

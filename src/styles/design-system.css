@@ -39,6 +39,12 @@
   --shell-bar-inset: 20rpx;
   --shell-bar-margin-top: 12rpx;
   --shell-header-offset: calc(var(--shell-bar-height) + var(--shell-bar-margin-top) + env(safe-area-inset-top));
+  /** Bottom dock (tab bar) — top edge of dock from viewport bottom */
+  --shell-dock-offset: calc(var(--shell-bar-inset) + var(--shell-bar-height) + env(safe-area-inset-bottom));
+  /** Bottom dock — bottom edge (aligns with .dock { bottom }) */
+  --shell-dock-bottom: calc(var(--shell-bar-inset) + env(safe-area-inset-bottom));
+  /** Scroll padding above the bottom tab bar */
+  --shell-tab-scroll-pad: calc(var(--shell-dock-offset) + 12rpx);
 
   /* ── List / feed cards (home-aligned) ── */
   --list-card-radius: 30rpx;
@@ -222,6 +228,16 @@ html[data-theme='dark'] {
   animation: ds-empty-in var(--motion-slow) var(--ease-spring) both;
 }
 
+/* ── Tab main scroll — fill space between chrome and bottom dock ── */
+.tabPageScroll {
+  flex: 1;
+  height: 0;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+  padding-bottom: var(--shell-tab-scroll-pad);
+}
+
 /* ── Task list chips (priority / subject / status) ── */
 .task-chip {
   display: inline-flex;
@@ -324,4 +340,16 @@ html[data-theme='dark'] .task-chip.state-completed .task-chip-text { color: rgba
     opacity: 0;
     transform: translateY(8px) scale(0.97);
   }
+}
+
+/* Full-screen modal open — block interaction with page under overlay (H5) */
+body.modal-open {
+  overflow: hidden !important;
+  touch-action: none;
+}
+body.modal-open #app,
+body.modal-open uni-app,
+body.modal-open uni-page,
+body.modal-open page {
+  pointer-events: none !important;
 }

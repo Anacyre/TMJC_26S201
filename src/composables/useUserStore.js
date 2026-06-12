@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import { getCurrentUser } from '@/api/auth'
+import { getCurrentUser, hasActiveSession } from '@/api/auth'
 import { updateProfile as apiUpdateProfile } from '@/api/profile'
 import { isAdminMember } from '@/lib/classMembers'
 import { resetAdminMode, syncAdminModeForUser } from '@/composables/adminModeState'
@@ -19,7 +19,27 @@ const currentUser = ref({
   avatar: '',
 })
 
+const EMPTY_USER = {
+  id: '',
+  username: '',
+  name: '',
+  display_name: '',
+  role: 'student',
+  is_admin: false,
+  mbti: '',
+  interests: '',
+  bio: '',
+  links: [],
+  birthdayVisibility: 'Friends',
+  avatar: '',
+}
+
 const loading = ref(false)
+
+function resetCurrentUser() {
+  currentUser.value = { ...EMPTY_USER }
+  resetAdminMode()
+}
 
 /**
  * Load current user from Supabase
@@ -29,7 +49,10 @@ async function fetchCurrentUser() {
   try {
     const { user, profile, error } = await getCurrentUser()
     if (error || !user) {
-      resetAdminMode()
+      const stillActive = await hasActiveSession()
+      if (!stillActive || !currentUser.value.id) {
+        resetCurrentUser()
+      }
       return
     }
 
@@ -78,5 +101,5 @@ async function updateProfile(payload) {
 }
 
 export function useUserStore() {
-  return { currentUser, loading, fetchCurrentUser, updateProfile }
+  return { currentUser, loading, fetchCurrentUser, updateProfile, resetCurrentUser }
 }

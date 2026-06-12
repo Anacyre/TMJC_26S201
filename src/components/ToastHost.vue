@@ -81,9 +81,9 @@ function onUndoTap(item) {
   align-items: center;
   gap: 14rpx;
   max-width: 92vw;
+  pointer-events: auto;
 }
 .toast.withUndo {
-  pointer-events: auto;
   padding-right: 12rpx;
 }
 .t-dark .toast {

@@ -167,6 +167,7 @@ import { TASK_COMPLETE_STRIKE_MS, TASK_COMPLETE_FADE_MS, DONE_LIST_REFLOW_MS } f
 import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { pushUndoable } from '@/composables/useUndo'
+import { deleteConfirm } from '@/composables/useConfirmDelete'
 
 const { themeClass } = useTheme()
 const {
@@ -180,6 +181,7 @@ const {
   unarchiveTask,
   getTaskById,
   patchTask,
+  fetchTasks,
 } = useTasksStore()
 
 const tabItems = [
@@ -460,6 +462,13 @@ function scheduleActiveTabLeave(id, afterLeave) {
   })
 }
 
+async function requestDeleteTask(id) {
+  await nextTick()
+  const ok = await deleteConfirm.task()
+  if (!ok) return
+  deleteTaskRow(id)
+}
+
 function deleteTaskRow(id) {
   const task = getTaskById(id)
   if (!task) return
@@ -557,9 +566,12 @@ function onTaskSwipeCommit(id, actionId) {
     restoreTaskRow(id)
     return
   }
+  if (actionId === 'delete') {
+    requestDeleteTask(id)
+    return
+  }
   setTimeout(() => {
     if (actionId === 'archive') archiveTaskRow(id)
-    else deleteTaskRow(id)
   }, SWIPE_ACTION_MS)
 }
 
@@ -568,9 +580,12 @@ function onTaskSwipeAction(id, actionId) {
     restoreTaskRow(id)
     return
   }
+  if (actionId === 'delete') {
+    requestDeleteTask(id)
+    return
+  }
   setTimeout(() => {
     if (actionId === 'archive') archiveTaskRow(id)
-    else deleteTaskRow(id)
   }, SWIPE_ACTION_MS)
 }
 </script>

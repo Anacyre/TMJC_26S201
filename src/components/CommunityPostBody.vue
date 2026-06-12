@@ -1,0 +1,195 @@
+<template>
+  <view class="panel postPanel">
+    <view class="panelHead">
+      <text class="panelLabel">Post</text>
+      <view v-if="post.image || post.attachment" class="attachTag">
+        <text class="attachTagText">{{ post.image ? 'Image' : 'File' }}</text>
+      </view>
+    </view>
+
+    <view class="authorRow">
+      <view class="authorAvatar">{{ initials(authorName) }}</view>
+      <view class="authorCopy">
+        <text class="authorName">{{ authorName }}</text>
+        <text class="authorTime">{{ timeLabel }}</text>
+      </view>
+    </view>
+
+    <text class="title">{{ post.title }}</text>
+    <text class="content">{{ post.content || 'No content yet.' }}</text>
+
+    <image
+      v-if="post.image"
+      class="postImg"
+      :src="post.image"
+      mode="widthFix"
+      @tap="$emit('openAttachment', post.image)"
+    />
+    <view
+      v-if="post.attachment && !post.image"
+      class="attachRow tap"
+      role="button"
+      @tap="$emit('openAttachment', post.attachmentUrl)"
+    >
+      <text class="attachName">{{ post.attachment }}</text>
+      <text class="attachAction">Open</text>
+    </view>
+    <view
+      v-else-if="post.attachment && post.image"
+      class="attachRow tap"
+      role="button"
+      @tap="$emit('openAttachment', post.attachmentUrl)"
+    >
+      <text class="attachName">{{ post.attachment }}</text>
+      <text class="attachAction">Download</text>
+    </view>
+
+    <view class="actionSeg">
+      <view class="segBtn tap" :class="{ on: post.liked }" role="button" @tap="$emit('toggleLike')">
+        <text class="segBtnText">♥ {{ post.likesCount || 0 }}</text>
+      </view>
+      <view class="segBtn tap" :class="{ on: saved }" role="button" @tap="$emit('toggleSave')">
+        <text class="segBtnText">{{ saved ? '★ Saved' : '☆ Save' }}</text>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script setup>
+import { computed } from 'vue'
+
+const props = defineProps({
+  post: { type: Object, required: true },
+  timeLabel: { type: String, default: '' },
+  saved: { type: Boolean, default: false },
+})
+
+defineEmits(['toggleLike', 'toggleSave', 'openAttachment'])
+
+const authorName = computed(() =>
+  props.post.anonymous ? 'Anonymous' : props.post.author
+)
+
+function initials(name) {
+  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
+}
+</script>
+
+<style scoped>
+.panel {
+  padding: 16rpx 18rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(16, 24, 40, 0.05);
+}
+.t-dark .panel {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14rpx;
+}
+.panelLabel {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: rgba(16, 24, 40, 0.42);
+  letter-spacing: 0.3rpx;
+}
+.t-dark .panelLabel { color: rgba(245, 247, 255, 0.38); }
+.attachTag {
+  padding: 4rpx 10rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 99, 255, 0.1);
+}
+.attachTagText { font-size: 17rpx; font-weight: 700; color: rgba(46, 99, 255, 0.88); }
+
+.authorRow {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding-bottom: 14rpx;
+  border-bottom: 1rpx solid rgba(16, 24, 40, 0.06);
+}
+.t-dark .authorRow { border-bottom-color: rgba(255, 255, 255, 0.06); }
+.authorAvatar {
+  width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0;
+  background: rgba(46, 99, 255, 0.14);
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(46, 99, 255, 0.96); font-size: 19rpx; font-weight: 760;
+}
+.t-dark .authorAvatar { background: rgba(120, 160, 255, 0.16); color: rgba(170, 200, 255, 0.96); }
+.authorCopy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2rpx; }
+.authorName { font-size: 22rpx; font-weight: 720; color: rgba(16, 24, 40, 0.88); }
+.t-dark .authorName { color: rgba(245, 247, 255, 0.88); }
+.authorTime { font-size: 19rpx; color: rgba(16, 24, 40, 0.45); }
+.t-dark .authorTime { color: rgba(245, 247, 255, 0.4); }
+
+.title {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 28rpx;
+  font-weight: 780;
+  color: rgba(16, 24, 40, 0.92);
+  line-height: 1.35;
+}
+.t-dark .title { color: rgba(245, 247, 255, 0.92); }
+.content {
+  display: block;
+  margin-top: 12rpx;
+  font-size: 23rpx;
+  line-height: 1.55;
+  color: rgba(16, 24, 40, 0.78);
+}
+.t-dark .content { color: rgba(245, 247, 255, 0.78); }
+.postImg {
+  width: 100%;
+  margin-top: 14rpx;
+  border-radius: 16rpx;
+  display: block;
+}
+.attachRow {
+  margin-top: 12rpx;
+  padding: 12rpx 14rpx;
+  border-radius: 16rpx;
+  background: rgba(46, 99, 255, 0.06);
+  border: 1rpx solid rgba(46, 99, 255, 0.16);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10rpx;
+}
+.attachName { flex: 1; font-size: 22rpx; color: rgba(46, 99, 255, 0.92); }
+.t-dark .attachName { color: rgba(170, 200, 255, 0.92); }
+.attachAction { font-size: 20rpx; font-weight: 640; color: rgba(16, 24, 40, 0.55); }
+.t-dark .attachAction { color: rgba(245, 247, 255, 0.55); }
+
+.actionSeg {
+  margin-top: 16rpx;
+  display: flex;
+  gap: 6rpx;
+  padding: 4rpx;
+  border-radius: 16rpx;
+  background: rgba(16, 24, 40, 0.04);
+}
+.t-dark .actionSeg { background: rgba(255, 255, 255, 0.04); }
+.segBtn {
+  flex: 1;
+  height: 56rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.segBtn.on {
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 2rpx 8rpx rgba(16, 24, 40, 0.06);
+}
+.t-dark .segBtn.on { background: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.segBtnText { font-size: 20rpx; font-weight: 660; color: rgba(16, 24, 40, 0.58); }
+.segBtn.on .segBtnText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
+.t-dark .segBtnText { color: rgba(245, 247, 255, 0.48); }
+.t-dark .segBtn.on .segBtnText { color: rgba(170, 200, 255, 0.96); }
+</style>

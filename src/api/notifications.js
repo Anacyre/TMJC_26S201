@@ -160,6 +160,8 @@ export async function setInPlanner(notificationId, value) {
  */
 export async function deleteNotification(notificationId) {
   if (USE_MOCK) return mock.deleteNotification(notificationId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: new Error('Not signed in'), userId: '' }
   const { error } = await supabase.from('notifications').delete().eq('id', notificationId)
-  return { error }
+  return { error, userId: user.id }
 }

@@ -131,6 +131,13 @@ export function taskIsOverdue(task) {
   return taskDueBucket(task) === 'overdue'
 }
 
+/** Home metrics + Today's focus — recent window and overdue */
+export function isHomeTodayTask(task) {
+  if (!task || task.done) return false
+  const bucket = taskDueBucket(task)
+  return bucket === 'recent' || bucket === 'overdue'
+}
+
 export function taskDueBucket(task) {
   if (task?.status === 'archived') return 'archived'
   if (task?.done || task?.status === 'completed') return 'completed'

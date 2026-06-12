@@ -262,12 +262,7 @@ function setSound(soundId) {
 }
 
 const totalMinutes = computed(() => sessions.value.reduce((acc, s) => acc + (s.minutes || 0), 0))
-const totalHoursLabel = computed(() => {
-  const h = totalMinutes.value / 60
-  if (h >= 10) return `${Math.round(h)}h`
-  if (h >= 1) return `${h.toFixed(1)}h`
-  return `${totalMinutes.value}m`
-})
+const totalHoursLabel = computed(() => `${totalMinutes.value} min`)
 
 const weekTotals = computed(() => {
   const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']

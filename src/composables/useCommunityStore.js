@@ -55,7 +55,7 @@ async function fetchComments(postId) {
 // ─── Read helpers ────────────────────────────────────────────────────
 
 function getCommunityById(id) {
-  return communities.value.find((x) => x.id === id) || communities.value[0]
+  return communities.value.find((x) => x.id === id) || null
 }
 
 function getMemberById(id) {
@@ -91,6 +91,20 @@ async function addCommunity(payload) {
   const { data, error } = await communityApi.createCommunity(payload)
   if (error) return { data: null, error }
   if (data) communities.value.unshift(data)
+  return { data, error: null }
+}
+
+async function updateCommunity(id, payload) {
+  const { data, error } = await communityApi.updateCommunity(id, payload)
+  if (error) return { data: null, error }
+  if (data) {
+    const idx = communities.value.findIndex((c) => c.id === id)
+    if (idx >= 0) {
+      const next = [...communities.value]
+      next[idx] = data
+      communities.value = next
+    }
+  }
   return { data, error: null }
 }
 
@@ -152,6 +166,7 @@ export function useCommunityStore() {
     getComments,
     addComment,
     addCommunity,
+    updateCommunity,
     addPost,
     togglePostLike,
     deletePost,

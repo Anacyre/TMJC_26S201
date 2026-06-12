@@ -1,6 +1,17 @@
 import { computed, ref } from 'vue'
 import * as tasksApi from '@/api/tasks'
-import { resolveTaskStatusFromForm, taskDueBucket, resolveDoneAfterChecklistToggle } from '@/lib/taskDueDate'
+import {
+  parseDueDateKey,
+  resolveTaskStatusFromForm,
+  taskDueBucket,
+  resolveDoneAfterChecklistToggle,
+} from '@/lib/taskDueDate'
+import {
+  noticeDeadlineSource,
+  resolveNoticeDeadlineIso,
+  taskDeadlineFromNotice,
+} from '@/lib/noticeTaskDeadline'
+import { setInPlanner } from '@/composables/useNotificationStore'
 
 const tasks = ref([])
 const loading = ref(false)
@@ -143,18 +154,54 @@ async function addTask(payload) {
   return { data: null, error: error || new Error('Could not create task') }
 }
 
-async function addTaskFromNotice({ noticeId, title, subject, deadline, description, noticeTitle }) {
-  const existing = tasks.value.find((t) => t.sourceNoticeId === noticeId)
-  if (existing) return existing
+async function addTaskFromNotice({
+  notice: noticeInput,
+  noticeId,
+  title,
+  subject,
+  deadline,
+  deadlineAt,
+  description,
+  noticeTitle,
+}) {
+  const notice = noticeDeadlineSource(
+    noticeInput || { deadline, deadlineAt },
+  )
+  const id = noticeId || noticeInput?.id
+  if (!id) return null
+
+  const nextDeadline = taskDeadlineFromNotice(notice)
+  const deadlineDate = resolveNoticeDeadlineIso(notice)
+  const existing = tasks.value.find((t) => t.sourceNoticeId === id)
+
+  if (existing) {
+    const currentKey = parseDueDateKey(existing.deadline)
+    if (deadlineDate && currentKey !== deadlineDate) {
+      await updateTask(existing.id, {
+        title: existing.title,
+        description: existing.description,
+        deadline: nextDeadline,
+        subject: existing.subject,
+        priority: existing.priority,
+        reminder: existing.reminder,
+        checklist: existing.checklist ?? [],
+        done: existing.done,
+        status: resolveTaskStatusFromForm({ deadlineDate, done: existing.done }),
+      })
+      return getTaskById(existing.id) || existing
+    }
+    return existing
+  }
 
   const { data } = await addTask({
-    title: title?.trim() || 'From notice',
-    subject: subject?.trim() || 'General',
-    deadline: deadline?.trim() ? `Due ${deadline.trim()}` : 'See notice',
-    description: description?.trim() || '',
+    title: title?.trim() || noticeInput?.title?.trim() || 'From notice',
+    subject: subject?.trim() || noticeInput?.subject?.trim() || 'General',
+    deadline: nextDeadline,
+    status: resolveTaskStatusFromForm({ deadlineDate }),
+    description: description?.trim() || noticeInput?.description?.trim() || '',
     priority: 'P2',
-    relatedNotice: { id: noticeId, title: noticeTitle || title },
-    sourceNoticeId: noticeId,
+    relatedNotice: { id, title: noticeTitle || title || noticeInput?.title },
+    sourceNoticeId: id,
   })
   return data
 }
@@ -171,12 +218,28 @@ async function unarchiveTask(id) {
   return { data, error }
 }
 
-async function deleteTask(id) {
+async function deleteTask(id, { syncNotice = true } = {}) {
+  const task = getTaskById(id)
+  const noticeId = task?.sourceNoticeId
   const { error } = await tasksApi.deleteTask(id)
   if (!error) {
     tasks.value = tasks.value.filter((x) => x.id !== id)
+    if (syncNotice && noticeId) {
+      try {
+        await setInPlanner(noticeId, false)
+      } catch (e) {
+        console.error('[useTasksStore] deleteTask: notice sync', e)
+      }
+    }
   }
   return { error }
+}
+
+/** Remove planner task linked to a notice (e.g. when the notice is deleted). */
+export async function deleteTaskBySourceNotice(noticeId) {
+  const task = tasks.value.find((t) => t.sourceNoticeId === noticeId)
+  if (!task) return { error: null }
+  return deleteTask(task.id, { syncNotice: false })
 }
 
 // ─── Computed ────────────────────────────────────────────────────

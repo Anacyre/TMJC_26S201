@@ -3,17 +3,43 @@
     <view class="shell" :class="[themeClass, navMode]">
     <view class="bar">
       <view class="side left">
-        <view v-if="navMode === 'brand'" class="brand" role="button" @tap="goHome">
-          <view class="logoHit" @longpress.stop="openUndoMenu">
+        <view v-if="navMode === 'brand'" class="brand">
+          <view
+            ref="logoHitRef"
+            class="logoHit"
+            :class="{ pressing: logoPressing }"
+            role="button"
+            aria-label="Tap to go home, hold to open undo"
+            @longpress.stop="onLogoLongPress"
+            <!-- #ifndef H5 -->
+            @touchstart.stop="onLogoPressStart"
+            @touchend.stop="onLogoPressEnd"
+            @touchcancel.stop="onLogoPressEnd"
+            <!-- #endif -->
+          >
             <ClassLogo size="lg" />
           </view>
-          <text class="brandText">26S201</text>
+          <text class="brandText tap" role="button" @tap.stop="goHome">26S201</text>
         </view>
         <BackButton v-else />
       </view>
 
       <view class="center">
-        <text v-if="navMode === 'back' && title" class="title" :number-of-lines="1">{{ title }}</text>
+        <view
+          v-if="navMode === 'back' && title"
+          class="titleUndoHit"
+          role="button"
+          aria-label="Open undo menu (long press)"
+          @longpress.stop="onLogoLongPress"
+          @touchstart.stop="onLogoPressStart"
+          @touchend.stop="onLogoPressEnd"
+          @touchcancel.stop="onLogoPressEnd"
+          @mousedown.stop="onLogoPressStart"
+          @mouseup.stop="onLogoPressEnd"
+          @mouseleave.stop="onLogoPressEnd"
+        >
+          <text class="title" :number-of-lines="1">{{ title }}</text>
+        </view>
       </view>
 
       <view class="side right">
@@ -36,7 +62,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { useGlobalSearch } from '@/composables/useGlobalSearch'
 import { useUserStore } from '@/composables/useUserStore'
@@ -46,7 +72,7 @@ import ThemeToggle from '@/components/ThemeToggle.vue'
 import AdminToggle from '@/components/AdminToggle.vue'
 import ClassLogo from '@/components/ClassLogo.vue'
 import BackButton from '@/components/BackButton.vue'
-import { useUndoMenu } from '@/composables/useUndoMenu'
+import { useLogoUndoPress } from '@/composables/useLogoUndoPress'
 
 const props = defineProps({
   title: { type: String, default: '' },
@@ -58,7 +84,9 @@ const { themeClass } = useTheme()
 const { openSearch } = useGlobalSearch()
 const { currentUser } = useUserStore()
 const { isRealAdmin } = useAdminMode()
-const { openUndoMenu } = useUndoMenu()
+const logoHitRef = ref(null)
+const { logoPressing, onLogoLongPress, onLogoPressStart, onLogoPressEnd } = useLogoUndoPress(goHome, logoHitRef)
+
 const initials = computed(() =>
   (currentUser.value.name || '?')
     .split(' ')
@@ -141,8 +169,7 @@ function openProfile() {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  max-width: 38%;
-  pointer-events: none;
+  max-width: 42%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -153,15 +180,46 @@ function openProfile() {
   align-items: center;
   gap: 12rpx;
   padding: 0 8rpx;
-  transition: transform 180ms ease;
 }
-.brand:active { transform: scale(0.96); }
 .logoHit {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8rpx;
-  margin: -8rpx;
+  padding: 12rpx;
+  margin: -12rpx;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  cursor: pointer;
+  border-radius: 20rpx;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+.logoHit::after {
+  content: '';
+  position: absolute;
+  inset: 4rpx;
+  border-radius: 18rpx;
+  border: 2rpx solid transparent;
+  pointer-events: none;
+  transition: border-color 0.16s ease, opacity 0.16s ease;
+}
+.logoHit.pressing {
+  transform: scale(0.9);
+  background: rgba(46, 99, 255, 0.1);
+}
+.logoHit.pressing::after {
+  border-color: rgba(46, 99, 255, 0.45);
+  opacity: 1;
+}
+.t-dark .logoHit.pressing {
+  background: rgba(120, 160, 255, 0.14);
+}
+.t-dark .logoHit.pressing::after {
+  border-color: rgba(120, 160, 255, 0.5);
+}
+.logoHit :deep(.logoMark) {
+  pointer-events: none;
 }
 .brandText {
   font-size: 26rpx;
@@ -171,6 +229,15 @@ function openProfile() {
 }
 .t-dark .brandText { color: rgba(245, 247, 255, 0.84); }
 
+.titleUndoHit {
+  max-width: 100%;
+  padding: 12rpx 16rpx;
+  margin: -12rpx -8rpx;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto;
+}
 .title {
   font-size: 26rpx;
   font-weight: 640;
@@ -180,6 +247,7 @@ function openProfile() {
   white-space: nowrap;
   text-overflow: ellipsis;
   text-align: center;
+  display: block;
 }
 .t-dark .title { color: rgba(245, 247, 255, 0.7); }
 

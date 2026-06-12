@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import { isAdminMember } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -11,21 +12,86 @@ export async function fetchCommunities() {
     .from('communities')
     .select('*')
     .order('name')
-  return { data: data || [], error }
+  return {
+    data: error ? [] : (data || []).map(rowToCommunity),
+    error,
+  }
 }
 
 export async function createCommunity(payload) {
   if (USE_MOCK) return mock.createCommunity(payload)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('Not signed in') }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) return { data: null, error: profileError }
+  if (!isAdminMember(profile)) return { data: null, error: new Error('Admins only') }
+
   const { data, error } = await supabase
     .from('communities')
     .insert({
       icon: payload.icon || '◉',
       name: payload.name,
       desc: payload.desc || '',
+      created_by: user.id,
     })
     .select()
     .single()
-  return { data, error }
+  return { data: data ? rowToCommunity(data) : null, error }
+}
+
+export async function updateCommunity(id, payload) {
+  if (USE_MOCK) return mock.updateCommunity(id, payload)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('Not signed in') }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_admin')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  if (profileError) return { data: null, error: profileError }
+  if (!isAdminMember(profile)) return { data: null, error: new Error('Admins only') }
+
+  const patch = {}
+  if (payload.name !== undefined) patch.name = String(payload.name).trim()
+  if (payload.desc !== undefined) patch.desc = String(payload.desc).trim()
+  if (payload.icon !== undefined) patch.icon = String(payload.icon).trim() || '◉'
+  patch.updated_at = new Date().toISOString()
+
+  const { data, error } = await supabase
+    .from('communities')
+    .update(patch)
+    .eq('id', id)
+    .select()
+    .single()
+
+  return { data: data ? rowToCommunity(data) : null, error }
+}
+
+function rowToCommunity(row) {
+  const creator = row.profiles || row.creator || null
+  const creatorName =
+    creator?.display_name ||
+    creator?.name ||
+    row.created_by_name ||
+    ''
+  return {
+    id: row.id,
+    icon: row.icon || '◉',
+    name: row.name || '',
+    desc: row.desc || '',
+    createdBy: row.created_by || '',
+    createdByName: creatorName,
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
+  }
 }
 
 // ─── Posts ──────────────────────────────────────────────────────

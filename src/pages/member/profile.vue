@@ -91,7 +91,7 @@
         </view>
       </view>
 
-      <view v-if="isMe" class="section">
+      <view v-if="isMe && isSignedIn" class="section">
         <text class="sectionLabel">Account</text>
         <view class="card pad accountCard">
           <view class="accountRow tap" role="button" @tap="editOpen = true">
@@ -104,8 +104,11 @@
       </view>
 
       <view v-if="isMe" class="logoutWrap">
-        <view class="logoutBtn tap" role="button" @tap="confirmLogout">
+        <view v-if="isSignedIn" class="logoutBtn tap" role="button" @tap="confirmLogout">
           <text class="logoutText">Log out</text>
+        </view>
+        <view v-else class="loginBtn tap" role="button" @tap="goLogin">
+          <text class="loginText">Login</text>
         </view>
       </view>
 
@@ -172,7 +175,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import TagSelect from '@/components/TagSelect.vue'
@@ -183,8 +186,8 @@ import { useFocusStore } from '@/composables/useFocusStore'
 import { getQuickLoginAlias, setQuickLoginAlias } from '@/composables/useMemberStore'
 import { toast } from '@/composables/useToast'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
-import { logout } from '@/api/auth'
-import { clearAuthSession } from '@/composables/useAuthSession'
+import { hasActiveSession } from '@/api/auth'
+import { signOut, goLogin } from '@/composables/useAuthSession'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
@@ -210,7 +213,21 @@ const member = computed(() =>
   id.value === currentUser.value.id ? currentUser.value : (getMemberById(id.value) || currentUser.value)
 )
 
-const isMe = computed(() => id.value === currentUser.value.id)
+const isMe = computed(() => {
+  const uid = currentUser.value.id
+  if (!uid) return !id.value
+  return id.value === uid
+})
+
+const isSignedIn = ref(false)
+
+async function refreshSignedIn() {
+  try {
+    isSignedIn.value = await hasActiveSession()
+  } catch {
+    isSignedIn.value = false
+  }
+}
 const alias = computed(() => getQuickLoginAlias(currentUser.value.id))
 const focusVisible = computed(() => prefs.value.visibility !== 'private')
 
@@ -257,11 +274,7 @@ function confirmLogout() {
     confirmColor: '#e5484d',
     success: async (res) => {
       if (!res.confirm) return
-      try {
-        await logout()
-      } catch (e) {}
-      clearAuthSession()
-      uni.reLaunch({ url: '/pages/login/login' })
+      await signOut()
     },
   })
 }
@@ -323,7 +336,14 @@ watch(
   { immediate: true, deep: true }
 )
 
-onLoad((q) => { id.value = q?.id || currentUser.value.id })
+onLoad((q) => {
+  id.value = q?.id || currentUser.value.id
+  refreshSignedIn()
+})
+
+onShow(() => {
+  refreshSignedIn()
+})
 </script>
 
 <style scoped>
@@ -460,6 +480,18 @@ onLoad((q) => { id.value = q?.id || currentUser.value.id })
 .logoutBtn:active { transform: scale(0.985); background: rgba(229, 72, 77, 0.08); }
 .logoutText { font-size: 22rpx; font-weight: 720; color: rgba(229, 72, 77, 0.96); }
 .t-dark .logoutText { color: rgba(255, 120, 120, 0.96); }
+.loginBtn {
+  height: 84rpx;
+  border-radius: 22rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #5a8eff, #2e63ff);
+  box-shadow: 0 16rpx 40rpx rgba(46, 99, 255, 0.24);
+  transition: transform 180ms ease, opacity 180ms ease;
+}
+.loginBtn:active { transform: scale(0.985); opacity: 0.92; }
+.loginText { font-size: 23rpx; font-weight: 720; color: #fff; }
 
 .overlay { position: fixed; inset: 0; z-index: 60; opacity: 0; pointer-events: none; background: rgba(8, 12, 24, 0.4); backdrop-filter: blur(12px); transition: opacity 0.22s ease; }
 .overlay.show { opacity: 1; pointer-events: auto; }

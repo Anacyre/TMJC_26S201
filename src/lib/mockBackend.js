@@ -34,6 +34,9 @@ export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true'
 // ─── Storage helpers ─────────────────────────────────────────────────
 const STORAGE_KEY = 'mock_backend_v1'
 const SESSION_KEY = 'mock_backend_session_v1'
+const COMMUNITY_SEED_VERSION = 2
+const DEMO_COMMUNITY_IDS = new Set(['cmt_study', 'cmt_math', 'cmt_prod', 'cmt_rand'])
+const DEMO_POST_IDS = new Set(['p1', 'p2', 'p3', 'p4', 'p5'])
 
 function safeGet(key) {
   try { return uni.getStorageSync(key) || null } catch { return null }
@@ -47,6 +50,16 @@ function uid(prefix = 'mck') {
 }
 function nowIso() { return new Date().toISOString() }
 async function tick(ms = 60) { return new Promise((r) => setTimeout(r, ms)) }
+
+function isoDaysFromNow(days) {
+  const d = new Date()
+  d.setHours(0, 0, 0, 0)
+  d.setDate(d.getDate() + days)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
 
 // ─── Seed data ───────────────────────────────────────────────────────
 function seedState() {
@@ -63,11 +76,6 @@ function seedState() {
   const subjEcon = 'sub_econ'
   const subjGp   = 'sub_gp'
 
-  const communityStudy = 'cmt_study'
-  const communityMath  = 'cmt_math'
-  const communityProd  = 'cmt_prod'
-  const communityRand  = 'cmt_rand'
-
   const noticeMathHw   = 'ntf_math_ch6'
   const noticePhysHw   = 'ntf_phys_proj'
   const noticeChemHw   = 'ntf_chem_mech'
@@ -82,6 +90,12 @@ function seedState() {
   const taskChem  = 'tsk_chem_org'
   const taskGp    = 'tsk_gp_essay'
   const taskEcon  = 'tsk_econ_demand'
+
+  const dueThu = isoDaysFromNow(1)
+  const dueFri = isoDaysFromNow(2)
+  const dueMon = isoDaysFromNow(4)
+  const dueSat = isoDaysFromNow(3)
+  const dueNextSun = isoDaysFromNow(7)
 
   return {
     roster_version: ROSTER_VERSION,
@@ -187,7 +201,7 @@ function seedState() {
       {
         id: noticeMathHw, type: 'Homework',
         title: 'Math Chapter 6 — Discussion Q8',
-        subject: 'Math', deadline: 'Thu 4:00 PM',
+        subject: 'Math', deadline: 'Thu 4:00 PM', deadline_at: dueThu,
         description: 'Please complete Discussion Question 8 from Chapter 6 (Vectors). Be ready to share your working in class.',
         attachment: 'Ch6_Discussion.pdf', attachment_url: '',
         by: 'Ms Lim (Math)', important: true,
@@ -196,7 +210,7 @@ function seedState() {
       {
         id: noticePhysHw, type: 'Homework',
         title: 'Physics Worksheet 4.2 — Projectile Motion',
-        subject: 'Physics', deadline: 'Fri 11:59 PM',
+        subject: 'Physics', deadline: 'Fri 11:59 PM', deadline_at: dueFri,
         description: 'Six-problem worksheet on projectile motion. Submit via the class portal.',
         attachment: 'Worksheet_4.2.pdf', attachment_url: '',
         by: 'Mr Chen (Physics)', important: true,
@@ -205,7 +219,7 @@ function seedState() {
       {
         id: noticeChemHw, type: 'Homework',
         title: 'Chemistry — Organic Mechanisms',
-        subject: 'Chemistry', deadline: 'Mon next week',
+        subject: 'Chemistry', deadline: 'Mon next week', deadline_at: dueMon,
         description: 'Mechanism worksheet covering SN1 / SN2. Curly arrows required.',
         attachment: '', attachment_url: '',
         by: 'Mr Lee (Chem)', important: false,
@@ -214,7 +228,7 @@ function seedState() {
       {
         id: noticeViaBeach, type: 'VIA',
         title: 'VIA — Beach clean-up @ East Coast Park',
-        subject: 'Community service', deadline: 'Sat 9:00 AM',
+        subject: 'Community service', deadline: 'Sat 9:00 AM', deadline_at: dueSat,
         description: 'Help keep our coastline clean! Gloves, bags and refreshments provided. Counts towards 3 VIA hours.',
         attachment: '', attachment_url: '',
         by: 'CCA Office', important: true,
@@ -223,7 +237,7 @@ function seedState() {
       {
         id: noticeViaShel, type: 'VIA',
         title: 'VIA — Animal shelter visit (SPCA)',
-        subject: 'Community service', deadline: 'Next Sun 10:00 AM',
+        subject: 'Community service', deadline: 'Next Sun 10:00 AM', deadline_at: dueNextSun,
         description: 'Walk dogs, clean enclosures and help with adoption day. 4 VIA hours awarded.',
         attachment: '', attachment_url: '',
         by: 'CCA Office', important: false,
@@ -254,6 +268,7 @@ function seedState() {
         description: 'Class outing to Orchard Bowl this Saturday at 4pm, dinner after at the food court. RSVP in the comments.',
         attachment: '', attachment_url: '',
         by: 'Alex Tan (Class Rep)', important: false,
+        created_by: userId,
         created_at: nowIso(),
       },
     ],
@@ -271,62 +286,14 @@ function seedState() {
     ],
 
     // —— Communities ——
-    communities: [
-      { id: communityStudy, icon: '◎', name: 'Study Lab',    desc: 'Sprints, study tips, accountability buddies.' },
-      { id: communityMath,  icon: '∑', name: 'Math',         desc: 'Problem swaps and chapter discussion.' },
-      { id: communityProd,  icon: '◐', name: 'Productivity', desc: 'Note templates, planners, focus tools.' },
-      { id: communityRand,  icon: '✿', name: 'Random',       desc: 'Memes, music, weekend plans.' },
-    ],
+    communities: [],
 
     // —— Posts ——
-    posts: [
-      {
-        id: 'p1', community_id: communityStudy, user_id: peerA,
-        title: 'Best way to structure study sprints?',
-        content: 'I’ve been doing 50/10 but my focus dies after the third block. What rhythms work for you?',
-        anonymous: false, image: '', likes_count: 38, comments_count: 12,
-        created_at: nowIso(),
-      },
-      {
-        id: 'p2', community_id: communityMath, user_id: peerB,
-        title: 'Anyone wants to pair on Chapter 6?',
-        content: 'Stuck on Q8 — the median proof. Library after school?',
-        anonymous: false, image: '', likes_count: 22, comments_count: 7,
-        created_at: nowIso(),
-      },
-      {
-        id: 'p3', community_id: communityProd, user_id: peerC,
-        title: 'Share your note templates (Notion/Obsidian)',
-        content: 'Drop a screenshot of your study dashboard! I’ll start with mine.',
-        anonymous: false, image: '', likes_count: 64, comments_count: 18,
-        created_at: nowIso(),
-      },
-      {
-        id: 'p4', community_id: communityRand, user_id: peerD,
-        title: 'Where’s the best bubble tea near school?',
-        content: 'Need recommendations. Anything but taro pls.',
-        anonymous: false, image: '', likes_count: 19, comments_count: 9,
-        created_at: nowIso(),
-      },
-      {
-        id: 'p5', community_id: communityStudy, user_id: userId,
-        title: 'Study sprint sign-ups for this Saturday',
-        content: '3pm–7pm at the school library. Loose schedule, bring your own snacks.',
-        anonymous: false, image: '', likes_count: 27, comments_count: 5,
-        created_at: nowIso(),
-      },
-    ],
+    posts: [],
 
     // —— Post likes / comments ——
-    postLikes: [
-      { user_id: userId, post_id: 'p1' },
-      { user_id: userId, post_id: 'p3' },
-    ],
-    comments: [
-      { id: 'cm1', post_id: 'p2', user_id: peerA, text: 'I’m in — 4pm?', anonymous: false, created_at: nowIso() },
-      { id: 'cm2', post_id: 'p2', user_id: userId, text: 'Same. Room 3-2?', anonymous: false, created_at: nowIso() },
-      { id: 'cm3', post_id: 'p3', user_id: peerD, text: 'Mine is just one giant inbox 😅', anonymous: false, created_at: nowIso() },
-    ],
+    postLikes: [],
+    comments: [],
 
     // —— Study ——
     subjects: [
@@ -350,6 +317,7 @@ function seedState() {
 
     focusSounds: [],
     focusSessions: [],
+    community_seed_version: COMMUNITY_SEED_VERSION,
   }
 }
 
@@ -360,16 +328,41 @@ if (!_state) {
   safeSet(STORAGE_KEY, _state)
 } else {
   _state = ensureClassRoster(_state)
+  _state = ensureCommunitySeed(_state)
   safeSet(STORAGE_KEY, _state)
 }
 
 let _session = safeGet(SESSION_KEY) || null
+
+function rehydrateSessionFromStorage() {
+  if (_session?.user?.id) return
+  const stored = safeGet(SESSION_KEY)
+  if (stored?.user?.id) _session = stored
+}
+
 function setSession(value) {
   _session = value
   safeSet(SESSION_KEY, value)
 }
 
 function persist() { safeSet(STORAGE_KEY, _state) }
+
+function ensureCommunitySeed(state) {
+  if ((state.community_seed_version || 0) >= COMMUNITY_SEED_VERSION) return state
+  state.communities = (state.communities || []).filter((c) => !DEMO_COMMUNITY_IDS.has(c.id))
+  state.posts = (state.posts || []).filter(
+    (p) => !DEMO_POST_IDS.has(p.id) && !DEMO_COMMUNITY_IDS.has(p.community_id)
+  )
+  const postIds = new Set((state.posts || []).map((p) => p.id))
+  state.comments = (state.comments || []).filter((c) => postIds.has(c.post_id))
+  state.postLikes = (state.postLikes || []).filter((l) => postIds.has(l.post_id))
+  for (const c of state.communities || []) {
+    if (!c.created_at) c.created_at = nowIso()
+    if (!c.updated_at) c.updated_at = c.created_at
+  }
+  state.community_seed_version = COMMUNITY_SEED_VERSION
+  return state
+}
 
 function ensureClassRoster(state) {
   const demoIds = ['usr_peer_a', 'usr_peer_b', 'usr_peer_c', 'usr_peer_d']
@@ -457,6 +450,7 @@ function findProfile(id) { return _state.profiles.find((p) => p.id === id) || nu
 function findAuthUser(id) { return _state.authUsers.find((u) => u.id === id) || null }
 
 export function hasStoredSession() {
+  rehydrateSessionFromStorage()
   return !!_session?.user?.id
 }
 
@@ -566,6 +560,20 @@ function rowToComment(row) {
     anonymous: !!row.anonymous,
     text: row.text,
     createdAt: row.created_at,
+  }
+}
+
+function rowToCommunity(row) {
+  const creator = row.created_by ? findProfile(row.created_by) : null
+  return {
+    id: row.id,
+    icon: row.icon || '◉',
+    name: row.name || '',
+    desc: row.desc || '',
+    createdBy: row.created_by || '',
+    createdByName: creator?.display_name || creator?.name || '',
+    createdAt: row.created_at || '',
+    updatedAt: row.updated_at || row.created_at || '',
   }
 }
 
@@ -1040,9 +1048,9 @@ export async function toggleImportant(notificationId, currentValue) {
 
 export async function toggleHidden(notificationId, currentValue) {
   await tick(20)
-  const id = currentUserId(); if (!id) return { error: new Error('Not signed in') }
+  const id = currentUserId(); if (!id) return { error: new Error('Not signed in'), userId: '' }
   upsertNoticeState(id, notificationId, { hidden: !currentValue })
-  return { error: null }
+  return { error: null, userId: id }
 }
 
 export async function setHidden(notificationId, hidden) {
@@ -1061,10 +1069,11 @@ export async function setInPlanner(notificationId, value) {
 
 export async function deleteNotification(notificationId) {
   await tick(20)
+  const id = currentUserId()
   _state.notifications = _state.notifications.filter((n) => n.id !== notificationId)
   _state.notificationUserStates = _state.notificationUserStates.filter((s) => s.notification_id !== notificationId)
   persist()
-  return { error: null }
+  return { error: null, userId: id || '' }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1072,16 +1081,44 @@ export async function deleteNotification(notificationId) {
 // ═════════════════════════════════════════════════════════════════════
 export async function fetchCommunities() {
   await tick()
-  const data = [..._state.communities].sort((a, b) => a.name.localeCompare(b.name))
+  const data = [..._state.communities]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map(rowToCommunity)
   return { data, error: null }
 }
 
 export async function createCommunity(payload) {
   await tick()
-  const row = { id: uid('cmt'), icon: payload.icon || '◉', name: payload.name, desc: payload.desc || '' }
+  const userId = currentUserId()
+  const row = {
+    id: uid('cmt'),
+    icon: payload.icon || '◉',
+    name: payload.name,
+    desc: payload.desc || '',
+    created_by: userId || '',
+    created_at: nowIso(),
+    updated_at: nowIso(),
+  }
   _state.communities.unshift(row)
   persist()
-  return { data: row, error: null }
+  return { data: rowToCommunity(row), error: null }
+}
+
+export async function updateCommunity(id, payload) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  if (!isAdminMember(profile)) return { data: null, error: new Error('Admins only') }
+  const idx = _state.communities.findIndex((c) => c.id === id)
+  if (idx < 0) return { data: null, error: new Error('Space not found') }
+  const row = _state.communities[idx]
+  if (payload.name !== undefined) row.name = String(payload.name).trim()
+  if (payload.desc !== undefined) row.desc = String(payload.desc).trim()
+  if (payload.icon !== undefined) row.icon = String(payload.icon).trim() || row.icon
+  row.updated_at = nowIso()
+  persist()
+  return { data: rowToCommunity(row), error: null }
 }
 
 export async function fetchPosts(options = {}) {

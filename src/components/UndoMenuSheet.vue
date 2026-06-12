@@ -1,77 +1,222 @@
 <template>
+  <!-- #ifdef H5 -->
   <Teleport to="body">
-    <view v-if="open" class="overlay" :class="[themeClass, { show: visible }]" @tap="close">
-      <view class="sheet" @tap.stop>
-        <view class="grabber" />
-        <text class="title">Undo</text>
-        <text class="sub">Recent actions — undo within 4 minutes</text>
-
-        <view v-if="!pending.length" class="empty">
-          <text class="emptyText">No actions to undo</text>
-        </view>
-
-        <scroll-view v-else class="list" scroll-y :show-scrollbar="false">
-          <view
-            v-for="entry in pending"
-            :key="entry.id"
-            class="row tap"
-            role="button"
-            @tap="pick(entry)"
-          >
-            <text class="rowLabel">{{ entry.menuLabel }}</text>
-            <text class="rowAction">Undo</text>
-          </view>
-        </scroll-view>
-
-        <view v-if="pending.length" class="mainBtn tap" role="button" @tap="undoLatest">
-          <text class="mainBtnText">Undo latest</text>
-        </view>
+    <view
+      v-if="undoMenuOpen"
+      class="overlay"
+      :class="[themeClass, { show: sheetVisible }]"
+      @touchmove.stop.prevent="onOverlayTouchMove"
+    >
+      <view
+        class="backdrop"
+        aria-hidden="true"
+        @tap="dismiss"
+        @click.stop="dismiss"
+      />
+      <view
+        class="sheet"
+        :class="{ dragging: dragOffset > 0 }"
+        :style="sheetDragStyle"
+        @tap.stop
+        @touchstart="onDragStart"
+        @touchmove.stop.prevent="onDragMove"
+        @touchend="onDragEnd"
+        @touchcancel="onDragEnd"
+        @mousedown="onDragStart"
+        @mousemove="onDragMove"
+        @mouseup="onDragEnd"
+        @mouseleave="onDragEnd"
+      >
+        <UndoSheetBody
+          :pending="pending"
+          :age-label="ageLabel"
+          :expires-label="expiresLabel"
+          @dismiss="dismiss"
+          @pick="pick"
+          @undo-latest="undoLatest"
+        />
       </view>
     </view>
   </Teleport>
+  <!-- #endif -->
+  <!-- #ifndef H5 -->
+  <view
+    v-if="undoMenuOpen"
+    class="overlay"
+    :class="[themeClass, { show: sheetVisible }]"
+    @touchmove.stop.prevent="onOverlayTouchMove"
+  >
+    <view class="backdrop" aria-hidden="true" @tap="dismiss" />
+    <view
+      class="sheet"
+      :class="{ dragging: dragOffset > 0 }"
+      :style="sheetDragStyle"
+      @tap.stop
+      @touchstart="onDragStart"
+      @touchmove.stop.prevent="onDragMove"
+      @touchend="onDragEnd"
+      @touchcancel="onDragEnd"
+    >
+      <UndoSheetBody
+        :pending="pending"
+        :age-label="ageLabel"
+        :expires-label="expiresLabel"
+        @dismiss="dismiss"
+        @pick="pick"
+        @undo-latest="undoLatest"
+      />
+    </view>
+  </view>
+  <!-- #endif -->
 </template>
 
 <script setup>
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onBeforeUnmount } from 'vue'
 import { useTheme } from '@/composables/useTheme'
+import { useUndoMenu } from '@/composables/useUndoMenu'
 import { pendingUndoEntries, undoById, undoLast } from '@/composables/useUndo'
+import { undoEntryAgeLabel, undoEntryExpiresLabel } from '@/lib/undoTimeLabel'
+import UndoSheetBody from '@/components/UndoSheetBody.vue'
+import { lockPageInteraction, unlockPageInteraction } from '@/lib/pageInteractionLock'
 
-const props = defineProps({
-  open: { type: Boolean, default: false },
+const { undoMenuOpen, closeUndoMenu } = useUndoMenu()
+const { themeClass } = useTheme()
+const pending = pendingUndoEntries
+const sheetVisible = ref(false)
+const dragOffset = ref(0)
+let dragStartY = 0
+let dragActive = false
+let tickTimer = null
+const nowTick = ref(Date.now())
+
+const DISMISS_DRAG_PX = 48
+
+const sheetDragStyle = computed(() => {
+  if (dragOffset.value > 0) {
+    return { transform: `translateY(${dragOffset.value}px)` }
+  }
+  return {}
 })
 
-const emit = defineEmits(['update:open', 'close'])
+function ageLabel(entry) {
+  return undoEntryAgeLabel(entry, nowTick.value)
+}
 
-const { themeClass } = useTheme()
-const visible = ref(false)
-const pending = pendingUndoEntries
+function expiresLabel(entry) {
+  return undoEntryExpiresLabel(entry, nowTick.value)
+}
+
+function startTick() {
+  stopTick()
+  nowTick.value = Date.now()
+  tickTimer = setInterval(() => {
+    nowTick.value = Date.now()
+  }, 15000)
+}
+
+function stopTick() {
+  if (tickTimer) {
+    clearInterval(tickTimer)
+    tickTimer = null
+  }
+}
+
+function onKeydown(e) {
+  if (e.key === 'Escape') dismiss()
+}
+
+function dismiss() {
+  dragOffset.value = 0
+  dragActive = false
+  sheetVisible.value = false
+  closeUndoMenu()
+  unlockPageInteraction()
+}
+
+function onOverlayTouchMove(e) {
+  if (!dragActive) e.preventDefault?.()
+}
 
 watch(
-  () => props.open,
+  undoMenuOpen,
   async (v) => {
+    if (typeof document !== 'undefined') {
+      if (v) document.addEventListener('keydown', onKeydown)
+      else document.removeEventListener('keydown', onKeydown)
+    }
     if (v) {
+      lockPageInteraction()
+      dragOffset.value = 0
+      sheetVisible.value = false
+      startTick()
       await nextTick()
-      requestAnimationFrame(() => { visible.value = true })
+      requestAnimationFrame(() => {
+        if (undoMenuOpen.value) sheetVisible.value = true
+      })
     } else {
-      visible.value = false
+      unlockPageInteraction()
+      sheetVisible.value = false
+      stopTick()
     }
   },
+  { immediate: true },
 )
 
-function close() {
-  visible.value = false
-  setTimeout(() => emit('update:open', false), 200)
-  emit('close')
-}
+onBeforeUnmount(() => {
+  stopTick()
+  unlockPageInteraction()
+  if (typeof document !== 'undefined') document.removeEventListener('keydown', onKeydown)
+})
 
 function pick(entry) {
   undoById(entry.id)
-  close()
+  dismiss()
 }
 
 function undoLatest() {
   undoLast()
-  close()
+  dismiss()
+}
+
+function pointerY(e) {
+  const t = e.touches?.[0] || e.changedTouches?.[0]
+  if (t) return t.clientY
+  return e.clientY ?? 0
+}
+
+function isInteractiveTarget(e) {
+  const el = e.target
+  if (!el || typeof el.closest !== 'function') return false
+  return !!el.closest('.iconBtn, .row, .fabUndo')
+}
+
+function onDragStart(e) {
+  if (isInteractiveTarget(e)) return
+  dragStartY = pointerY(e)
+  dragActive = true
+}
+
+function onDragMove(e) {
+  if (!dragActive) return
+  if (e.type === 'mousemove' && e.buttons !== 1) {
+    dragActive = false
+    dragOffset.value = 0
+    return
+  }
+  const dy = pointerY(e) - dragStartY
+  if (dy > 0) {
+    dragOffset.value = dy
+    if (e.cancelable && e.type !== 'mousemove') e.preventDefault()
+  } else {
+    dragOffset.value = 0
+  }
+}
+
+function onDragEnd() {
+  if (!dragActive) return
+  dragActive = false
+  if (dragOffset.value >= DISMISS_DRAG_PX) dismiss()
+  else dragOffset.value = 0
 }
 </script>
 
@@ -79,131 +224,58 @@ function undoLatest() {
 .overlay {
   position: fixed;
   inset: 0;
-  z-index: 10002;
+  z-index: 100050;
+  pointer-events: auto;
   opacity: 0;
-  pointer-events: none;
-  background: rgba(8, 12, 24, 0.42);
-  backdrop-filter: blur(12px);
-  transition: opacity 0.22s ease;
+  transition: opacity 0.2s ease;
 }
 .overlay.show {
   opacity: 1;
-  pointer-events: auto;
 }
-.t-dark.overlay {
-  background: rgba(0, 0, 0, 0.55);
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(8, 12, 24, 0.5);
+  pointer-events: auto;
+  touch-action: none;
+}
+.t-dark .backdrop {
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .sheet {
   position: absolute;
-  left: 14rpx;
-  right: 14rpx;
-  bottom: calc(14rpx + env(safe-area-inset-bottom));
-  max-height: 62vh;
-  padding: 0 22rpx 22rpx;
-  border-radius: 32rpx;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1rpx solid rgba(255, 255, 255, 0.6);
-  transform: translateY(24rpx);
+  z-index: 1;
+  left: var(--shell-bar-inset, 20rpx);
+  right: var(--shell-bar-inset, 20rpx);
+  bottom: var(--shell-dock-bottom, calc(20rpx + env(safe-area-inset-bottom)));
+  max-height: calc(
+    100vh - var(--shell-header-offset) - var(--shell-bar-height) - var(--shell-dock-bottom) - 24rpx
+  );
+  display: flex;
+  flex-direction: column;
+  border-radius: 32rpx 32rpx 34rpx 34rpx;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1rpx solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 -8rpx 48rpx rgba(12, 20, 40, 0.14);
+  transform: translateY(20rpx);
   transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+  touch-action: pan-y;
+  pointer-events: auto;
+}
+.sheet.dragging {
+  transition: none;
 }
 .overlay.show .sheet {
   transform: translateY(0);
 }
+.overlay.show .sheet.dragging {
+  transition: none;
+}
 .t-dark .sheet {
   background: #1a1d21;
-  border-color: rgba(255, 255, 255, 0.06);
-}
-
-.grabber {
-  margin: 12rpx auto;
-  width: 72rpx;
-  height: 8rpx;
-  border-radius: 999rpx;
-  background: rgba(16, 24, 40, 0.18);
-}
-.t-dark .grabber {
-  background: rgba(245, 247, 255, 0.2);
-}
-
-.title {
-  font-size: 28rpx;
-  font-weight: 740;
-  color: rgba(16, 24, 40, 0.92);
-}
-.t-dark .title {
-  color: #f5f7fa;
-}
-.sub {
-  display: block;
-  margin-top: 6rpx;
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.5);
-}
-.t-dark .sub {
-  color: rgba(245, 247, 255, 0.5);
-}
-
-.empty {
-  padding: 36rpx 0;
-  text-align: center;
-}
-.emptyText {
-  font-size: 23rpx;
-  color: rgba(16, 24, 40, 0.45);
-}
-.t-dark .emptyText {
-  color: rgba(245, 247, 255, 0.45);
-}
-
-.list {
-  max-height: 360rpx;
-  margin-top: 16rpx;
-}
-.row {
-  margin-top: 10rpx;
-  padding: 18rpx 16rpx;
-  border-radius: 20rpx;
-  background: rgba(16, 24, 40, 0.04);
-  border: 1rpx solid rgba(16, 24, 40, 0.06);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12rpx;
-}
-.t-dark .row {
-  background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(255, 255, 255, 0.06);
-}
-.rowLabel {
-  flex: 1;
-  font-size: 23rpx;
-  color: rgba(16, 24, 40, 0.88);
-}
-.t-dark .rowLabel {
-  color: rgba(245, 247, 255, 0.88);
-}
-.rowAction {
-  font-size: 22rpx;
-  font-weight: 700;
-  color: rgba(46, 99, 255, 0.95);
-}
-.t-dark .rowAction {
-  color: rgba(170, 200, 255, 0.95);
-}
-
-.mainBtn {
-  margin-top: 18rpx;
-  height: 84rpx;
-  border-radius: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(180deg, #5a8eff, #2e63ff);
-}
-.mainBtnText {
-  font-size: 24rpx;
-  font-weight: 720;
-  color: #fff;
+  border-color: rgba(255, 255, 255, 0.08);
 }
 </style>

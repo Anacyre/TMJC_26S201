@@ -1,4 +1,5 @@
 import { nextTick, ref } from 'vue'
+import { lockPageInteraction, unlockPageInteraction } from '@/lib/pageInteractionLock'
 
 export const dialog = ref({
   open: false,
@@ -22,6 +23,7 @@ export function confirmDelete(options = {}) {
     dialog.value.confirmLabel = options.confirmLabel ?? 'Delete'
     dialog.value.cancelLabel = options.cancelLabel ?? 'Cancel'
     dialog.value.open = true
+    lockPageInteraction()
     nextTick()
   })
 }
@@ -36,7 +38,13 @@ export const deleteConfirm = {
   notice: (options = {}) =>
     confirmDelete({
       title: 'Delete notice?',
-      message: 'This permanently removes the notice for everyone.',
+      message: 'This cannot be undone.',
+      ...options,
+    }),
+  task: (options = {}) =>
+    confirmDelete({
+      title: 'Delete task?',
+      message: '',
       ...options,
     }),
   focusNoise: (name = '', options = {}) =>
@@ -52,6 +60,7 @@ function settle(confirmed) {
   const resolve = dialog.value.resolve
   dialog.value.open = false
   dialog.value.resolve = null
+  unlockPageInteraction()
   resolve?.(confirmed)
 }
 

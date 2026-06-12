@@ -2,20 +2,32 @@
   <!-- #ifdef H5 -->
   <Teleport to="body">
     <view
-      v-if="dialog.open"
+      v-if="isOpen"
       class="backdrop"
       :class="themeClass"
       @tap="cancelDeleteDialog"
+      @click="onBackdropClick"
+      @touchmove.stop.prevent
     >
-      <view class="panel" @tap.stop>
-        <text class="title">{{ dialog.title }}</text>
-        <text v-if="dialog.message" class="message">{{ dialog.message }}</text>
+      <view class="panel" @tap.stop @click.stop>
+        <text class="title">{{ title }}</text>
+        <text v-if="message" class="message">{{ message }}</text>
         <view class="actions">
-          <view class="btn cancel tap" role="button" @tap="cancelDeleteDialog">
-            <text class="btnText">{{ dialog.cancelLabel }}</text>
+          <view
+            class="btn cancel tap"
+            role="button"
+            @tap.stop="cancelDeleteDialog"
+            @click.stop="cancelDeleteDialog"
+          >
+            <text class="btnText">{{ cancelLabel }}</text>
           </view>
-          <view class="btn danger tap" role="button" @tap="acceptDeleteDialog">
-            <text class="btnTextDanger">{{ dialog.confirmLabel }}</text>
+          <view
+            class="btn danger tap"
+            role="button"
+            @tap.stop="acceptDeleteDialog"
+            @click.stop="acceptDeleteDialog"
+          >
+            <text class="btnTextDanger">{{ confirmLabel }}</text>
           </view>
         </view>
       </view>
@@ -24,20 +36,21 @@
   <!-- #endif -->
   <!-- #ifndef H5 -->
   <view
-    v-if="dialog.open"
+    v-if="isOpen"
     class="backdrop"
     :class="themeClass"
     @tap="cancelDeleteDialog"
+    @touchmove.stop.prevent
   >
     <view class="panel" @tap.stop>
-      <text class="title">{{ dialog.title }}</text>
-      <text v-if="dialog.message" class="message">{{ dialog.message }}</text>
+      <text class="title">{{ title }}</text>
+      <text v-if="message" class="message">{{ message }}</text>
       <view class="actions">
-        <view class="btn cancel tap" role="button" @tap="cancelDeleteDialog">
-          <text class="btnText">{{ dialog.cancelLabel }}</text>
+        <view class="btn cancel tap" role="button" @tap.stop="cancelDeleteDialog">
+          <text class="btnText">{{ cancelLabel }}</text>
         </view>
-        <view class="btn danger tap" role="button" @tap="acceptDeleteDialog">
-          <text class="btnTextDanger">{{ dialog.confirmLabel }}</text>
+        <view class="btn danger tap" role="button" @tap.stop="acceptDeleteDialog">
+          <text class="btnTextDanger">{{ confirmLabel }}</text>
         </view>
       </view>
     </view>
@@ -46,6 +59,7 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import {
   dialog,
   cancelDeleteDialog,
@@ -54,20 +68,30 @@ import {
 import { useTheme } from '@/composables/useTheme'
 
 const { themeClass } = useTheme()
+
+const isOpen = computed(() => dialog.value.open)
+const title = computed(() => dialog.value.title)
+const message = computed(() => dialog.value.message)
+const confirmLabel = computed(() => dialog.value.confirmLabel)
+const cancelLabel = computed(() => dialog.value.cancelLabel)
+
+function onBackdropClick(e) {
+  if (e.target === e.currentTarget) cancelDeleteDialog()
+}
 </script>
 
 <style scoped>
 .backdrop {
   position: fixed;
   inset: 0;
-  z-index: 10000;
+  z-index: 100060;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 40rpx 36rpx;
   background: rgba(8, 12, 24, 0.42);
-  backdrop-filter: blur(14px);
   pointer-events: auto;
+  touch-action: none;
   animation: fadeIn 180ms var(--ease-soft, ease) both;
 }
 .t-dark.backdrop {
@@ -83,6 +107,9 @@ const { themeClass } = useTheme()
   border: 1rpx solid var(--divider);
   box-shadow: 0 28rpx 80rpx rgba(12, 20, 40, 0.18);
   animation: panelIn 200ms cubic-bezier(0.34, 1.2, 0.64, 1) both;
+  pointer-events: auto;
+  position: relative;
+  z-index: 1;
 }
 .t-dark .panel {
   background: rgba(26, 29, 33, 0.96);
@@ -117,6 +144,8 @@ const { themeClass } = useTheme()
   display: flex;
   align-items: center;
   justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
   transition: transform 140ms cubic-bezier(0.34, 1.2, 0.64, 1),
     background 160ms ease,
     border-color 160ms ease;
@@ -147,11 +176,13 @@ const { themeClass } = useTheme()
   font-size: 24rpx;
   font-weight: var(--weight-semibold, 680);
   color: var(--text-primary, rgba(16, 24, 40, 0.88));
+  pointer-events: none;
 }
 .btnTextDanger {
   font-size: 24rpx;
   font-weight: var(--weight-semibold, 680);
   color: #fff;
+  pointer-events: none;
 }
 
 @keyframes fadeIn {

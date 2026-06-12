@@ -2,24 +2,37 @@ import { ref } from 'vue'
 
 const queue = ref([])
 let nextId = 0
-let dismissTimer = null
+const dismissTimers = new Map()
 
 export const UNDO_TOAST_DURATION = 6000
-const DEFAULT_DURATION = 1800
+const DEFAULT_DURATION = 2800
 
-function clearDismissTimer() {
-  if (dismissTimer) {
-    clearTimeout(dismissTimer)
-    dismissTimer = null
+function clearDismissTimer(id) {
+  const timer = dismissTimers.get(id)
+  if (timer) {
+    clearTimeout(timer)
+    dismissTimers.delete(id)
   }
 }
 
+function clearAllDismissTimers() {
+  dismissTimers.forEach((timer) => clearTimeout(timer))
+  dismissTimers.clear()
+}
+
 function scheduleDismiss(id, duration) {
-  clearDismissTimer()
-  dismissTimer = setTimeout(() => dismiss(id), duration)
+  clearDismissTimer(id)
+  const timer = setTimeout(() => {
+    dismissTimers.delete(id)
+    dismiss(id)
+  }, duration)
+  dismissTimers.set(id, timer)
 }
 
 function show(message, { duration = DEFAULT_DURATION, undo, undoLabel = 'Undo' } = {}) {
+  const prev = queue.value[0]
+  if (prev?.id) clearDismissTimer(prev.id)
+
   const id = ++nextId
   const item = {
     id,
@@ -42,10 +55,11 @@ export function dismissToast(id) {
 }
 
 function dismiss(id) {
-  clearDismissTimer()
+  clearDismissTimer(id)
   const item = queue.value.find((t) => t.id === id)
   if (!item) {
     queue.value = []
+    clearAllDismissTimers()
     return
   }
   item.leaving = true
@@ -56,7 +70,7 @@ function dismiss(id) {
 
 function handleUndo(item) {
   if (!item?.onUndo) return
-  clearDismissTimer()
+  clearDismissTimer(item.id)
   const fn = item.onUndo
   dismiss(item.id)
   fn()
@@ -76,7 +90,8 @@ export const toast = {
   taskArchived: (onUndo) => (onUndo ? showUndoToast('Task archived', onUndo) : show('Task archived')),
   taskRestored: (onUndo) => (onUndo ? showUndoToast('Task restored', onUndo) : show('Task restored')),
 
-  addedToPlanner: () => show('Added to planner'),
+  addedToPlanner: (onUndo) =>
+    onUndo ? showUndoToast('Added to planner', onUndo) : show('Added to planner'),
   alreadyInPlanner: () => show('Already in planner'),
 
   postPublished: () => show('Post published'),
@@ -89,6 +104,7 @@ export const toast = {
   noticeHidden: () => show('Notice hidden'),
 
   communityCreated: () => show('Space created'),
+  communityUpdated: () => show('Space updated'),
   subjectCreated: () => show('Subject created'),
   resourceUploaded: () => show('Resource uploaded'),
   resourceUpdated: () => show('Resource updated'),

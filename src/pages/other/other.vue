@@ -25,6 +25,7 @@
 
     <BottomNav active="other" />
     <GlobalSearchOverlay />
+    <AppearanceSettingsSheet v-model:open="appearanceOpen" />
   </view>
 </template>
 
@@ -35,11 +36,12 @@ import BottomNav from '@/components/BottomNav.vue'
 import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
+import AppearanceSettingsSheet from '@/components/AppearanceSettingsSheet.vue'
 import { useTheme } from '@/composables/useTheme'
-import { toast } from '@/composables/useToast'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
+const appearanceOpen = ref(false)
 
 const glyphs = {
   saved: () => h('view', { class: 'gWrap' }, [
@@ -74,7 +76,10 @@ const entries = ref([
 function openEntry(x) {
   if (x.key === 'memories') return navSibling('/pages/other/events-memories')
   if (x.key === 'hidden') return navSibling('/pages/notifications/hidden')
-  toast.show(`${x.title}`)
+  if (x.key === 'appearance') {
+    appearanceOpen.value = true
+    return
+  }
 }
 
 onLoad(() => {})

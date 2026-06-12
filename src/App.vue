@@ -2,23 +2,23 @@
 import { useTheme } from '@/composables/useTheme'
 import { useFocusTheme } from '@/composables/useFocusTheme'
 import { bootstrapData } from '@/composables/useBootstrap'
+import { ensureAuthOnLaunch, resumeAuthSession } from '@/composables/useAuthSession'
 import { USE_MOCK, resetMockBackend } from '@/lib/mockBackend'
-import GlobalHosts from '@/components/GlobalHosts.vue'
 import { scheduleMountGlobalOverlays } from '@/lib/mountGlobalOverlays'
 
 export default {
-  components: { GlobalHosts },
-  onLaunch: function () {
+  onLaunch: async function () {
     useTheme()
     useFocusTheme()
-    bootstrapData()
     tryMountOverlays()
+    await ensureAuthOnLaunch()
   },
-  onShow: function () {
+  onShow: async function () {
     useTheme()
     useFocusTheme()
-    bootstrapData()
     tryMountOverlays()
+    await resumeAuthSession()
+    bootstrapData()
   },
   onHide: function () {},
 }
@@ -61,7 +61,7 @@ if (typeof window !== 'undefined') {
 </script>
 
 <template>
-  <GlobalHosts />
+  <view />
 </template>
 
 <style>

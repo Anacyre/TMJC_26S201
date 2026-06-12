@@ -1,8 +1,13 @@
 import { computed, ref } from 'vue'
 import { showUndoToast, dismissToast, toast } from '@/composables/useToast'
 
-/** Toast undo button visibility */
-export const UNDO_TOAST_VISIBLE_MS = 6000
+/**
+ * Global undo model:
+ * - pushUndoable: optimistic UI + toast Undo (6s) + header undo menu (4 min) + delayed commit
+ * - toast.showUndoToast alone: toast-only undo, not listed in the menu (avoid for new flows)
+ */
+export { UNDO_TOAST_DURATION as UNDO_TOAST_VISIBLE_MS } from '@/composables/useToast'
+
 /** Global undo menu + delayed commit (independent of toast dismiss) */
 export const UNDO_COMMIT_MS = 240000
 
@@ -32,6 +37,7 @@ export function pushUndoable({ message, menuLabel, undo, commit }) {
     commit,
     status: 'pending',
     toastId: null,
+    createdAt: Date.now(),
     expiresAt: Date.now() + UNDO_COMMIT_MS,
   }
 
@@ -60,7 +66,7 @@ function removeEntry(id) {
   undoStack.value = undoStack.value.filter((e) => e.id !== id)
 }
 
-export function runUndo(entryOrId) {
+export async function runUndo(entryOrId) {
   const id = typeof entryOrId === 'object' ? entryOrId?.id : entryOrId
   const entry = undoStack.value.find((e) => e.id === id)
   if (!entry || entry.status !== 'pending') return false
@@ -74,7 +80,7 @@ export function runUndo(entryOrId) {
   removeEntry(entry.id)
 
   try {
-    entry.undo?.()
+    await Promise.resolve(entry.undo?.())
   } catch (err) {
     console.error('[undo] restore failed:', err)
     toast.error('Could not undo')

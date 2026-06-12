@@ -21,7 +21,7 @@
       </view>
       </template>
 
-    <scroll-view class="scroll" scroll-y :show-scrollbar="false">
+    <scroll-view class="scroll tabPageScroll" scroll-y :show-scrollbar="false">
       <view class="sectionHead">
         <text class="sectionTitle">Subjects</text>
       </view>
@@ -107,7 +107,7 @@ const { isAdminActive: isAdmin } = useAdminMode()
 const showAddSubject = ref(false)
 const savingSubject = ref(false)
 const subjectDraft = ref({ name: '', icon: '📘' })
-const focusHoursLabel = computed(() => totalHoursLabel.value || '0m')
+const focusHoursLabel = computed(() => totalHoursLabel.value || '0 min')
 
 function shortTimeLabel(iso) {
   if (!iso) return 'just now'
@@ -161,11 +161,11 @@ async function createSubject() {
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
+.page { min-height: 100vh; height: 100vh; position: relative; overflow: hidden; display: flex; flex-direction: column; }
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.scroll { position: relative; z-index: 1; height: calc(100vh - var(--shell-header-offset, 148rpx) - 280rpx); min-height: 300rpx; padding: 6rpx 28rpx 200rpx; }
+.scroll { position: relative; z-index: 1; padding: 6rpx 28rpx 0; }
 
 .focusEntry { display: flex; align-items: center; gap: 14rpx; margin: 6rpx 28rpx 0; padding: 20rpx 18rpx; border-radius: 28rpx; background: linear-gradient(135deg, rgba(80, 140, 255, 0.10), rgba(46, 99, 255, 0.04)); border: 1rpx solid rgba(46, 99, 255, 0.16); transition: transform 180ms ease, background 220ms ease; }
 .t-dark .focusEntry { background: linear-gradient(135deg, rgba(80, 140, 255, 0.18), rgba(46, 99, 255, 0.08)); border-color: rgba(120, 160, 255, 0.24); }

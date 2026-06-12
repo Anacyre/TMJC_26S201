@@ -5,11 +5,29 @@
 
     <PageContent>
       <template #chrome>
-    <view class="filters">
-      <view v-for="f in ['hot','new','top']" :key="f" class="chip" :class="{ on: filter === f }" role="button" @tap="filter = f">
-        <text class="chipText">{{ filterLabel(f) }}</text>
+    <CommunitySpaceProfile
+      v-if="community"
+      class="spaceChrome"
+      :icon="community.icon"
+      :name="community.name"
+      :desc="community.desc"
+      :post-count="visiblePostsView.length"
+      :member-count="memberCount"
+      @info="openInfo"
+    >
+      <view class="filterSeg">
+        <view
+          v-for="f in ['hot','new','top']"
+          :key="f"
+          class="segItem"
+          :class="{ on: filter === f }"
+          role="button"
+          @tap="filter = f"
+        >
+          <text class="segText">{{ filterLabel(f) }}</text>
+        </view>
       </view>
-    </view>
+    </CommunitySpaceProfile>
       </template>
 
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
@@ -24,40 +42,29 @@
         />
       </view>
 
-      <view
-        v-else
-        v-for="p in visiblePostsView"
-        :key="p.id"
-        class="card tap"
-        data-reveal-card
-        role="button"
-        @tap="onCardTap(p)"
-        @longpress="onPostLongPress(p)"
-        @contextmenu.prevent="onPostContextMenu(p, $event)"
-        @mousedown="onPostMouseDown(p, $event)"
-        @mouseup="onPostMouseUp"
-        @mouseleave="onPostMouseUp"
-      >
-        <text class="title">{{ p.title }}</text>
-        <view class="metaRow">
-          <text class="meta">{{ p.anonymous ? 'Anonymous' : p.author }}</text>
-          <text class="metaDot">·</text>
-          <text class="meta">{{ p.timeLabel }}</text>
-        </view>
-        <view v-if="p.image || p.attachment" class="attachHint">
-          <text class="attachHintText">{{ p.image ? 'Image' : p.attachment }}</text>
-        </view>
-        <view class="stats">
-          <view class="stat">
-            <view class="statGlyph heart" />
-            <text class="statText">{{ p.likesCount }}</text>
+      <template v-else>
+        <view class="postsPanel">
+          <view class="panelHead">
+            <text class="panelLabel">Posts</text>
+            <text class="panelCount">{{ visiblePostsView.length }}</text>
           </view>
-          <view class="stat">
-            <view class="statGlyph chat" />
-            <text class="statText">{{ p.commentsCount }}</text>
+
+          <view v-for="p in visiblePostsView" :key="p.id" class="postWrap" data-reveal-card>
+            <SwipeRow
+              v-if="canDelete(p)"
+              side="right"
+              action-style="strip"
+              :actions="deleteActions"
+              commit-action="delete"
+              @action="onDeletePost(p)"
+              @commit="onDeletePost(p)"
+            >
+              <PostListItem :post="p" @open="openPost(p.id)" />
+            </SwipeRow>
+            <PostListItem v-else :post="p" @open="openPost(p.id)" />
           </view>
         </view>
-      </view>
+      </template>
       <view class="gap" />
     </scroll-view>
     </PageContent>
@@ -73,24 +80,35 @@
       <view class="sheet" @tap.stop>
         <view class="grabber" />
         <text class="sheetTitle">New post</text>
-        <textarea
-          class="input area"
-          v-model="draft.text"
-          :maxlength="TEXT_AREA_MAX_LENGTH"
-          auto-height
-          placeholder="Write something…"
-          placeholder-class="ph"
-        />
-        <view class="fileRow tap" role="button" @tap="pickAttachment">
-          <text class="fileLabel">{{ draft.fileName || 'Attach file (optional)' }}</text>
-          <text v-if="draft.fileName" class="fileClear" @tap.stop="clearAttachment">Remove</text>
+        <view class="field">
+          <text class="fieldLabel">Content</text>
+          <textarea
+            class="input area"
+            v-model="draft.text"
+            :maxlength="TEXT_AREA_MAX_LENGTH"
+            auto-height
+            placeholder="Write something…"
+            placeholder-class="ph"
+          />
         </view>
-        <view v-if="draft.previewUrl && draft.isImage" class="previewWrap">
-          <image class="previewImg" :src="draft.previewUrl" mode="widthFix" />
+        <view v-if="showPostOptions" class="optionsBlock">
+          <view class="field">
+            <text class="fieldLabel">Attachment</text>
+            <view class="fileRow tap" role="button" @tap="pickAttachment">
+              <text class="fileLabel">{{ draft.fileName || 'Choose file' }}</text>
+              <text v-if="draft.fileName" class="fileClear" @tap.stop="clearAttachment">Remove</text>
+            </view>
+          </view>
+          <view v-if="draft.previewUrl && draft.isImage" class="previewWrap">
+            <image class="previewImg" :src="draft.previewUrl" mode="widthFix" />
+          </view>
+          <view class="anonRow tap" role="button" @tap="draft.anonymous = !draft.anonymous">
+            <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>
+            <text class="anonText">Anonymous</text>
+          </view>
         </view>
-        <view class="anonRow tap" role="button" @tap="draft.anonymous = !draft.anonymous">
-          <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>
-          <text class="anonText">Anonymous</text>
+        <view class="optionsToggle tap" role="button" @tap="showPostOptions = !showPostOptions">
+          <text class="optionsToggleText">{{ showPostOptions ? 'Hide options' : 'More options' }}</text>
         </view>
         <view class="commit tap" :class="{ busy: posting }" role="button" @tap="createPost">
           <text class="commitText">{{ posting ? '…' : 'Post' }}</text>
@@ -110,28 +128,32 @@ import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
+import SwipeRow from '@/components/SwipeRow.vue'
+import CommunitySpaceProfile from '@/components/CommunitySpaceProfile.vue'
+import PostListItem from '@/components/CommunityPostListItem.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
+import { useMemberStore } from '@/composables/useMemberStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { usePostDelete } from '@/composables/usePostDelete'
-import { useDevice } from '@/composables/useDevice'
 import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { choosePostFile, isPostImageFile, uploadFile } from '@/api/upload'
 
 const { themeClass } = useTheme()
-const { hotPosts, newPosts, topPosts, addPost, loading } = useCommunityStore()
+const { hotPosts, newPosts, topPosts, addPost, loading, getCommunityById } = useCommunityStore()
+const { visibleMembers } = useMemberStore()
 const { currentUser } = useUserStore()
 const { canDelete, confirmDeletePost } = usePostDelete()
-const { isDesktop } = useDevice()
-const id = ref('c1')
-const suppressTap = ref(false)
-let mouseHoldTimer = null
-const MOUSE_HOLD_MS = 500
+const id = ref('')
+const community = computed(() => (id.value ? getCommunityById(id.value) : null))
+const memberCount = computed(() => visibleMembers.value.length)
 const filter = ref('hot')
 const showCreate = ref(false)
+const showPostOptions = ref(false)
 const posting = ref(false)
+const deleteActions = [{ id: 'delete', label: 'Delete', icon: 'trash', danger: true }]
 const draft = ref({
   text: '',
   anonymous: false,
@@ -169,52 +191,13 @@ function shortTimeLabel(iso) {
   return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
 }
 
+
 function openPost(postId) {
   navSibling(`/pages/community/post-detail?id=${postId}`)
 }
 
-function onCardTap(p) {
-  if (suppressTap.value) {
-    suppressTap.value = false
-    return
-  }
-  openPost(p.id)
-}
-
-function onPostLongPress(p) {
-  if (!canDelete(p)) return
-  suppressTap.value = true
+function onDeletePost(p) {
   confirmDeletePost(p)
-}
-
-function onPostContextMenu(p, e) {
-  if (!isDesktop.value || !canDelete(p)) return
-  e?.preventDefault?.()
-  e?.stopPropagation?.()
-  suppressTap.value = true
-  confirmDeletePost(p)
-}
-
-function clearMouseHold() {
-  if (mouseHoldTimer) {
-    clearTimeout(mouseHoldTimer)
-    mouseHoldTimer = null
-  }
-}
-
-function onPostMouseDown(p, e) {
-  if (!isDesktop.value || !canDelete(p)) return
-  if (e?.button !== 0) return
-  clearMouseHold()
-  mouseHoldTimer = setTimeout(() => {
-    mouseHoldTimer = null
-    suppressTap.value = true
-    confirmDeletePost(p)
-  }, MOUSE_HOLD_MS)
-}
-
-function onPostMouseUp() {
-  clearMouseHold()
 }
 
 function clearAttachment() {
@@ -285,11 +268,17 @@ async function createPost() {
       return
     }
     showCreate.value = false
+    showPostOptions.value = false
     draft.value = { text: '', anonymous: false, file: null, fileName: '', previewUrl: '', isImage: false }
     toast.postPublished()
   } finally {
     posting.value = false
   }
+}
+
+function openInfo() {
+  if (!id.value) return
+  navSibling(`/pages/community/info?id=${id.value}`)
 }
 
 onLoad((q) => { id.value = q?.id || '' })
@@ -300,41 +289,78 @@ onLoad((q) => { id.value = q?.id || '' })
 .bg { position: absolute; inset: 0; background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(40, 110, 255, 0.16), transparent 60%), linear-gradient(180deg, #f8faff, #f1f4fa); }
 .t-dark .bg { background: radial-gradient(1200rpx 800rpx at 40% 0%, rgba(60, 120, 255, 0.14), transparent 58%), linear-gradient(180deg, #111315, #0e1014); }
 
-.filters { position: relative; z-index: 2; display: flex; gap: 8rpx; padding: 0 28rpx 14rpx; }
-.chip { padding: 10rpx 18rpx; border-radius: 999rpx; background: transparent; border: 1rpx solid transparent; opacity: 0.62; transition: background 220ms ease, border-color 220ms ease, opacity 220ms ease, transform 180ms ease; }
-.chip.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.2); opacity: 1; }
-.chipText { font-size: 21rpx; font-weight: 660; color: rgba(16, 24, 40, 0.7); }
-.t-dark .chipText { color: rgba(245, 247, 255, 0.7); }
-.chip.on .chipText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
-.t-dark .chip.on .chipText { color: rgba(170, 200, 255, 0.96); }
+.spaceChrome { margin: 0 28rpx 12rpx; }
+.filterSeg {
+  display: flex; gap: 6rpx; padding: 4rpx; margin-top: 14rpx;
+  background: rgba(16, 24, 40, 0.04); border-radius: 16rpx;
+}
+.t-dark .filterSeg { background: rgba(255, 255, 255, 0.04); }
+.segItem { flex: 1; height: 52rpx; border-radius: 12rpx; display: flex; align-items: center; justify-content: center; }
+.segItem.on { background: rgba(255, 255, 255, 0.92); box-shadow: 0 2rpx 8rpx rgba(16, 24, 40, 0.06); }
+.t-dark .segItem.on { background: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.segText { font-size: 21rpx; font-weight: 660; color: rgba(16, 24, 40, 0.5); }
+.segItem.on .segText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
+.t-dark .segText { color: rgba(245, 247, 255, 0.45); }
+.t-dark .segItem.on .segText { color: rgba(170, 200, 255, 0.96); }
 
 .scroll { position: relative; z-index: 1; height: calc(100vh - 200rpx); padding: 0 28rpx 60rpx; }
-.emptyWrap { padding: 40rpx 0; }
-.card { margin-top: var(--list-stack-gap); padding: var(--list-card-pad-y) var(--list-card-pad-x); border-radius: var(--list-card-radius); background: rgba(255, 255, 255, 0.7); border: 1rpx solid rgba(16, 24, 40, 0.04); transition: transform 180ms ease, background 220ms ease, border-color 220ms ease; }
-.t-dark .card { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.06); }
+.emptyWrap { padding: 32rpx 0; }
+.postsPanel {
+  padding: 16rpx 18rpx;
+  border-radius: 24rpx;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1rpx solid rgba(16, 24, 40, 0.05);
+}
+.t-dark .postsPanel {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+.panelHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12rpx;
+}
+.panelLabel {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: rgba(16, 24, 40, 0.42);
+  letter-spacing: 0.3rpx;
+}
+.t-dark .panelLabel { color: rgba(245, 247, 255, 0.38); }
+.panelCount {
+  min-width: 36rpx;
+  height: 36rpx;
+  padding: 0 10rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 99, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18rpx;
+  font-weight: 720;
+  color: rgba(46, 99, 255, 0.92);
+}
+.t-dark .panelCount {
+  background: rgba(120, 160, 255, 0.12);
+  color: rgba(170, 200, 255, 0.92);
+}
+.postWrap { margin-top: 10rpx; }
+.postWrap:first-of-type { margin-top: 0; }
 .tap:active { transform: scale(0.985); }
-.title { font-size: var(--list-title-size); font-weight: 720; color: rgba(16, 24, 40, 0.92); }
-.t-dark .title { color: rgba(245, 247, 255, 0.92); }
-.metaRow { margin-top: 8rpx; display: flex; align-items: center; gap: 8rpx; }
-.meta { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.5); }
-.t-dark .meta { color: rgba(245, 247, 255, 0.45); }
-.metaDot { font-size: var(--list-meta-size); color: rgba(16, 24, 40, 0.3); }
-.t-dark .metaDot { color: rgba(245, 247, 255, 0.3); }
-.attachHint { margin-top: 8rpx; }
-.attachHintText { font-size: 20rpx; color: rgba(46, 99, 255, 0.82); }
-.t-dark .attachHintText { color: rgba(170, 200, 255, 0.88); }
-
-.stats { margin-top: 14rpx; display: flex; gap: 18rpx; }
-.stat { display: flex; align-items: center; gap: 6rpx; }
-.statGlyph { width: 18rpx; height: 18rpx; }
-.statGlyph.heart { background: transparent; border: 1.4rpx solid rgba(16, 24, 40, 0.55); transform: rotate(45deg); border-top-left-radius: 9rpx; border-top-right-radius: 9rpx; }
-.t-dark .statGlyph.heart { border-color: rgba(245, 247, 255, 0.55); }
-.statGlyph.chat { border-radius: 6rpx; border: 1.4rpx solid rgba(16, 24, 40, 0.55); position: relative; }
-.t-dark .statGlyph.chat { border-color: rgba(245, 247, 255, 0.55); }
-.statGlyph.chat::after { content: ''; position: absolute; bottom: -4rpx; left: 4rpx; width: 4rpx; height: 4rpx; background: rgba(16, 24, 40, 0.55); transform: rotate(45deg); }
-.t-dark .statGlyph.chat::after { background: rgba(245, 247, 255, 0.55); }
-.statText { font-size: 19rpx; font-weight: 660; color: rgba(16, 24, 40, 0.62); }
-.t-dark .statText { color: rgba(245, 247, 255, 0.6); }
+.field { margin-top: 14rpx; }
+.fieldLabel {
+  display: block;
+  margin-bottom: 6rpx;
+  font-size: 19rpx;
+  font-weight: 680;
+  color: rgba(16, 24, 40, 0.45);
+}
+.t-dark .fieldLabel { color: rgba(245, 247, 255, 0.4); }
+.optionsBlock { margin-top: 10rpx; }
+.optionsToggle { margin-top: 10rpx; padding: 8rpx 0; }
+.optionsToggleText { font-size: 20rpx; font-weight: 660; color: rgba(46, 99, 255, 0.82); }
+.t-dark .optionsToggleText { color: rgba(170, 200, 255, 0.82); }
 .gap { height: 24rpx; }
 
 .fab { position: fixed; right: 28rpx; bottom: calc(60rpx + env(safe-area-inset-bottom)); width: 96rpx; height: 96rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255, 255, 255, 0.78); border: 1rpx solid rgba(255, 255, 255, 0.6); backdrop-filter: blur(16px); box-shadow: 0 26rpx 70rpx rgba(12, 20, 40, 0.22); z-index: 35; transition: transform 200ms ease, box-shadow 200ms ease; }

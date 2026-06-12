@@ -50,3 +50,8 @@ export function bootstrapData({ force = false } = {}) {
 
   return _booting
 }
+
+export function resetBootstrap() {
+  _booted = false
+  _booting = null
+}

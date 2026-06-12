@@ -3,6 +3,7 @@ import { onShow } from '@dcloudio/uni-app'
 import { setCurrentTab, PAGE_ENTER_KEY } from '@/lib/navigation'
 import { getCurrentPageRoute, shouldSkipPageEnterTransition, PAGE_MS } from '@/lib/pageTransition'
 import { readPageTransition, getTransitionDurationMs } from '@/lib/pageTransitionStore'
+import { isPageTransitionsEnabled } from '@/composables/useAppearancePrefs'
 
 export function usePageEnter(tabId = '') {
   const animateReveal = ref(false)
@@ -14,6 +15,14 @@ export function usePageEnter(tabId = '') {
     if (tabId) setCurrentTab(tabId)
 
     if (shouldSkipPageEnterTransition(getCurrentPageRoute())) {
+      animateReveal.value = false
+      contentVisible.value = true
+      direction.value = 'neutral'
+      durationMs.value = PAGE_MS
+      return
+    }
+
+    if (!isPageTransitionsEnabled()) {
       animateReveal.value = false
       contentVisible.value = true
       direction.value = 'neutral'
@@ -45,9 +54,14 @@ export function usePageEnter(tabId = '') {
     direction.value = meta.direction || 'neutral'
     durationMs.value = getTransitionDurationMs(meta.clickedAt)
 
-    requestAnimationFrame(() => {
+    const reveal = () => {
       contentVisible.value = true
-    })
+    }
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(reveal)
+    } else {
+      setTimeout(reveal, 16)
+    }
   }
 
   onShow(runEnter)

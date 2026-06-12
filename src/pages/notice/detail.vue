@@ -49,10 +49,11 @@ import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 import { deleteConfirm } from '@/composables/useConfirmDelete'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
+import { addNoticeToPlanner } from '@/lib/noticePlanner'
 
 const { themeClass } = useTheme()
 const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, removeNotification } = useNotificationStore()
-const { addTaskFromNotice } = useTasksStore()
+const { addTaskFromNotice, deleteTask } = useTasksStore()
 const { currentUser } = useUserStore()
 const { isAdminActive } = useAdminMode()
 const id = ref('')
@@ -125,24 +126,11 @@ async function deleteNotice() {
 
 function addToPlanner() {
   if (!notice.value?.id) return
-  if (!canAddToTasks.value) {
-    toast.show('General notices cannot be added to tasks')
-    return
-  }
-  if (notice.value.inPlanner) {
-    toast.show('Already added')
-    return
-  }
-  addTaskFromNotice({
-    noticeId: notice.value.id,
-    title: notice.value.title,
-    subject: notice.value.subject,
-    deadline: notice.value.deadline,
-    description: notice.value.description,
-    noticeTitle: notice.value.title,
-  })
-  setInPlanner(notice.value.id, true)
-  toast.addedToPlanner()
+  addNoticeToPlanner(
+    notice.value,
+    { addTaskFromNotice, deleteTask, setInPlanner, setHidden, toast },
+    { hide: false }
+  )
 }
 
 onLoad((query) => {

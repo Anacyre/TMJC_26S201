@@ -1,13 +1,22 @@
 <template>
   <view class="pageContentShell">
-    <PageRevealLayer
-      :content-visible="contentVisible"
-      :animate-reveal="animateReveal"
-      :direction="direction"
-      :duration-ms="durationMs"
+    <view v-if="$slots.chrome" class="pageContentChrome">
+      <slot name="chrome" />
+    </view>
+
+    <view
+      class="pageDataShell"
+      :class="{ waiting: animateReveal && !contentVisible }"
     >
-      <slot />
-    </PageRevealLayer>
+      <PageRevealLayer
+        :content-visible="contentVisible"
+        :animate-reveal="animateReveal"
+        :direction="direction"
+        :duration-ms="durationMs"
+      >
+        <slot />
+      </PageRevealLayer>
+    </view>
   </view>
 </template>
 
@@ -27,5 +36,25 @@ const { contentVisible, animateReveal, direction, durationMs } = usePageEnter(''
   min-height: 0;
   width: 100%;
   z-index: 1;
+}
+
+.pageContentChrome {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pageDataShell {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  width: 100%;
+}
+
+.pageDataShell.waiting {
+  overflow: hidden;
 }
 </style>

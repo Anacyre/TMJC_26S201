@@ -180,7 +180,7 @@ import { useTheme } from '@/composables/useTheme'
 import { login, register, forgotPassword, changePassword, logout, getCurrentUser, userMustChangePassword, resolveAccountToEmailAsync } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { resolveAliasToEmail } from '@/composables/useMemberStore'
-import { clearAuthSession, loadRememberMeToggle, setRememberPref, tryRestoreSession } from '@/composables/useAuthSession'
+import { clearAuthSession, loadRememberMeToggle, loadRememberedAccount, setRememberPref, restoreActiveSession } from '@/composables/useAuthSession'
 import { toast } from '@/composables/useToast'
 import { DEFAULT_MEMBER_PASSWORD } from '@/lib/classMembers'
 
@@ -394,7 +394,8 @@ onLoad(async () => {
     showFirstPasswordNotice.value = !uni.getStorageSync(FIRST_PASSWORD_NOTICE_KEY)
   } catch (e) {}
   rememberMe.value = loadRememberMeToggle()
-  const restored = await tryRestoreSession()
+  account.value = loadRememberedAccount()
+  const restored = await restoreActiveSession()
   if (restored) {
     const { user, profile } = await getCurrentUser()
     if (userMustChangePassword(profile, user)) {

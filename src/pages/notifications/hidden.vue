@@ -46,20 +46,31 @@ import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
+import { deleteConfirm } from '@/composables/useConfirmDelete'
 
 const { themeClass } = useTheme()
-const { hiddenNotifications, unhide, removeNotification, fetchNotifications } = useNotificationStore()
+const {
+  notifications,
+  hiddenNotifications,
+  unhide,
+  removeNotification,
+  fetchNotifications,
+} = useNotificationStore()
 const { currentUser } = useUserStore()
 const { isAdminActive } = useAdminMode()
 
 const list = computed(() => hiddenNotifications.value)
 
 onShow(() => {
-  fetchNotifications()
+  if (!notifications.value.length) fetchNotifications()
 })
 
-function restore(id) {
-  unhide(id)
+async function restore(id) {
+  const { error } = await unhide(id)
+  if (error) {
+    toast.show('Could not restore')
+    return
+  }
   toast.show('Notice restored')
 }
 
@@ -70,6 +81,10 @@ function canDelete(notice) {
 }
 
 async function remove(id) {
+  const notice = list.value.find((n) => n.id === id)
+  if (!notice || !canDelete(notice)) return
+  const ok = await deleteConfirm.notice()
+  if (!ok) return
   const { error } = await removeNotification(id)
   if (error) {
     toast.show('Could not delete')

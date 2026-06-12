@@ -1,8 +1,11 @@
 import { computed, ref } from 'vue'
 import * as notificationsApi from '@/api/notifications'
+import { useUserStore } from '@/composables/useUserStore'
+import { countUnreadRelevantNotices, isNoticeRelevantToUser } from '@/lib/noticeRelevance'
 
 const notifications = ref([])
 const loading = ref(false)
+let fetchGeneration = 0
 
 const HIDDEN_CACHE_KEY = 'notice_hidden_cache_v1'
 
@@ -25,34 +28,60 @@ function saveHiddenSet(set, userId = '') {
   } catch {}
 }
 
-function mergeHiddenFromCache(list, userId = '') {
-  const hiddenSet = loadHiddenSet(userId)
-  const merged = list.map((n) => ({
-    ...n,
-    hidden: !!n.hidden || hiddenSet.has(n.id),
-  }))
+function resolveCacheUserId(apiUserId = '') {
+  if (apiUserId) return apiUserId
+  try {
+    return useUserStore().currentUser.value?.id || ''
+  } catch {
+    return ''
+  }
+}
 
-  for (const n of merged) {
+/** One-time merge from legacy global cache into per-user key. */
+function migrateLegacyHiddenCache(userId) {
+  if (!userId) return
+  try {
+    const legacy = uni.getStorageSync(HIDDEN_CACHE_KEY)
+    if (!Array.isArray(legacy) || !legacy.length) return
+    const set = loadHiddenSet(userId)
+    legacy.forEach((id) => set.add(id))
+    saveHiddenSet(set, userId)
+    uni.removeStorageSync(HIDDEN_CACHE_KEY)
+  } catch {}
+}
+
+function invalidateNotificationFetches() {
+  fetchGeneration += 1
+}
+
+/** Mirror server hidden flags into local cache (server is source of truth). */
+function syncHiddenCacheFromServer(list, userId = '') {
+  const cacheUserId = resolveCacheUserId(userId)
+  migrateLegacyHiddenCache(cacheUserId)
+  const hiddenSet = loadHiddenSet(cacheUserId)
+  for (const n of list) {
     if (n.hidden) hiddenSet.add(n.id)
     else hiddenSet.delete(n.id)
   }
-  saveHiddenSet(hiddenSet, userId)
-  return merged
+  saveHiddenSet(hiddenSet, cacheUserId)
+  return list.map((n) => ({ ...n, hidden: !!n.hidden }))
 }
 
 // ─── Data fetch ────────────────────────────────────────────────────
 
 async function fetchNotifications() {
+  const gen = ++fetchGeneration
   loading.value = true
   try {
     const { data, error, userId } = await notificationsApi.fetchNotifications()
+    if (gen !== fetchGeneration) return
     if (!error) {
-      notifications.value = mergeHiddenFromCache(data, userId || '')
+      notifications.value = syncHiddenCacheFromServer(data, userId || '')
     } else {
       console.error('[useNotificationStore] fetchNotifications:', error.message)
     }
   } finally {
-    loading.value = false
+    if (gen === fetchGeneration) loading.value = false
   }
 }
 
@@ -66,7 +95,10 @@ function getNotificationById(id) {
 
 function _patchLocal(id, patch) {
   const idx = notifications.value.findIndex((n) => n.id === id)
-  if (idx >= 0) Object.assign(notifications.value[idx], patch)
+  if (idx < 0) return
+  const next = [...notifications.value]
+  next[idx] = { ...next[idx], ...patch }
+  notifications.value = next
 }
 
 function _rememberHidden(id, hidden, userId = '') {
@@ -94,19 +126,42 @@ async function toggleHidden(id) {
   if (!item) return
   const wasHidden = item.hidden
   const nextHidden = !wasHidden
+  invalidateNotificationFetches()
   _patchLocal(id, { hidden: nextHidden })
-  const { userId } = await notificationsApi.setHidden(id, nextHidden)
-  _rememberHidden(id, nextHidden, userId || '')
+  const cacheUserId = resolveCacheUserId()
+  _rememberHidden(id, nextHidden, cacheUserId)
+  const { userId, error } = await notificationsApi.setHidden(id, nextHidden)
+  _rememberHidden(id, nextHidden, resolveCacheUserId(userId))
+  if (error) {
+    invalidateNotificationFetches()
+    _patchLocal(id, { hidden: wasHidden })
+    _rememberHidden(id, wasHidden, cacheUserId)
+    console.error('[useNotificationStore] toggleHidden:', error.message)
+  }
 }
 
 async function setHidden(id, hidden) {
-  _patchLocal(id, { hidden: !!hidden })
-  const { userId } = await notificationsApi.setHidden(id, hidden)
-  _rememberHidden(id, !!hidden, userId || '')
+  const item = getNotificationById(id)
+  const prevHidden = item?.hidden ?? false
+  const nextHidden = !!hidden
+  invalidateNotificationFetches()
+  _patchLocal(id, { hidden: nextHidden })
+  const cacheUserId = resolveCacheUserId()
+  _rememberHidden(id, nextHidden, cacheUserId)
+  const { userId, error } = await notificationsApi.setHidden(id, nextHidden)
+  _rememberHidden(id, nextHidden, resolveCacheUserId(userId))
+  if (error) {
+    invalidateNotificationFetches()
+    _patchLocal(id, { hidden: prevHidden })
+    _rememberHidden(id, prevHidden, cacheUserId)
+    console.error('[useNotificationStore] setHidden:', error.message)
+    return { error }
+  }
+  return { error: null }
 }
 
 async function unhide(id) {
-  await setHidden(id, false)
+  return setHidden(id, false)
 }
 
 async function setInPlanner(id, value) {
@@ -115,9 +170,16 @@ async function setInPlanner(id, value) {
 }
 
 async function removeNotification(id) {
-  const { error } = await notificationsApi.deleteNotification(id)
+  const { error, userId } = await notificationsApi.deleteNotification(id)
   if (!error) {
     notifications.value = notifications.value.filter((n) => n.id !== id)
+    _rememberHidden(id, false, userId || '')
+    try {
+      const { deleteTaskBySourceNotice } = await import('@/composables/useTasksStore')
+      await deleteTaskBySourceNotice(id)
+    } catch (e) {
+      console.error('[useNotificationStore] removeNotification: task sync', e)
+    }
   }
   return { error }
 }
@@ -134,11 +196,21 @@ async function addNotification(payload) {
 const visibleNotifications = computed(() => notifications.value.filter((n) => !n.hidden))
 const hiddenNotifications = computed(() => notifications.value.filter((n) => n.hidden))
 
+const unreadRelevantCount = computed(() => {
+  let userId = ''
+  try {
+    userId = useUserStore().currentUser.value?.id || ''
+  } catch {}
+  return countUnreadRelevantNotices(visibleNotifications.value, userId)
+})
+
 const pinnedNotifications = computed(() =>
   visibleNotifications.value
     .filter((n) => n.important)
     .sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1))
 )
+
+export { setInPlanner, unhide, setHidden, isNoticeRelevantToUser, countUnreadRelevantNotices }
 
 export function useNotificationStore() {
   return {
@@ -146,6 +218,7 @@ export function useNotificationStore() {
     loading,
     visibleNotifications,
     hiddenNotifications,
+    unreadRelevantCount,
     pinnedNotifications,
     fetchNotifications,
     getNotificationById,

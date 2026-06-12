@@ -64,6 +64,13 @@
 			}
 		},
 		{
+			"path": "pages/community/info",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Space Info"
+			}
+		},
+		{
 			"path": "pages/member/profile",
 			"style": {
 				"navigationStyle": "custom",

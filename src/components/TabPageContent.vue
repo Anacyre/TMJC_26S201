@@ -47,6 +47,7 @@ const { contentVisible, animateReveal, direction, durationMs } = usePageEnter(pr
   flex-direction: column;
   min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 .tabPageChrome {

@@ -57,15 +57,13 @@
       <template v-else>
       <view v-if="pinnedList.length" class="pinSection">
         <text class="pinLabel">Important</text>
-        <SwipeRow
+        <NoticeSwipeRow
           v-for="n in pinnedList"
           :key="'p-' + n.id"
-          side="left"
-          :actions="[{ id: 'hide', icon: 'hide' }]"
-          commit-action="hide"
-          :context-items="noticeContextItems(n)"
-          @commit="onHide(n)"
-          @action="onNoticeAction(n, $event)"
+          :can-delete="canDeleteNotice(n)"
+          @commit="onNoticeSwipe(n, $event)"
+          @action="onNoticeSwipe(n, $event)"
+          @longpress-delete="onNoticeLongPressDelete(n)"
         >
           <NoticeCard
             :notice="n"
@@ -74,20 +72,18 @@
             @planner="onPlanner(n)"
             @important="onImportant(n)"
           />
-        </SwipeRow>
+        </NoticeSwipeRow>
       </view>
 
       <view v-if="restList.length" class="feedSection">
         <text v-if="pinnedList.length" class="pinLabel dim">All</text>
-        <SwipeRow
+        <NoticeSwipeRow
           v-for="n in restList"
           :key="n.id"
-          side="left"
-          :actions="[{ id: 'hide', icon: 'hide' }]"
-          commit-action="hide"
-          :context-items="noticeContextItems(n)"
-          @commit="onHide(n)"
-          @action="onNoticeAction(n, $event)"
+          :can-delete="canDeleteNotice(n)"
+          @commit="onNoticeSwipe(n, $event)"
+          @action="onNoticeSwipe(n, $event)"
+          @longpress-delete="onNoticeLongPressDelete(n)"
         >
           <NoticeCard
             :id="'n-' + n.id"
@@ -97,7 +93,7 @@
             @planner="onPlanner(n)"
             @important="onImportant(n)"
           />
-        </SwipeRow>
+        </NoticeSwipeRow>
       </view>
 
       <view v-if="!pinnedList.length && !restList.length" class="emptyWrap">
@@ -220,7 +216,8 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import NoticeCard from '@/components/NoticeCard.vue'
-import SwipeRow from '@/components/SwipeRow.vue'
+import NoticeSwipeRow from '@/components/NoticeSwipeRow.vue'
+import { addNoticeToPlanner } from '@/lib/noticePlanner'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
@@ -257,8 +254,9 @@ const {
   getNotificationById,
   addNotification,
   removeNotification,
+  fetchNotifications,
 } = useNotificationStore()
-const { addTaskFromNotice } = useTasksStore()
+const { addTaskFromNotice, deleteTask } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
 const { currentUser } = useUserStore()
 const { isAdminActive } = useAdminMode()
@@ -419,27 +417,12 @@ function onOpenCard(n) {
 }
 
 function onPlanner(n) {
-  if (!canAddNoticeToTasks(n)) {
-    toast.show('General notices cannot be added to tasks')
-    return
-  }
-  if (n.inPlanner) {
-    toast.show('Already in planner')
-    return
-  }
-  addTaskFromNotice({
-    noticeId: n.id,
-    title: n.title,
-    subject: n.subject,
-    deadline: n.deadline,
-    description: n.description,
-    noticeTitle: n.title,
-  })
-  Promise.all([
-    setInPlanner(n.id, true),
-    setHidden(n.id, true),
-  ]).then(() => {
-    toast.addedToPlanner()
+  addNoticeToPlanner(n, {
+    addTaskFromNotice,
+    deleteTask,
+    setInPlanner,
+    setHidden,
+    toast,
   })
 }
 
@@ -447,33 +430,40 @@ function onImportant(n) {
   toggleImportant(n.id)
 }
 
-const noticeDeleteContextItem = { id: 'delete', label: 'Delete', icon: 'trash', danger: true }
-
 function canDeleteNotice(n) {
   const userId = currentUser.value?.id
   if (!userId || !n?.id) return false
   return isAdminActive.value || n.createdBy === userId
 }
 
-function noticeContextItems(n) {
-  return canDeleteNotice(n) ? [noticeDeleteContextItem] : []
-}
-
-function onNoticeAction(n, actionId) {
-  if (actionId === 'delete') {
-    confirmDeleteNotice(n)
-    return
-  }
-  if (actionId === 'hide') onHide(n)
-}
-
-async function confirmDeleteNotice(n) {
-  if (!canDeleteNotice(n)) return
+async function onNoticeLongPressDelete(n) {
   const ok = await deleteConfirm.notice()
   if (!ok) return
+  await performDeleteNotice(n)
+}
+
+async function onNoticeSwipe(n, actionId) {
+  if (actionId === 'hide') {
+    onHide(n)
+    return
+  }
+  if (actionId === 'delete') {
+    const ok = await deleteConfirm.notice()
+    if (!ok) return
+    hidingId.value = n.id
+    setTimeout(async () => {
+      await performDeleteNotice(n)
+      hidingId.value = ''
+    }, 280)
+  }
+}
+
+async function performDeleteNotice(n) {
+  if (!canDeleteNotice(n)) return
   const { error } = await removeNotification(n.id)
   if (error) {
     toast.show('Could not delete')
+    fetchNotifications()
     return
   }
   toast.noticeDeleted()

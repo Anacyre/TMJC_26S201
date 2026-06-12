@@ -10,6 +10,7 @@
 import { useTheme } from '@/composables/useTheme'
 import { navBack } from '@/lib/navigation'
 import { writePageTransition } from '@/lib/pageTransitionStore'
+import { isPageTransitionsEnabled } from '@/composables/useAppearancePrefs'
 
 const { themeClass } = useTheme()
 
@@ -18,7 +19,9 @@ function go() {
   if (pages.length > 1) {
     navBack(1)
   } else {
-    writePageTransition({ kind: 'tab', direction: 'neutral', to: 'home' })
+    if (isPageTransitionsEnabled()) {
+      writePageTransition({ kind: 'tab', direction: 'neutral', to: 'home' })
+    }
     uni.reLaunch({ url: '/pages/index/index', animationType: 'none', animationDuration: 0 })
   }
 }

@@ -1,9 +1,9 @@
 import { createVNode, render, nextTick } from 'vue'
-import GlobalOverlayHost from '@/components/GlobalOverlayHost.vue'
-
-const HOST_ID = 'global-overlay-host'
+import GlobalHosts from '@/components/GlobalHosts.vue'
 
 let rootApp = null
+let hostsEl = null
+let hostsVNode = null
 
 export function registerRootApp(app) {
   rootApp = app
@@ -13,24 +13,27 @@ export function getRootApp() {
   return rootApp
 }
 
-/** Always (re)render overlays — fixes H5 page stack + HMR losing toast/undo UI */
+/** Mount toast / delete / undo overlays on document.body (uni-app H5 does not render App.vue template). */
 export function mountGlobalOverlays(app) {
-  const target = app?._context ? app : rootApp
-  if (typeof document === 'undefined' || !target?._context) return
+  const ctx = app?._context || rootApp?._context
+  if (!ctx) return
+  registerRootApp(app || rootApp)
 
-  let el = document.getElementById(HOST_ID)
-  if (!el) {
-    el = document.createElement('div')
-    el.id = HOST_ID
-    document.body.appendChild(el)
-  }
+  if (typeof document === 'undefined') return
+  if (hostsEl) return
 
-  const vnode = createVNode(GlobalOverlayHost)
-  vnode.appContext = target._context
-  render(vnode, el)
+  hostsEl = document.createElement('div')
+  hostsEl.id = 'uni-global-hosts'
+  hostsEl.style.cssText =
+    'position:fixed;inset:0;z-index:20000;pointer-events:none;'
+  document.body.appendChild(hostsEl)
+
+  hostsVNode = createVNode(GlobalHosts)
+  hostsVNode.appContext = ctx
+  render(hostsVNode, hostsEl)
 }
 
 export function scheduleMountGlobalOverlays(app) {
   if (app) registerRootApp(app)
-  nextTick(() => mountGlobalOverlays(app))
+  nextTick(() => mountGlobalOverlays(app || rootApp))
 }
