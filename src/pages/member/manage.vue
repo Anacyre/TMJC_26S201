@@ -24,7 +24,7 @@
         </view>
         <view v-for="m in filtered" :key="m.id" class="row">
           <view class="left">
-            <view class="ava">{{ initials(m.name) }}</view>
+            <view class="ava">{{ personInitials(m.name) }}</view>
             <view class="meta">
               <view class="nameLine">
                 <text class="name" :number-of-lines="1">{{ m.display_name || m.name }}</text>
@@ -110,6 +110,7 @@ import { adminAddMember, adminSetRole } from '@/api/profile'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { isAdminMember, isTeacherMember, memberEmail, slugifyUsername } from '@/lib/classMembers'
 import { toast } from '@/composables/useToast'
+import { personInitials } from '@/lib/personDisplay'
 
 const { themeClass } = useTheme()
 const { members, fetchMembers } = useCommunityStore()
@@ -139,10 +140,6 @@ const filtered = computed(() => {
 function displayMemberEmail(m) {
   if (isTeacherMember(m)) return ''
   return m.email || memberEmail(m.username, m.role) || ''
-}
-
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
 }
 
 function openAdd() {

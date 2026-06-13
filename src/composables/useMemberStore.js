@@ -1,6 +1,8 @@
 import { computed } from 'vue'
-import { useCommunityStore } from '@/composables/useCommunityStore'
-import { useAdminMode } from '@/composables/useAdminMode'
+import { members, fetchMembers, addCommunity } from '@/composables/useCommunityStore'
+import { adminModeEnabled } from '@/composables/adminModeState'
+import { currentUser } from '@/composables/useUserStore'
+import { isAdminMember } from '@/lib/classMembers'
 import { resolveAccountToEmail } from '@/api/auth'
 
 const ALIAS_KEY = 'login_alias_v1'
@@ -56,20 +58,25 @@ export function resolveAliasToEmail(input) {
   return ''
 }
 
+const isAdminView = computed(
+  () => isAdminMember(currentUser.value) && adminModeEnabled.value
+)
+
+const visibleMembers = computed(() => {
+  if (isAdminView.value) return members.value
+  return members.value.filter((m) => !isTestAccount(m.name))
+})
+
+const visibleMemberCount = computed(() => visibleMembers.value.length)
+
+export { visibleMembers, visibleMemberCount }
+
 export function useMemberStore() {
-  const { members, fetchMembers, addCommunity } = useCommunityStore()
-
-  const { isAdminActive: isAdmin } = useAdminMode()
-
-  const visibleMembers = computed(() => {
-    if (isAdmin.value) return members.value
-    return members.value.filter((m) => !isTestAccount(m.name))
-  })
-
   return {
     members,
     visibleMembers,
-    isAdmin,
+    visibleMemberCount,
+    isAdmin: isAdminView,
     isTestAccount,
     fetchMembers,
     addCommunity,

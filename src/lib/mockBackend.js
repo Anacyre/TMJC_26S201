@@ -345,7 +345,22 @@ function setSession(value) {
   safeSet(SESSION_KEY, value)
 }
 
-function persist() { safeSet(STORAGE_KEY, _state) }
+let _persistTimer = null
+function persist() {
+  if (_persistTimer) return
+  _persistTimer = setTimeout(() => {
+    _persistTimer = null
+    safeSet(STORAGE_KEY, _state)
+  }, 200)
+}
+
+function persistNow() {
+  if (_persistTimer) {
+    clearTimeout(_persistTimer)
+    _persistTimer = null
+  }
+  safeSet(STORAGE_KEY, _state)
+}
 
 function ensureCommunitySeed(state) {
   if ((state.community_seed_version || 0) >= COMMUNITY_SEED_VERSION) return state
@@ -442,7 +457,7 @@ function ensureClassRoster(state) {
 export function resetMockBackend() {
   _state = seedState()
   setSession(null)
-  persist()
+  persistNow()
 }
 
 function currentUserId() { return _session?.user?.id || null }
@@ -527,9 +542,10 @@ function rowToNotification(row, state = {}) {
   }
 }
 
-function rowToPost(row, likedSet = new Set()) {
-  const community = _state.communities.find((c) => c.id === row.community_id)
-  const author = findProfile(row.user_id)
+function rowToPost(row, likedSet = new Set(), lookup = null) {
+  const community = lookup?.communityById?.get(row.community_id)
+    ?? _state.communities.find((c) => c.id === row.community_id)
+  const author = lookup?.profileById?.get(row.user_id) ?? findProfile(row.user_id)
   return {
     id: row.id,
     communityId: row.community_id,
@@ -581,9 +597,10 @@ function rowToCommunity(row) {
   }
 }
 
-function rowToResource(row, likedSet = new Set()) {
-  const subject = _state.subjects.find((s) => s.id === row.subject_id)
-  const uploader = findProfile(row.user_id)
+function rowToResource(row, likedSet = new Set(), lookup = null) {
+  const subject = lookup?.subjectById?.get(row.subject_id)
+    ?? _state.subjects.find((s) => s.id === row.subject_id)
+  const uploader = lookup?.profileById?.get(row.user_id) ?? findProfile(row.user_id)
   return {
     id: row.id,
     subjectId: row.subject_id,
@@ -693,8 +710,10 @@ export async function getProfile(userId) {
 
 export async function getMembers() {
   await tick()
-  _state = ensureClassRoster(_state)
-  persist()
+  if (_state.roster_version !== ROSTER_VERSION) {
+    _state = ensureClassRoster(_state)
+    persistNow()
+  }
 
   const rows = _state.profiles.map((p) => ({
     id: p.id,
@@ -1143,6 +1162,10 @@ export async function fetchPosts(options = {}) {
   const likedSet = new Set(
     _state.postLikes.filter((l) => l.user_id === userId).map((l) => l.post_id)
   )
+  const lookup = {
+    communityById: new Map(_state.communities.map((c) => [c.id, c])),
+    profileById: new Map(_state.profiles.map((p) => [p.id, p])),
+  }
   let rows = [..._state.posts]
   if (options.communityId) rows = rows.filter((r) => r.community_id === options.communityId)
   if (options.postType) rows = rows.filter((r) => (r.post_type || 'regular') === options.postType)
@@ -1153,7 +1176,7 @@ export async function fetchPosts(options = {}) {
   } else {
     rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   }
-  return { data: rows.map((r) => rowToPost(r, likedSet)), error: null }
+  return { data: rows.map((r) => rowToPost(r, likedSet, lookup)), error: null }
 }
 
 export async function createPost(payload) {
@@ -1248,11 +1271,16 @@ export async function addComment(postId, text, anonymous = false) {
 // ═════════════════════════════════════════════════════════════════════
 export async function fetchSubjects() {
   await tick()
+  const filesCountBySubject = new Map()
+  for (const r of _state.resources) {
+    const sid = r.subject_id
+    filesCountBySubject.set(sid, (filesCountBySubject.get(sid) || 0) + 1)
+  }
   const data = [..._state.subjects]
     .sort((a, b) => a.name.localeCompare(b.name))
     .map((s) => ({
       id: s.id, icon: s.icon || '', name: s.name,
-      filesCount: _state.resources.filter((r) => r.subject_id === s.id).length,
+      filesCount: filesCountBySubject.get(s.id) || 0,
       updatedAt: s.updated_at,
     }))
   return { data, error: null }
@@ -1287,6 +1315,10 @@ export async function fetchResources(options = {}) {
   const likedSet = new Set(
     _state.resourceLikes.filter((l) => l.user_id === userId).map((l) => l.resource_id)
   )
+  const lookup = {
+    subjectById: new Map(_state.subjects.map((s) => [s.id, s])),
+    profileById: new Map(_state.profiles.map((p) => [p.id, p])),
+  }
   let rows = [..._state.resources]
   if (options.subjectId) rows = rows.filter((r) => r.subject_id === options.subjectId)
   if (options.sort === 'downloads') {
@@ -1296,7 +1328,7 @@ export async function fetchResources(options = {}) {
   } else {
     rows.sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   }
-  return { data: rows.map((r) => rowToResource(r, likedSet)), error: null }
+  return { data: rows.map((r) => rowToResource(r, likedSet, lookup)), error: null }
 }
 
 export async function createResource(payload) {

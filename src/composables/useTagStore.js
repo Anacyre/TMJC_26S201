@@ -35,7 +35,8 @@ function findByName(name) {
 function addTag(name, color = 'slate') {
   const clean = String(name || '').trim()
   if (!clean) return null
-  if (findByName(clean)) return findByName(clean)
+  const existing = findByName(clean)
+  if (existing) return existing
   const tag = {
     id: `sub_${clean.toLowerCase().replace(/\s+/g, '_')}_${Date.now().toString(36)}`,
     name: clean,
@@ -62,9 +63,27 @@ function renameTag(fromName, toName) {
 }
 
 function syncFromCommunities(communities = []) {
+  let next = tags.value
+  let dirty = false
   for (const community of communities) {
     const name = String(community?.name || '').trim()
-    if (name) addTag(name)
+    if (!name) continue
+    const exists = next.find((t) => t.name.toLowerCase() === name.toLowerCase())
+    if (exists) continue
+    next = [
+      ...next,
+      {
+        id: `sub_${name.toLowerCase().replace(/\s+/g, '_')}_${Date.now().toString(36)}`,
+        name,
+        color: 'slate',
+        system: false,
+      },
+    ]
+    dirty = true
+  }
+  if (dirty) {
+    tags.value = next
+    saveTags(next)
   }
 }
 

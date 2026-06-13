@@ -68,8 +68,8 @@
                   role="button"
                   @tap="openMember(m.id)"
                 >
-                  <view class="memberAvatar">{{ initials(m.name) }}</view>
-                  <text class="memberName">{{ firstName(m.name) }}</text>
+                  <view class="memberAvatar">{{ m.initials }}</view>
+                  <text class="memberName">{{ m.firstName }}</text>
                 </view>
               </view>
             </scroll-view>
@@ -167,8 +167,7 @@ import { useAdminMode } from '@/composables/useAdminMode'
 import { useTagStore } from '@/composables/useTagStore'
 import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
-import { filterMaterialPosts, isMaterialPost } from '@/lib/communityMaterials'
-import { noticeMatchesCommunity } from '@/lib/communitySubjectLinks'
+import { personInitials, personFirstName } from '@/lib/personDisplay'
 import {
   COMMUNITY_ICON_PRESETS,
   normalizeCommunityIcon,
@@ -176,9 +175,9 @@ import {
 } from '@/lib/communityIcons'
 
 const { themeClass } = useTheme()
-const { communities, getPostsByCommunity, materialPosts, updateCommunity } = useCommunityStore()
-const { visibleNotifications } = useNotificationStore()
-const { visibleMembers } = useMemberStore()
+const { communities, getRegularPostCount, getMaterialPostCount, updateCommunity, ensurePostsLoaded } = useCommunityStore()
+const { getVisibleNoticeCountForCommunity } = useNotificationStore()
+const { visibleMembers, visibleMemberCount } = useMemberStore()
 const { isAdminActive: isAdmin } = useAdminMode()
 const { renameTag, syncFromCommunities } = useTagStore()
 
@@ -188,10 +187,9 @@ const saving = ref(false)
 const draftPinned = ref(false)
 const pinSaving = ref(false)
 const draft = ref({ name: '', desc: '', icon: '◉', iconManual: false })
+let iconSuggestTimer = null
 
-const materialCount = computed(() =>
-  filterMaterialPosts(materialPosts.value, { communityId: id.value }).length
-)
+const materialCount = computed(() => getMaterialPostCount(id.value))
 const iconPresets = COMMUNITY_ICON_PRESETS
 
 const community = computed(() => {
@@ -201,16 +199,17 @@ const community = computed(() => {
 const displayName = computed(() => community.value?.name || '')
 const displayDesc = computed(() => community.value?.desc || '')
 const displayIcon = computed(() => community.value?.icon || '◉')
-const postCount = computed(() =>
-  getPostsByCommunity(id.value).filter((p) => !isMaterialPost(p)).length
+const postCount = computed(() => getRegularPostCount(id.value))
+const noticeCount = computed(() => getVisibleNoticeCountForCommunity(id.value))
+const memberCount = visibleMemberCount
+const memberPreview = computed(() =>
+  visibleMembers.value.slice(0, 12).map((m) => ({
+    id: m.id,
+    name: m.name,
+    initials: personInitials(m.name),
+    firstName: personFirstName(m.name),
+  }))
 )
-const noticeCount = computed(() => {
-  const space = community.value
-  if (!space) return 0
-  return visibleNotifications.value.filter((n) => noticeMatchesCommunity(n, space)).length
-})
-const memberCount = computed(() => visibleMembers.value.length)
-const memberPreview = computed(() => visibleMembers.value.slice(0, 12))
 
 const createdLabel = computed(() => formatDate(community.value?.createdAt))
 const updatedLabel = computed(() => {
@@ -225,14 +224,6 @@ function formatDate(iso) {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('en-SG', { year: 'numeric', month: 'short', day: 'numeric' })
-}
-
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
-
-function firstName(name) {
-  return String(name || '').split(' ')[0] || '?'
 }
 
 function openMaterials() {
@@ -344,14 +335,17 @@ watch(
 watch(
   () => [draft.value.name, draft.value.desc],
   () => {
-    if (showEdit.value && !draft.value.iconManual) {
+    if (!showEdit.value || draft.value.iconManual) return
+    if (iconSuggestTimer) clearTimeout(iconSuggestTimer)
+    iconSuggestTimer = setTimeout(() => {
       draft.value.icon = suggestCommunityIcon(draft.value.name, draft.value.desc)
-    }
+    }, 250)
   }
 )
 
-onLoad((q) => {
+onLoad(async (q) => {
   id.value = q?.id || ''
+  await ensurePostsLoaded()
 })
 </script>
 

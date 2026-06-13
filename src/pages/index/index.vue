@@ -62,6 +62,7 @@
             <view
               v-for="n in notices"
               :key="n.id"
+              v-memo="[n.id, n.unread, n.title, n.type, n.deadline]"
               class="taskRow tap"
               :class="{
                 pressed: pressedKey === 'notice:' + n.id,
@@ -97,6 +98,7 @@
             <view
               v-for="t in todayTasks"
               :key="t.id"
+              v-memo="[t.id, t.done, t.status, t.title, t.deadline]"
               class="taskRow tap"
               :class="[{ pressed: pressedKey === 'task:' + t.id }, 'st-' + t.status]"
               @touchstart="pressedKey = 'task:' + t.id"
@@ -157,6 +159,8 @@ const { showHomeTodayFocus } = useAppearancePrefs()
 const userName = computed(() => currentUser.value.name || 'Guest')
 
 const pressedKey = ref('')
+let _lastHomeRefresh = 0
+const HOME_REFRESH_TTL = 30_000
 
 const notices = computed(() => {
   const userId = currentUser.value.id
@@ -177,7 +181,8 @@ function noticeTypeClass(type) {
   return 'sub-slate'
 }
 
-const todayTasks = computed(() => tasks.value.filter(isHomeTodayTask).slice(0, 4))
+const homeTodayTasks = computed(() => tasks.value.filter(isHomeTodayTask))
+const todayTasks = computed(() => homeTodayTasks.value.slice(0, 4))
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -193,7 +198,7 @@ const todayText = computed(() => {
   return `${wk}, ${m} ${d.getDate()}`
 })
 
-const todayTasksCount = computed(() => tasks.value.filter(isHomeTodayTask).length)
+const todayTasksCount = computed(() => homeTodayTasks.value.length)
 const unreadNoticesCount = unreadRelevantCount
 const hasUnreadNotices = computed(() => unreadRelevantCount.value > 0)
 const focusMinutesDisplay = computed(() => totalHoursLabel.value || '0 min')
@@ -222,7 +227,10 @@ function openFocus() {
   navSibling('/pages/study/focus')
 }
 
-async function refreshHome() {
+async function refreshHome({ force = false } = {}) {
+  const now = Date.now()
+  if (!force && now - _lastHomeRefresh < HOME_REFRESH_TTL) return
+  _lastHomeRefresh = now
   await fetchCurrentUser()
   const uid = currentUser.value.id
   await Promise.all([
@@ -232,7 +240,7 @@ async function refreshHome() {
   ])
 }
 
-onLoad(() => { refreshHome() })
+onLoad(() => { refreshHome({ force: true }) })
 onShow(() => { refreshHome() })
 </script>
 

@@ -60,7 +60,8 @@
         <NoticeSwipeRow
           v-for="n in pinnedList"
           :key="'p-' + n.id"
-          :can-delete="canDeleteNotice(n)"
+          v-memo="[n.id, n.read, n.important, n.inPlanner, hidingId === n.id, deletableNoticeIds.has(n.id)]"
+          :can-delete="deletableNoticeIds.has(n.id)"
           @commit="onNoticeSwipe(n, $event)"
           @action="onNoticeSwipe(n, $event)"
           @longpress-delete="onNoticeLongPressDelete(n)"
@@ -80,7 +81,8 @@
         <NoticeSwipeRow
           v-for="n in restList"
           :key="n.id"
-          :can-delete="canDeleteNotice(n)"
+          v-memo="[n.id, n.read, n.important, n.inPlanner, hidingId === n.id, deletableNoticeIds.has(n.id)]"
+          :can-delete="deletableNoticeIds.has(n.id)"
           @commit="onNoticeSwipe(n, $event)"
           @action="onNoticeSwipe(n, $event)"
           @longpress-delete="onNoticeLongPressDelete(n)"
@@ -242,9 +244,7 @@ import {
   saveNoticeDraft,
 } from '@/lib/noticeDraft'
 import {
-  communitySubjectFilterLabels,
-  communitySubjectFilterValue,
-  communitySubjectFilterLabel,
+  buildCommunitySubjectFilterMaps,
   findCommunityByFilterValue,
   noticeMatchesCommunity,
   resolveCommunityFilterFromQuery,
@@ -254,7 +254,6 @@ import {
 const { themeClass } = useTheme()
 const {
   visibleNotifications,
-  pinnedNotifications,
   loading,
   markRead,
   toggleImportant,
@@ -264,6 +263,8 @@ const {
   addNotification,
   removeNotification,
   fetchNotifications,
+  buildDeletableNoticeIds,
+  isNoticeDeletable,
 } = useNotificationStore()
 const { addTaskFromNotice, deleteTask } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
@@ -284,24 +285,10 @@ const typeFilterLabelByValue = Object.fromEntries(
   Object.entries(typeFilterValueByLabel).map(([label, value]) => [value, label])
 )
 
-const subjectFilterOptions = computed(() =>
-  communitySubjectFilterLabels(sortedCommunities.value)
-)
-const subjectFilterValueByLabel = computed(() => {
-  const map = {}
-  subjectFilterOptions.value.forEach((label) => {
-    map[label] = communitySubjectFilterValue(label, sortedCommunities.value)
-  })
-  return map
-})
-const subjectFilterLabelByValue = computed(() => {
-  const map = {}
-  subjectFilterOptions.value.forEach((label) => {
-    const value = communitySubjectFilterValue(label, sortedCommunities.value)
-    map[value] = label
-  })
-  return map
-})
+const subjectFilterMaps = computed(() => buildCommunitySubjectFilterMaps(sortedCommunities.value))
+const subjectFilterOptions = computed(() => subjectFilterMaps.value.labels)
+const subjectFilterValueByLabel = computed(() => subjectFilterMaps.value.valueByLabel)
+const subjectFilterLabelByValue = computed(() => subjectFilterMaps.value.labelByValue)
 const draftSubjectOptions = computed(() => communitySubjectNames(sortedCommunities.value))
 
 const noticeTypes = [
@@ -377,11 +364,6 @@ function discardDraft() {
   toast.show('Draft cleared')
 }
 
-function subjectMatches(n, filterValue) {
-  const community = findCommunityByFilterValue(sortedCommunities.value, filterValue)
-  return noticeMatchesCommunity(n, community)
-}
-
 function onTypeFilterPick(label) {
   typeFilter.value = typeFilterValueByLabel[label] ?? ''
   if (typeFilter.value !== 'Homework') {
@@ -403,23 +385,30 @@ function typeMatches(n, chip) {
   return n.type === chip
 }
 
-const filtered = computed(() =>
-  visibleNotifications.value.filter((n) => {
-    if (!typeMatches(n, typeFilter.value)) return false
-    if (typeFilter.value === 'Homework' && !subjectMatches(n, subjectFilter.value)) return false
-    return true
-  })
-)
+const noticeLists = computed(() => {
+  const chip = typeFilter.value
+  const subjectCommunity =
+    chip === 'Homework'
+      ? findCommunityByFilterValue(sortedCommunities.value, subjectFilter.value)
+      : null
+  const pinned = []
+  const rest = []
 
-const pinnedList = computed(() => {
-  const ids = new Set(pinnedNotifications.value.map((x) => x.id))
-  return filtered.value.filter((n) => ids.has(n.id) && n.important)
+  for (const n of visibleNotifications.value) {
+    if (!typeMatches(n, chip)) continue
+    if (subjectCommunity && !noticeMatchesCommunity(n, subjectCommunity)) continue
+    if (n.important) pinned.push(n)
+    else rest.push(n)
+  }
+
+  pinned.sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1))
+  return { pinned, rest }
 })
 
-const restList = computed(() => {
-  const pinIds = new Set(pinnedList.value.map((x) => x.id))
-  return filtered.value.filter((n) => !pinIds.has(n.id))
-})
+const pinnedList = computed(() => noticeLists.value.pinned)
+const restList = computed(() => noticeLists.value.rest)
+
+const deletableNoticeIds = computed(() => buildDeletableNoticeIds(visibleNotifications.value))
 
 function onOpenCard(n) {
   markRead(n.id)
@@ -441,9 +430,7 @@ function onImportant(n) {
 }
 
 function canDeleteNotice(n) {
-  const userId = currentUser.value?.id
-  if (!userId || !n?.id) return false
-  return isAdminActive.value || n.createdBy === userId
+  return isNoticeDeletable(n)
 }
 
 async function onNoticeLongPressDelete(n) {
@@ -473,7 +460,7 @@ async function performDeleteNotice(n) {
   const { error } = await removeNotification(n.id)
   if (error) {
     toast.show('Could not delete')
-    fetchNotifications()
+    fetchNotifications({ force: true })
     return
   }
   toast.noticeDeleted()

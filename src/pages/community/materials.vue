@@ -54,6 +54,7 @@
                 <CommunityMaterialListItem
                   v-for="item in displayItems"
                   :key="item.id"
+                  v-memo="[item.id, item.title, item.timeLabel, item.fileSize]"
                   :post="item"
                   :time-label="item.timeLabel"
                   data-reveal-card
@@ -84,10 +85,11 @@ import CommunityMaterialListItem from '@/components/CommunityMaterialListItem.vu
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { filterMaterialPosts, sortMaterialPosts } from '@/lib/communityMaterials'
+import { shortTimeLabel } from '@/lib/timeLabel'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
-const { materialPosts, sortedCommunities, loading } = useCommunityStore()
+const { posts, sortedCommunities, loading, ensurePostsLoaded } = useCommunityStore()
 
 const presetCommunityId = ref('')
 const communityFilter = ref('')
@@ -114,28 +116,15 @@ const sortDisplayLabel = computed(() => {
 })
 
 const displayItems = computed(() => {
-  const filtered = filterMaterialPosts(materialPosts.value, {
+  let items = filterMaterialPosts(posts.value, {
     communityId: communityFilter.value,
   })
-  const sorted = sortMaterialPosts(filtered, {
+  const sorted = sortMaterialPosts(items, {
     sortBy: sortBy.value,
     order: sortOrder.value,
   })
-  return sorted.map((p) => ({ ...p, timeLabel: shortTimeLabel(p.createdAt) }))
+  return sorted.map((p) => ({ ...p, timeLabel: shortTimeLabel(p.createdAt, { compact: true }) }))
 })
-
-function shortTimeLabel(iso) {
-  if (!iso) return '—'
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'now'
-  if (m < 60) return `${m}m`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d`
-  return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-}
 
 function onCommunityPick(label) {
   if (label === 'All spaces') {
@@ -164,9 +153,10 @@ function openPost(postId) {
   navSibling(`/pages/community/post-detail?id=${postId}`)
 }
 
-onLoad((q) => {
+onLoad(async (q) => {
   presetCommunityId.value = q?.communityId || ''
   communityFilter.value = presetCommunityId.value
+  await ensurePostsLoaded()
 })
 </script>
 

@@ -1,13 +1,22 @@
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import * as notificationsApi from '@/api/notifications'
-import { useUserStore } from '@/composables/useUserStore'
+import { currentUser } from '@/composables/useUserStore'
+import { communities } from '@/composables/useCommunityStore'
+import { adminModeEnabled } from '@/composables/adminModeState'
+import { isAdminMember } from '@/lib/classMembers'
+import { noticeMatchesCommunity } from '@/lib/communitySubjectLinks'
 import { countUnreadRelevantNotices, isNoticeRelevantToUser } from '@/lib/noticeRelevance'
 
-const notifications = ref([])
+const notifications = shallowRef([])
 const loading = ref(false)
 let fetchGeneration = 0
+let _lastFetchAt = 0
+const FETCH_TTL_MS = 30_000
 
 const HIDDEN_CACHE_KEY = 'notice_hidden_cache_v1'
+
+let _sessionHiddenUserId = ''
+let _sessionHiddenSet = null
 
 function hiddenCacheKey(userId) {
   return userId ? `${HIDDEN_CACHE_KEY}_${userId}` : HIDDEN_CACHE_KEY
@@ -26,6 +35,20 @@ function saveHiddenSet(set, userId = '') {
   try {
     uni.setStorageSync(hiddenCacheKey(userId), [...set])
   } catch {}
+}
+
+function getHiddenSet(userId = '') {
+  const cacheUserId = resolveCacheUserId(userId)
+  if (_sessionHiddenSet && _sessionHiddenUserId === cacheUserId) return _sessionHiddenSet
+  migrateLegacyHiddenCache(cacheUserId)
+  _sessionHiddenSet = loadHiddenSet(cacheUserId)
+  _sessionHiddenUserId = cacheUserId
+  return _sessionHiddenSet
+}
+
+function invalidateHiddenSessionCache() {
+  _sessionHiddenSet = null
+  _sessionHiddenUserId = ''
 }
 
 function resolveCacheUserId(apiUserId = '') {
@@ -52,24 +75,35 @@ function migrateLegacyHiddenCache(userId) {
 
 function invalidateNotificationFetches() {
   fetchGeneration += 1
+  _lastFetchAt = 0
+  invalidateHiddenSessionCache()
 }
 
 /** Mirror server hidden flags into local cache (server is source of truth). */
 function syncHiddenCacheFromServer(list, userId = '') {
   const cacheUserId = resolveCacheUserId(userId)
-  migrateLegacyHiddenCache(cacheUserId)
-  const hiddenSet = loadHiddenSet(cacheUserId)
+  const hiddenSet = getHiddenSet(cacheUserId)
+  let changed = false
   for (const n of list) {
-    if (n.hidden) hiddenSet.add(n.id)
-    else hiddenSet.delete(n.id)
+    if (n.hidden) {
+      if (!hiddenSet.has(n.id)) {
+        hiddenSet.add(n.id)
+        changed = true
+      }
+    } else if (hiddenSet.has(n.id)) {
+      hiddenSet.delete(n.id)
+      changed = true
+    }
   }
-  saveHiddenSet(hiddenSet, cacheUserId)
+  if (changed) saveHiddenSet(hiddenSet, cacheUserId)
   return list.map((n) => ({ ...n, hidden: !!n.hidden }))
 }
 
 // ─── Data fetch ────────────────────────────────────────────────────
 
-async function fetchNotifications() {
+async function fetchNotifications({ force = false } = {}) {
+  const now = Date.now()
+  if (!force && notifications.value.length && now - _lastFetchAt < FETCH_TTL_MS) return
   const gen = ++fetchGeneration
   loading.value = true
   try {
@@ -77,6 +111,7 @@ async function fetchNotifications() {
     if (gen !== fetchGeneration) return
     if (!error) {
       notifications.value = syncHiddenCacheFromServer(data, userId || '')
+      _lastFetchAt = Date.now()
     } else {
       console.error('[useNotificationStore] fetchNotifications:', error.message)
     }
@@ -88,7 +123,7 @@ async function fetchNotifications() {
 // ─── Read helpers ────────────────────────────────────────────────────
 
 function getNotificationById(id) {
-  return notifications.value.find((n) => n.id === id) || null
+  return notificationsById.value.get(id) || null
 }
 
 // ─── Writes ──────────────────────────────────────────────────────
@@ -102,10 +137,11 @@ function _patchLocal(id, patch) {
 }
 
 function _rememberHidden(id, hidden, userId = '') {
-  const hiddenSet = loadHiddenSet(userId)
+  const cacheUserId = resolveCacheUserId(userId)
+  const hiddenSet = getHiddenSet(cacheUserId)
   if (hidden) hiddenSet.add(id)
   else hiddenSet.delete(id)
-  saveHiddenSet(hiddenSet, userId)
+  saveHiddenSet(hiddenSet, cacheUserId)
 }
 
 async function markRead(id) {
@@ -193,24 +229,78 @@ async function addNotification(payload) {
 
 // ─── Computed ────────────────────────────────────────────────────
 
-const visibleNotifications = computed(() => notifications.value.filter((n) => !n.hidden))
-const hiddenNotifications = computed(() => notifications.value.filter((n) => n.hidden))
-
-const unreadRelevantCount = computed(() => {
-  let userId = ''
-  try {
-    userId = useUserStore().currentUser.value?.id || ''
-  } catch {}
-  return countUnreadRelevantNotices(visibleNotifications.value, userId)
+const notificationsById = computed(() => {
+  const map = new Map()
+  for (const n of notifications.value) map.set(n.id, n)
+  return map
 })
 
-const pinnedNotifications = computed(() =>
-  visibleNotifications.value
-    .filter((n) => n.important)
-    .sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1))
+const partitionedNotifications = computed(() => {
+  const visible = []
+  const hidden = []
+  const pinned = []
+  for (const n of notifications.value) {
+    if (n.hidden) {
+      hidden.push(n)
+      continue
+    }
+    visible.push(n)
+    if (n.important) pinned.push(n)
+  }
+  pinned.sort((a, b) => (a.read === b.read ? 0 : a.read ? 1 : -1))
+  return { visible, hidden, pinned }
+})
+
+const visibleNotifications = computed(() => partitionedNotifications.value.visible)
+const hiddenNotifications = computed(() => partitionedNotifications.value.hidden)
+const pinnedNotifications = computed(() => partitionedNotifications.value.pinned)
+
+const visibleNoticesByCommunityId = computed(() => {
+  const map = new Map()
+  const pool = visibleNotifications.value
+  for (const c of communities.value) {
+    const list = []
+    for (const n of pool) {
+      if (noticeMatchesCommunity(n, c)) list.push(n)
+    }
+    map.set(c.id, list)
+  }
+  return map
+})
+
+function getVisibleNoticesForCommunity(communityOrId) {
+  const id = typeof communityOrId === 'object' ? communityOrId?.id : communityOrId
+  if (!id) return []
+  return visibleNoticesByCommunityId.value.get(id) || []
+}
+
+function getVisibleNoticeCountForCommunity(communityOrId) {
+  return getVisibleNoticesForCommunity(communityOrId).length
+}
+
+function isNoticeDeletable(notice, userId = currentUser.value?.id) {
+  if (!userId || !notice?.id) return false
+  return (isAdminMember(currentUser.value) && adminModeEnabled.value) || notice.createdBy === userId
+}
+
+function buildDeletableNoticeIds(notices = []) {
+  const set = new Set()
+  for (const n of notices) {
+    if (isNoticeDeletable(n)) set.add(n.id)
+  }
+  return set
+}
+
+const unreadRelevantCount = computed(() =>
+  countUnreadRelevantNotices(visibleNotifications.value, currentUser.value?.id || '')
 )
 
-export { setInPlanner, unhide, setHidden, isNoticeRelevantToUser, countUnreadRelevantNotices }
+export function resetNotificationSession() {
+  invalidateNotificationFetches()
+  notifications.value = []
+}
+
+export { setInPlanner, unhide, setHidden, isNoticeRelevantToUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable }
 
 export function useNotificationStore() {
   return {
@@ -220,6 +310,10 @@ export function useNotificationStore() {
     hiddenNotifications,
     unreadRelevantCount,
     pinnedNotifications,
+    getVisibleNoticesForCommunity,
+    getVisibleNoticeCountForCommunity,
+    buildDeletableNoticeIds,
+    isNoticeDeletable,
     fetchNotifications,
     getNotificationById,
     markRead,

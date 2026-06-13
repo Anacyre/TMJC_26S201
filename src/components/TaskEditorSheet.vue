@@ -185,6 +185,7 @@ const { themeClass } = useTheme()
 const { tagNames, addTag } = useTagStore()
 const { sortedCommunities } = useCommunityStore()
 const subjectOptions = computed(() => {
+  if (!props.modelValue) return tagNames.value
   const names = communitySubjectNames(sortedCommunities.value)
   return names.length ? names : tagNames.value
 })

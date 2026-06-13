@@ -12,7 +12,12 @@
         />
       </view>
 
-      <view v-for="n in list" :key="n.id" class="row">
+      <view
+        v-for="n in list"
+        :key="n.id"
+        v-memo="[n.id, n.title, n.subject, deletableNoticeIds.has(n.id)]"
+        class="row"
+      >
         <view class="main">
           <text class="title" :number-of-lines="2">{{ n.title }}</text>
           <text class="meta">{{ n.subject }} · {{ n.type }}</text>
@@ -21,7 +26,7 @@
           <view class="iconBtn" role="button" @tap="restore(n.id)">
             <text class="glyph">↺</text>
           </view>
-          <view v-if="canDelete(n)" class="iconBtn danger" role="button" @tap="remove(n.id)">
+          <view v-if="deletableNoticeIds.has(n.id)" class="iconBtn danger" role="button" @tap="remove(n.id)">
             <text class="glyph">×</text>
           </view>
         </view>
@@ -43,8 +48,6 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
-import { useUserStore } from '@/composables/useUserStore'
-import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 import { deleteConfirm } from '@/composables/useConfirmDelete'
 
@@ -55,11 +58,11 @@ const {
   unhide,
   removeNotification,
   fetchNotifications,
+  buildDeletableNoticeIds,
 } = useNotificationStore()
-const { currentUser } = useUserStore()
-const { isAdminActive } = useAdminMode()
 
 const list = computed(() => hiddenNotifications.value)
+const deletableNoticeIds = computed(() => buildDeletableNoticeIds(list.value))
 
 onShow(() => {
   if (!notifications.value.length) fetchNotifications()
@@ -74,15 +77,9 @@ async function restore(id) {
   toast.show('Notice restored')
 }
 
-function canDelete(notice) {
-  const userId = currentUser.value?.id
-  if (!userId || !notice?.id) return false
-  return isAdminActive.value || notice.createdBy === userId
-}
-
 async function remove(id) {
   const notice = list.value.find((n) => n.id === id)
-  if (!notice || !canDelete(notice)) return
+  if (!notice || !deletableNoticeIds.value.has(id)) return
   const ok = await deleteConfirm.notice()
   if (!ok) return
   const { error } = await removeNotification(id)

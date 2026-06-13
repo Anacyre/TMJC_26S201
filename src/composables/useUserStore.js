@@ -103,3 +103,5 @@ async function updateProfile(payload) {
 export function useUserStore() {
   return { currentUser, loading, fetchCurrentUser, updateProfile, resetCurrentUser }
 }
+
+export { currentUser }

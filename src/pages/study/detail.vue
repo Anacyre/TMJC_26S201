@@ -48,26 +48,14 @@ import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
 import { toast } from '@/composables/useToast'
+import { shortTimeLabel } from '@/lib/timeLabel'
 
 const { themeClass } = useTheme()
-const { getResourceById, toggleResourceLike, downloadResource } = useStudyStore()
+const { getResourceById, toggleResourceLike, downloadResource, ensureResourcesLoaded } = useStudyStore()
 const id = ref('r1')
 const resource = computed(() => getResourceById(id.value))
 const likedState = computed(() => !!resource.value?.liked)
 const timeLabel = computed(() => shortTimeLabel(resource.value?.createdAt))
-
-function shortTimeLabel(iso) {
-  if (!iso) return 'just now'
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-}
 
 function onLike() {
   if (!resource.value?.id) return
@@ -81,8 +69,9 @@ async function onDownload() {
   toast.show('Download queued')
 }
 
-onLoad((q) => {
+onLoad(async (q) => {
   id.value = q?.id || 'r1'
+  await ensureResourcesLoaded()
 })
 </script>
 

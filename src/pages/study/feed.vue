@@ -29,7 +29,7 @@
           />
         </view>
         <view v-else>
-          <view v-for="r in resourcesView" :key="r.id" class="card tap" role="button" @tap="openDetail(r.id)">
+          <view v-for="r in resourcesView" :key="r.id" v-memo="[r.id, r.title, r.type, r.timeLabel, r.uploaderName]" class="card tap" role="button" @tap="openDetail(r.id)">
             <view class="head">
               <text class="type">{{ r.type }}</text>
             </view>
@@ -80,12 +80,13 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
+import { shortTimeLabel } from '@/lib/timeLabel'
 import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { chooseStudyFile, inferResourceType, uploadFile } from '@/api/upload'
 
 const { themeClass } = useTheme()
-const { getSubjectById, getResourcesBySubject, loading, uploadResource } = useStudyStore()
+const { getSubjectById, getResourcesBySubject, loading, uploadResource, ensureResourcesLoaded } = useStudyStore()
 const id = ref('')
 const showUpload = ref(false)
 const uploading = ref(false)
@@ -108,19 +109,6 @@ const subjectNoticeSlug = computed(() => {
   if (n === 'gp' || n.includes('general paper')) return 'gp'
   return ''
 })
-
-function shortTimeLabel(iso) {
-  if (!iso) return 'just now'
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-}
 
 function openSubjectNotices() {
   if (!subjectNoticeSlug.value) return
@@ -192,7 +180,10 @@ async function submitUpload() {
   }
 }
 
-onLoad((q) => { id.value = q?.id || '' })
+onLoad(async (q) => {
+  id.value = q?.id || ''
+  await ensureResourcesLoaded()
+})
 </script>
 
 <style scoped>

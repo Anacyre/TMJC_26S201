@@ -35,7 +35,7 @@
         />
       </view>
       <view v-else class="grid">
-        <view v-for="s in subjectsView" :key="s.id" class="card" data-reveal-card role="button" @tap="openSubject(s.id)">
+        <view v-for="s in subjectsView" :key="s.id" v-memo="[s.id, s.name, s.icon, s.filesCount, s.updatedLabel]" class="card" data-reveal-card role="button" @tap="openSubject(s.id)">
           <view class="icon">{{ s.icon }}</view>
           <text class="name">{{ s.name }}</text>
           <text class="meta">{{ s.filesCount }} files · {{ s.updatedLabel }}</text>
@@ -55,7 +55,7 @@
         />
       </view>
       <view v-else>
-        <view v-for="r in latestResourcesView.slice(0,3)" :key="r.id" class="row" data-reveal-card role="button" @tap="openResource(r.id)">
+        <view v-for="r in latestResourcesView.slice(0,3)" :key="r.id" v-memo="[r.id, r.title, r.type, r.uploaderName]" class="row" data-reveal-card role="button" @tap="openResource(r.id)">
           <text class="rTitle">{{ r.title }}</text>
           <text class="rMeta">{{ r.type }} · {{ r.uploaderName }}</text>
         </view>
@@ -87,6 +87,7 @@
 
 <script setup>
 import { computed, ref } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/BottomNav.vue'
 import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
@@ -95,32 +96,20 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useStudyStore } from '@/composables/useStudyStore'
+import { shortTimeLabel } from '@/lib/timeLabel'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 import { navChild, navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
-const { subjects, latestResources, loading, addSubject } = useStudyStore()
+const { subjects, latestResources, loading, addSubject, ensureResourcesLoaded } = useStudyStore()
 const { totalHoursLabel } = useFocusStore()
 const { isAdminActive: isAdmin } = useAdminMode()
 const showAddSubject = ref(false)
 const savingSubject = ref(false)
 const subjectDraft = ref({ name: '', icon: '📘' })
 const focusHoursLabel = computed(() => totalHoursLabel.value || '0 min')
-
-function shortTimeLabel(iso) {
-  if (!iso) return 'just now'
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-}
 
 const subjectsView = computed(() =>
   subjects.value.map((s) => ({
@@ -158,6 +147,10 @@ async function createSubject() {
     savingSubject.value = false
   }
 }
+
+onShow(() => {
+  ensureResourcesLoaded()
+})
 </script>
 
 <style scoped>

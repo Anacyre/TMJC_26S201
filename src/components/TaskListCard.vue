@@ -72,7 +72,7 @@
           </view>
           <view class="stepBody">
             <text class="stepText" :class="{ done: step.done }">{{ step.text || `Step ${idx + 1}` }}</text>
-            <text v-if="stepDeadlineLabel(step)" class="stepDue">{{ stepDeadlineLabel(step) }}</text>
+            <text v-if="stepDueLabels[idx]" class="stepDue">{{ stepDueLabels[idx] }}</text>
           </view>
         </view>
       </view>
@@ -135,11 +135,13 @@ function onStepTap(step) {
   emit('toggle-step', step.id)
 }
 
-function stepDeadlineLabel(step) {
-  const key = parseChecklistItemDeadline(step)
-  if (!key) return ''
-  return formatTaskDueChipLabel({ deadline: key })
-}
+const stepDueLabels = computed(() => {
+  const list = props.task?.checklist || []
+  return list.map((step) => {
+    const key = parseChecklistItemDeadline(step)
+    return key ? formatTaskDueChipLabel({ deadline: key }) : ''
+  })
+})
 </script>
 
 <style scoped>

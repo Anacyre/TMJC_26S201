@@ -1,4 +1,4 @@
-import { computed, ref } from 'vue'
+import { computed, ref, shallowRef } from 'vue'
 import * as tasksApi from '@/api/tasks'
 import {
   parseDueDateKey,
@@ -13,8 +13,10 @@ import {
 } from '@/lib/noticeTaskDeadline'
 import { setInPlanner } from '@/composables/useNotificationStore'
 
-const tasks = ref([])
+const tasks = shallowRef([])
 const loading = ref(false)
+let _lastFetchAt = 0
+const FETCH_TTL_MS = 30_000
 
 function parseDeadlineDate(deadline) {
   if (!deadline) return ''
@@ -24,15 +26,24 @@ function parseDeadlineDate(deadline) {
 
 // ─── Data fetch ────────────────────────────────────────────────────
 
-async function fetchTasks() {
+async function fetchTasks({ force = false } = {}) {
+  const now = Date.now()
+  if (!force && tasks.value.length && now - _lastFetchAt < FETCH_TTL_MS) return
   loading.value = true
   try {
     const { data, error } = await tasksApi.fetchTasks()
-    if (!error) tasks.value = data
-    else console.error('[useTasksStore] fetchTasks:', error.message)
+    if (!error) {
+      tasks.value = data
+      _lastFetchAt = Date.now()
+    } else console.error('[useTasksStore] fetchTasks:', error.message)
   } finally {
     loading.value = false
   }
+}
+
+export function resetTasksSession() {
+  tasks.value = []
+  _lastFetchAt = 0
 }
 
 async function loadTaskById(taskId) {
@@ -41,18 +52,20 @@ async function loadTaskById(taskId) {
   if (cached) return { data: cached, error: null }
 
   const { data, error } = await tasksApi.fetchTaskById(taskId)
-  if (!error && data) {
-    const idx = tasks.value.findIndex((x) => x.id === data.id)
-    if (idx >= 0) tasks.value[idx] = data
-    else tasks.value.unshift(data)
-  }
+  if (!error && data) upsertTask(data)
   return { data, error }
 }
 
 // ─── Read helpers ────────────────────────────────────────────────────
 
+const tasksById = computed(() => {
+  const map = new Map()
+  for (const t of tasks.value) map.set(t.id, t)
+  return map
+})
+
 function getTaskById(id) {
-  return tasks.value.find((x) => x.id === id) || null
+  return tasksById.value.get(id) || null
 }
 
 function upsertTask(task) {
@@ -244,9 +257,13 @@ export async function deleteTaskBySourceNotice(noticeId) {
 
 // ─── Computed ────────────────────────────────────────────────────
 
-const tasksCountRecent = computed(() =>
-  tasks.value.filter((x) => !x.done && taskDueBucket(x) === 'recent').length
-)
+const tasksCountRecent = computed(() => {
+  let count = 0
+  for (const x of tasks.value) {
+    if (!x.done && taskDueBucket(x) === 'recent') count += 1
+  }
+  return count
+})
 
 export function useTasksStore() {
   return {

@@ -50,6 +50,7 @@ import { toast } from '@/composables/useToast'
 import { deleteConfirm } from '@/composables/useConfirmDelete'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
 import { addNoticeToPlanner } from '@/lib/noticePlanner'
+import { shortTimeLabel } from '@/lib/timeLabel'
 
 const { themeClass } = useTheme()
 const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, removeNotification } = useNotificationStore()
@@ -79,19 +80,6 @@ const canDelete = computed(() => {
   if (!userId || !n?.id) return false
   return isAdminActive.value || n.createdBy === userId
 })
-
-function shortTimeLabel(iso) {
-  if (!iso) return 'just now'
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-}
 
 function markAsRead() {
   if (!notice.value?.id) return

@@ -8,23 +8,24 @@
         <view class="safe">
           <view class="sectionHead">
             <text class="sectionLabel">Members</text>
-            <text class="sectionCount">{{ visibleMembers.length }}</text>
+            <text class="sectionCount">{{ memberCards.length }}</text>
           </view>
 
-          <view v-if="!visibleMembers.length" class="emptyWrap">
+          <view v-if="!memberCards.length" class="emptyWrap">
             <EmptyState variant="members" title="No members" />
           </view>
 
           <view v-else class="grid">
             <view
-              v-for="m in visibleMembers"
+              v-for="m in memberCards"
               :key="m.id"
+              v-memo="[m.id, m.name, m.initials]"
               class="mCard tap"
               data-reveal-card
               role="button"
               @tap="openMember(m.id)"
             >
-              <view class="mAvatar">{{ initials(m.name) }}</view>
+              <view class="mAvatar">{{ m.initials }}</view>
               <text class="mName">{{ m.name }}</text>
             </view>
           </view>
@@ -38,20 +39,26 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useMemberStore } from '@/composables/useMemberStore'
+import { personInitials } from '@/lib/personDisplay'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 const { visibleMembers } = useMemberStore()
 
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
+const memberCards = computed(() =>
+  visibleMembers.value.map((m) => ({
+    id: m.id,
+    name: m.name,
+    initials: personInitials(m.name),
+  }))
+)
 
 function openMember(id) {
   navSibling(`/pages/member/profile?id=${id}`)

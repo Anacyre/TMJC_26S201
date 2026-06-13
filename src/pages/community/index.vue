@@ -65,8 +65,8 @@
               </view>
               <CommunityRowLink
                 title="Materials"
-                :meta="materialPosts.length ? `${materialPosts.length} files across spaces` : 'Shared files'"
-                :count="materialPosts.length || ''"
+                :meta="totalMaterialCount ? `${totalMaterialCount} files across spaces` : 'Shared files'"
+                :count="totalMaterialCount || ''"
                 show-folder-icon
                 @open="openMaterials()"
               />
@@ -81,6 +81,7 @@
                 <CommunitySpaceCard
                   v-for="c in pinnedSpaces"
                   :key="c.id"
+                  v-memo="[c.id, c.name, c.desc, c.icon, c.pinned]"
                   :space="c"
                   data-reveal-card
                   @open="openFeed(c.id)"
@@ -101,6 +102,7 @@
                 <CommunitySpaceCard
                   v-for="c in otherSpaces"
                   :key="c.id"
+                  v-memo="[c.id, c.name, c.desc, c.icon, c.pinned]"
                   :space="c"
                   data-reveal-card
                   @open="openFeed(c.id)"
@@ -173,6 +175,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import BottomNav from '@/components/BottomNav.vue'
 import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
@@ -195,14 +198,23 @@ import {
 } from '@/lib/communityIcons'
 
 const { themeClass } = useTheme()
-const { sortedCommunities, materialPosts, loading, addCommunity } = useCommunityStore()
+const { sortedCommunities, totalMaterialCount, loading, addCommunity, ensurePostsLoaded } = useCommunityStore()
 const { unreadRelevantCount } = useNotificationStore()
 const { syncFromCommunities } = useTagStore()
 
 const unreadCount = unreadRelevantCount
 const hasUnreadNotices = computed(() => unreadCount.value > 0)
-const pinnedSpaces = computed(() => sortedCommunities.value.filter((c) => c.pinned))
-const otherSpaces = computed(() => sortedCommunities.value.filter((c) => !c.pinned))
+const spaceGroups = computed(() => {
+  const pinned = []
+  const other = []
+  for (const c of sortedCommunities.value) {
+    if (c.pinned) pinned.push(c)
+    else other.push(c)
+  }
+  return { pinned, other }
+})
+const pinnedSpaces = computed(() => spaceGroups.value.pinned)
+const otherSpaces = computed(() => spaceGroups.value.other)
 
 const iconPresets = COMMUNITY_ICON_PRESETS
 const showAddCommunity = ref(false)
@@ -280,6 +292,10 @@ async function createCommunity() {
   resetDraft()
   toast.communityCreated()
 }
+
+onShow(() => {
+  ensurePostsLoaded()
+})
 </script>
 
 <style scoped>

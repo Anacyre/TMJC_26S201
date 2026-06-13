@@ -56,8 +56,13 @@
             </view>
 
             <view v-else class="commentList">
-              <view v-for="c in comments" :key="c.id" class="commentRow">
-                <view class="commentAvatar">{{ initials(c.author) }}</view>
+              <view
+                v-for="c in commentsView"
+                :key="c.id"
+                v-memo="[c.id, c.text, c.author]"
+                class="commentRow"
+              >
+                <view class="commentAvatar">{{ c.avatarInitials }}</view>
                 <view class="commentBody">
                   <text class="commentAuthor">{{ c.author }}</text>
                   <text class="commentText">{{ c.text }}</text>
@@ -92,10 +97,12 @@ import { useMemberStore } from '@/composables/useMemberStore'
 import { usePostDelete } from '@/composables/usePostDelete'
 import { navSibling } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
+import { personInitials } from '@/lib/personDisplay'
+import { shortTimeLabel } from '@/lib/timeLabel'
 
 const { themeClass } = useTheme()
-const { getPostById, getComments, addComment, fetchComments, togglePostLike, getCommunityById, getPostsByCommunity } = useCommunityStore()
-const { visibleMembers } = useMemberStore()
+const { getPostById, getComments, addComment, fetchComments, togglePostLike, getCommunityById, getRegularPostCount, ensurePostsLoaded } = useCommunityStore()
+const { visibleMemberCount } = useMemberStore()
 const { canDelete, confirmDeletePost } = usePostDelete()
 const id = ref('')
 const saved = ref(false)
@@ -103,34 +110,23 @@ const reply = ref('')
 const deleteActions = [{ id: 'delete', label: 'Delete', icon: 'trash', danger: true }]
 const post = computed(() => getPostById(id.value))
 const comments = computed(() => getComments(id.value))
+const commentsView = computed(() =>
+  comments.value.map((c) => ({
+    ...c,
+    avatarInitials: personInitials(c.author),
+  }))
+)
 const community = computed(() => {
   const cid = post.value?.communityId
   return cid ? getCommunityById(cid) : null
 })
 const spacePostCount = computed(() => {
   const cid = post.value?.communityId
-  return cid ? getPostsByCommunity(cid).length : null
+  return cid ? getRegularPostCount(cid) : null
 })
-const memberCount = computed(() => visibleMembers.value.length)
+const memberCount = visibleMemberCount
 const postTimeLabel = computed(() => shortTimeLabel(post.value?.createdAt))
 const showDeleteBtn = computed(() => canDelete(post.value))
-
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
-
-function shortTimeLabel(iso) {
-  if (!iso) return 'just now'
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  const d = Math.floor(h / 24)
-  if (d < 7) return `${d}d ago`
-  return new Date(iso).toLocaleDateString('en-SG', { month: 'short', day: 'numeric' })
-}
 
 function onToggleLike() {
   if (!post.value?.id) return
@@ -176,8 +172,9 @@ function send() {
   reply.value = ''
 }
 
-onLoad((q) => {
+onLoad(async (q) => {
   id.value = q?.id || ''
+  await ensurePostsLoaded()
   fetchComments(id.value)
 })
 </script>

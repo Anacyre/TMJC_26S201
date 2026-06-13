@@ -1,7 +1,7 @@
 <template>
   <view class="panel postPanel">
     <view class="authorRow">
-      <view class="authorAvatar">{{ initials(authorName) }}</view>
+      <view class="authorAvatar">{{ avatarInitials }}</view>
       <view class="authorCopy">
         <text class="authorName">{{ authorName }}</text>
         <text class="authorTime">{{ timeLabel }}</text>
@@ -53,6 +53,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { personInitials } from '@/lib/personDisplay'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -65,10 +66,7 @@ defineEmits(['toggleLike', 'toggleSave', 'openAttachment'])
 const authorName = computed(() =>
   props.post.anonymous ? 'Anonymous' : props.post.author
 )
-
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
+const avatarInitials = computed(() => personInitials(authorName.value))
 </script>
 
 <style scoped>

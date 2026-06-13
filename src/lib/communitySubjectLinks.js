@@ -20,6 +20,19 @@ export function communitySubjectFilterLabels(communities = []) {
   return ['All subjects', ...communities.map((c) => c.name)]
 }
 
+/** Single-pass subject filter maps for picker UIs. */
+export function buildCommunitySubjectFilterMaps(communities = []) {
+  const labels = communitySubjectFilterLabels(communities)
+  const valueByLabel = { 'All subjects': 'All' }
+  const labelByValue = { All: 'All subjects' }
+  for (const c of communities) {
+    if (!c?.name) continue
+    valueByLabel[c.name] = c.id
+    labelByValue[c.id] = c.name
+  }
+  return { labels, valueByLabel, labelByValue }
+}
+
 export function communitySubjectFilterValue(label, communities = []) {
   if (label === 'All subjects' || !label) return 'All'
   const match = communities.find((c) => c.name === label)

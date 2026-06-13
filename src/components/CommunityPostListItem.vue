@@ -1,7 +1,7 @@
 <template>
   <view class="item tap" role="button" @tap="$emit('open')">
     <view class="itemHead">
-      <view class="avatar">{{ initials(authorName) }}</view>
+      <view class="avatar">{{ avatarInitials }}</view>
       <view class="headCopy">
         <text class="author">{{ authorName }}</text>
         <text class="time">{{ post.timeLabel }}</text>
@@ -21,6 +21,7 @@
 <script setup>
 import { computed } from 'vue'
 import { isMaterialPost } from '@/lib/communityMaterials'
+import { personInitials } from '@/lib/personDisplay'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -32,15 +33,13 @@ const authorName = computed(() =>
   props.post.anonymous ? 'Anonymous' : props.post.author
 )
 
+const avatarInitials = computed(() => personInitials(authorName.value))
+
 const attachLabel = computed(() => {
   if (isMaterialPost(props.post)) return 'Material'
   if (props.post.image) return 'Image'
   return 'File'
 })
-
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
 </script>
 
 <style scoped>

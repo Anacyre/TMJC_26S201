@@ -4,7 +4,7 @@
     <AppHeader nav-mode="back" />
     <scroll-view class="scroll" scroll-y :show-scrollbar="false">
       <view class="hero">
-        <view class="avatar">{{ initials(member.name) }}</view>
+        <view class="avatar">{{ personInitials(member.name) }}</view>
         <text class="name">{{ member.name }}</text>
         <view class="metaLine">
           <text v-if="member.mbti" class="mbti">{{ member.mbti }}</text>
@@ -189,6 +189,7 @@ import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { hasActiveSession } from '@/api/auth'
 import { signOut, goLogin } from '@/composables/useAuthSession'
 import { navSibling } from '@/lib/navigation'
+import { personInitials } from '@/lib/personDisplay'
 
 const { themeClass } = useTheme()
 const { getMemberById } = useCommunityStore()
@@ -246,10 +247,6 @@ const topSubjectLabel = computed(() => {
   if (!list.length) return '-'
   return list[0].name
 })
-
-function initials(name) {
-  return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
-}
 
 async function saveProfile() {
   try {

@@ -3,7 +3,7 @@ import { useTasksStore } from './useTasksStore'
 import { useCommunityStore } from './useCommunityStore'
 import { useStudyStore } from './useStudyStore'
 import { useNotificationStore } from './useNotificationStore'
-import { useAdminMode } from '@/composables/useAdminMode'
+import { visibleMembers } from './useMemberStore'
 
 const RECENT_KEY = 'global_search_recent_v1'
 
@@ -64,39 +64,59 @@ function setQuery(value) {
   query.value = isString(value) ? value : ''
 }
 
-function isTestAccount(name) {
-  return String(name || '').trim().toLowerCase().startsWith('test')
-}
+const EMPTY_RESULTS = []
 
 export function useGlobalSearch() {
   const { tasks } = useTasksStore()
-  const { communities, members } = useCommunityStore()
+  const { communities } = useCommunityStore()
   const { resources } = useStudyStore()
   const { visibleNotifications } = useNotificationStore()
-  const { isAdminActive } = useAdminMode()
   const q = computed(() => (isString(query.value) ? query.value.trim().toLowerCase() : ''))
+  const active = computed(() => open.value)
 
-  const resultTasks = computed(() =>
-    tasks.value.filter((x) => {
-      if (!q.value) return true
-      return includesText(x.title, q.value) || includesText(x.subject, q.value) || includesText(x.description, q.value)
-    })
-  )
-
-  const resultCommunities = computed(() =>
-    communities.value.filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.desc, q.value))
-  )
-  const resultMembers = computed(() => {
-    return members.value
-      .filter((x) => isAdminActive.value || !isTestAccount(x.name))
-      .filter((x) => !q.value || includesText(x.name, q.value) || includesText(x.interests, q.value))
+  const resultTasks = computed(() => {
+    if (!active.value) return EMPTY_RESULTS
+    if (!q.value) return tasks.value
+    return tasks.value.filter(
+      (x) =>
+        includesText(x.title, q.value) ||
+        includesText(x.subject, q.value) ||
+        includesText(x.description, q.value)
+    )
   })
-  const resultNotifications = computed(() =>
-    visibleNotifications.value.filter((x) => !q.value || includesText(x.title, q.value) || includesText(x.type, q.value))
-  )
-  const resultResources = computed(() =>
-    resources.value.filter((x) => !q.value || includesText(x.title, q.value) || includesText(x.by, q.value))
-  )
+
+  const resultCommunities = computed(() => {
+    if (!active.value) return EMPTY_RESULTS
+    if (!q.value) return communities.value
+    return communities.value.filter(
+      (x) => includesText(x.name, q.value) || includesText(x.desc, q.value)
+    )
+  })
+
+  const resultMembers = computed(() => {
+    if (!active.value) return EMPTY_RESULTS
+    const pool = visibleMembers.value
+    if (!q.value) return pool
+    return pool.filter(
+      (x) => includesText(x.name, q.value) || includesText(x.interests, q.value)
+    )
+  })
+
+  const resultNotifications = computed(() => {
+    if (!active.value) return EMPTY_RESULTS
+    if (!q.value) return visibleNotifications.value
+    return visibleNotifications.value.filter(
+      (x) => includesText(x.title, q.value) || includesText(x.type, q.value)
+    )
+  })
+
+  const resultResources = computed(() => {
+    if (!active.value) return EMPTY_RESULTS
+    if (!q.value) return resources.value
+    return resources.value.filter(
+      (x) => includesText(x.title, q.value) || includesText(x.by, q.value)
+    )
+  })
 
   return {
     open,

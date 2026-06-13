@@ -96,6 +96,18 @@
               <view
                 v-for="t in section.tasks"
                 :key="t.id"
+                v-memo="[
+                  t.id,
+                  t.done,
+                  t.status,
+                  sortMode,
+                  expandedTaskIds[t.id],
+                  completingAnim.has(t.id),
+                  completingStrike.has(t.id),
+                  pressedKey === t.id,
+                  isDoneView && leavingTaskIds.has(t.id),
+                  !isDoneView && exitingActiveTaskIds.has(t.id),
+                ]"
                 class="taskRow"
                 :class="{
                   completing: completingAnim.has(t.id),
@@ -157,7 +169,7 @@
 </template>
 
 <script setup>
-import { computed, ref, nextTick, TransitionGroup } from 'vue'
+import { computed, ref, nextTick, TransitionGroup, shallowRef, triggerRef } from 'vue'
 import BottomNav from '@/components/BottomNav.vue'
 import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
@@ -172,9 +184,7 @@ import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import {
-  communitySubjectFilterLabels,
-  communitySubjectFilterValue,
-  communitySubjectFilterLabel,
+  buildCommunitySubjectFilterMaps,
   findCommunityByFilterValue,
   taskMatchesCommunitySubject,
 } from '@/lib/communitySubjectLinks'
@@ -226,10 +236,10 @@ const sortModeByLabel = { 'Due date': 'due-date', Priority: 'priority' }
 
 const SWIPE_ACTION_MS = 220
 
-const hiddenTaskIds = ref(new Set())
-const leavingTaskIds = ref(new Set())
+const hiddenTaskIds = shallowRef(new Set())
+const leavingTaskIds = shallowRef(new Set())
 /** Briefly keep row on active tabs while archive/delete leave anim runs */
-const exitingActiveTaskIds = ref(new Set())
+const exitingActiveTaskIds = shallowRef(new Set())
 
 const filterTab = ref('')
 const isDoneView = computed(() => filterTab.value === 'done')
@@ -241,18 +251,17 @@ const filterPickerOpen = ref(false)
 const sortPickerOpen = ref(false)
 const subjectPickerOpen = ref(false)
 const subjectFilter = ref('All')
-const subjectFilterOptions = computed(() =>
-  communitySubjectFilterLabels(sortedCommunities.value)
-)
+const subjectFilterMaps = computed(() => buildCommunitySubjectFilterMaps(sortedCommunities.value))
+const subjectFilterOptions = computed(() => subjectFilterMaps.value.labels)
 const subjectFilterLabel = computed(() =>
-  communitySubjectFilterLabel(subjectFilter.value, sortedCommunities.value)
+  subjectFilterMaps.value.labelByValue[subjectFilter.value] || 'All subjects'
 )
 const sortMode = ref('due-date')
 const pressedKey = ref('')
-const completingIds = ref(new Set())
-const completingStrike = ref(new Set())
-const completingAnim = ref(new Set())
-const completingBuckets = ref(new Map())
+const completingIds = shallowRef(new Set())
+const completingStrike = shallowRef(new Set())
+const completingAnim = shallowRef(new Set())
+const completingBuckets = shallowRef(new Map())
 /** @type {Map<string, { fade: ReturnType<typeof setTimeout>, hide: ReturnType<typeof setTimeout> }>} */
 const completeAnimTimers = new Map()
 const taskCompleteAnimStyle = {
@@ -263,42 +272,44 @@ const taskCompleteAnimStyle = {
 const createOpen = ref(false)
 const createEditorRef = ref(null)
 const collapsedSections = ref(new Set())
-const expandedTaskIds = ref({})
+const expandedTaskIds = shallowRef({})
 const emptyTask = ref({ title: '', description: '', deadline: '', subject: '', priority: 'P2', reminder: '', checklist: [] })
 
 const filterDisplayLabel = computed(() => filterLabelById[filterTab.value] || 'All tasks')
 const sortDisplayLabel = computed(() => sortLabelByMode[sortMode.value] || 'Due date')
 
 function hideTask(id) {
-  hiddenTaskIds.value = new Set([...hiddenTaskIds.value, id])
+  hiddenTaskIds.value.add(id)
+  triggerRef(hiddenTaskIds)
 }
 
 function unhideTask(id) {
-  const next = new Set(hiddenTaskIds.value)
-  next.delete(id)
-  hiddenTaskIds.value = next
+  hiddenTaskIds.value.delete(id)
+  triggerRef(hiddenTaskIds)
 }
 
 const tabTasks = computed(() => {
   const subjectCommunity = findCommunityByFilterValue(sortedCommunities.value, subjectFilter.value)
-  const pool = tasks.value.filter((x) => !hiddenTaskIds.value.has(x.id))
-  let items
-  if (filterTab.value === 'done') {
-    items = pool.filter(
-      (x) =>
-        taskInDonePool(x) ||
-        completingIds.value.has(x.id) ||
-        leavingTaskIds.value.has(x.id)
-    )
-  } else {
-    items = pool.filter((x) => {
-      if (completingIds.value.has(x.id)) return true
-      if (exitingActiveTaskIds.value.has(x.id)) return true
-      return taskIsActiveForTab(x, filterTab.value)
-    })
-  }
-  if (subjectCommunity) {
-    items = items.filter((x) => taskMatchesCommunitySubject(x, subjectCommunity))
+  const hidden = hiddenTaskIds.value
+  const completing = completingIds.value
+  const leaving = leavingTaskIds.value
+  const exiting = exitingActiveTaskIds.value
+  const isDone = filterTab.value === 'done'
+  const tab = filterTab.value
+  const items = []
+
+  for (const x of tasks.value) {
+    if (hidden.has(x.id)) continue
+
+    let include
+    if (isDone) {
+      include = taskInDonePool(x) || completing.has(x.id) || leaving.has(x.id)
+    } else {
+      include = completing.has(x.id) || exiting.has(x.id) || taskIsActiveForTab(x, tab)
+    }
+    if (!include) continue
+    if (subjectCommunity && !taskMatchesCommunitySubject(x, subjectCommunity)) continue
+    items.push(x)
   }
   return items
 })
@@ -307,19 +318,18 @@ const groupedSections = computed(() => {
   const items = tabTasks.value
   if (!items.length) return []
 
-  let displayItems = items
-  if (completingBuckets.value.size) {
-    displayItems = items.map((t) => {
-      const bucket = completingBuckets.value.get(t.id)
-      if (!bucket || bucket === 'completed' || bucket === 'archived') return t
-      // Keep row in its pre-complete section; strikethrough comes from the completing prop.
-      return {
-        ...t,
-        done: false,
-        status: bucket === 'no-deadline' ? 'recent' : bucket,
-      }
-    })
-  }
+  const buckets = completingBuckets.value
+  const displayItems = buckets.size
+    ? items.map((t) => {
+        const bucket = buckets.get(t.id)
+        if (!bucket || bucket === 'completed' || bucket === 'archived') return t
+        return {
+          ...t,
+          done: false,
+          status: bucket === 'no-deadline' ? 'recent' : bucket,
+        }
+      })
+    : items
 
   return buildTaskSections(displayItems, sortMode.value)
 })
@@ -340,8 +350,10 @@ function onFilterPick(label) {
   const next = filterIdByLabel[label] ?? ''
   filterTab.value = next
   filterPickerOpen.value = false
-  leavingTaskIds.value = new Set()
-  exitingActiveTaskIds.value = new Set()
+  leavingTaskIds.value.clear()
+  exitingActiveTaskIds.value.clear()
+  triggerRef(leavingTaskIds)
+  triggerRef(exitingActiveTaskIds)
   pressedKey.value = ''
 }
 
@@ -351,7 +363,7 @@ function onSortPick(label) {
 }
 
 function onSubjectFilterPick(label) {
-  subjectFilter.value = communitySubjectFilterValue(label, sortedCommunities.value)
+  subjectFilter.value = subjectFilterMaps.value.valueByLabel[label] ?? 'All'
   subjectPickerOpen.value = false
 }
 
@@ -406,7 +418,7 @@ function taskStatusSnapshot(task) {
 function prepareTaskCompleteAnimation(task) {
   beginCompleteHide(task)
   delete expandedTaskIds.value[task.id]
-  expandedTaskIds.value = { ...expandedTaskIds.value }
+  triggerRef(expandedTaskIds)
   scheduleTaskCompleteAnimationPhases(task.id)
 }
 
@@ -430,38 +442,35 @@ function isTaskExpanded(id) {
 }
 
 function onTaskExpand(taskId, open) {
-  const next = { ...expandedTaskIds.value }
-  if (open) next[taskId] = true
-  else delete next[taskId]
-  expandedTaskIds.value = next
+  if (open) expandedTaskIds.value[taskId] = true
+  else delete expandedTaskIds.value[taskId]
+  triggerRef(expandedTaskIds)
 }
 
 function beginCompleteHide(task) {
-  const buckets = new Map(completingBuckets.value)
-  buckets.set(task.id, taskDueBucket(task))
-  completingBuckets.value = buckets
-  completingIds.value = new Set([...completingIds.value, task.id])
-  completingStrike.value = new Set([...completingStrike.value, task.id])
+  completingBuckets.value.set(task.id, taskDueBucket(task))
+  completingIds.value.add(task.id)
+  completingStrike.value.add(task.id)
+  triggerRef(completingBuckets)
+  triggerRef(completingIds)
+  triggerRef(completingStrike)
 }
 
 function startCompleteAnim(id) {
-  completingAnim.value = new Set([...completingAnim.value, id])
+  completingAnim.value.add(id)
+  triggerRef(completingAnim)
 }
 
 function endCompleteHide(id) {
   cancelTaskCompleteAnimation(id)
-  const buckets = new Map(completingBuckets.value)
-  buckets.delete(id)
-  completingBuckets.value = buckets
-  const ids = new Set(completingIds.value)
-  ids.delete(id)
-  completingIds.value = ids
-  const anim = new Set(completingAnim.value)
-  anim.delete(id)
-  completingAnim.value = anim
-  const strike = new Set(completingStrike.value)
-  strike.delete(id)
-  completingStrike.value = strike
+  completingBuckets.value.delete(id)
+  completingIds.value.delete(id)
+  completingAnim.value.delete(id)
+  completingStrike.value.delete(id)
+  triggerRef(completingBuckets)
+  triggerRef(completingIds)
+  triggerRef(completingAnim)
+  triggerRef(completingStrike)
 }
 
 async function toggleDone(t) {
@@ -498,13 +507,13 @@ async function createTask(payload) {
 }
 
 function beginDoneListLeave(id) {
-  leavingTaskIds.value = new Set([...leavingTaskIds.value, id])
+  leavingTaskIds.value.add(id)
+  triggerRef(leavingTaskIds)
   nextTick(() => {
     requestAnimationFrame(() => {
       setTimeout(() => {
-        const next = new Set(leavingTaskIds.value)
-        next.delete(id)
-        leavingTaskIds.value = next
+        leavingTaskIds.value.delete(id)
+        triggerRef(leavingTaskIds)
       }, DONE_LIST_REFLOW_MS)
     })
   })
@@ -520,14 +529,14 @@ function buildRestoredTaskPatch(task) {
 }
 
 function scheduleActiveTabLeave(id, afterLeave) {
-  exitingActiveTaskIds.value = new Set([...exitingActiveTaskIds.value, id])
+  exitingActiveTaskIds.value.add(id)
+  triggerRef(exitingActiveTaskIds)
   nextTick(() => {
     requestAnimationFrame(() => {
       setTimeout(() => {
         afterLeave?.()
-        const next = new Set(exitingActiveTaskIds.value)
-        next.delete(id)
-        exitingActiveTaskIds.value = next
+        exitingActiveTaskIds.value.delete(id)
+        triggerRef(exitingActiveTaskIds)
       }, DONE_LIST_REFLOW_MS)
     })
   })
@@ -584,12 +593,10 @@ function archiveTaskRow(id) {
     message: 'Task archived',
     menuLabel: `Archive “${task.title || 'Task'}”`,
     undo: () => {
-      const ex = new Set(exitingActiveTaskIds.value)
-      ex.delete(id)
-      exitingActiveTaskIds.value = ex
-      const leaving = new Set(leavingTaskIds.value)
-      leaving.delete(id)
-      leavingTaskIds.value = leaving
+      exitingActiveTaskIds.value.delete(id)
+      leavingTaskIds.value.delete(id)
+      triggerRef(exitingActiveTaskIds)
+      triggerRef(leavingTaskIds)
       patchTask(id, snap)
     },
     commit: async () => {
@@ -615,9 +622,8 @@ function restoreTaskRow(id) {
     message: 'Task restored',
     menuLabel: `Restore “${task.title || 'Task'}”`,
     undo: () => {
-      const leaving = new Set(leavingTaskIds.value)
-      leaving.delete(id)
-      leavingTaskIds.value = leaving
+      leavingTaskIds.value.delete(id)
+      triggerRef(leavingTaskIds)
       patchTask(id, snap)
     },
     commit: async () => {

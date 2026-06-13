@@ -378,14 +378,20 @@ export function groupTasksByPriority(tasks) {
 }
 
 export function buildTaskListSectionsByDate(tasks) {
-  const undated = tasks.filter((t) => taskDueBucket(t) === 'no-deadline')
-  const done = tasks.filter((t) => {
+  const undated = []
+  const done = []
+  const overdueItems = []
+  const recentItems = []
+  const upcomingItems = []
+
+  for (const t of tasks) {
     const bucket = taskDueBucket(t)
-    return bucket === 'completed' || bucket === 'archived'
-  })
-  const overdueItems = tasks.filter((t) => taskDueBucket(t) === 'overdue')
-  const recentItems = tasks.filter((t) => taskDueBucket(t) === 'recent')
-  const upcomingItems = tasks.filter((t) => taskDueBucket(t) === 'upcoming')
+    if (bucket === 'no-deadline') undated.push(t)
+    else if (bucket === 'completed' || bucket === 'archived') done.push(t)
+    else if (bucket === 'overdue') overdueItems.push(t)
+    else if (bucket === 'recent') recentItems.push(t)
+    else if (bucket === 'upcoming') upcomingItems.push(t)
+  }
 
   const sections = []
   if (overdueItems.length) sections.push(...groupTasksByDueDate(overdueItems).reverse())

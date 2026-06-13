@@ -1,10 +1,12 @@
 import { useUserStore } from '@/composables/useUserStore'
-import { useTasksStore } from '@/composables/useTasksStore'
+import { useTasksStore, resetTasksSession } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useCommunityStore } from '@/composables/useCommunityStore'
-import { useStudyStore } from '@/composables/useStudyStore'
+import { useStudyStore, resetStudySession } from '@/composables/useStudyStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { useTagStore } from '@/composables/useTagStore'
+import { resetCommunityPostsCache } from '@/composables/useCommunityStore'
+import { resetNotificationSession } from '@/composables/useNotificationStore'
 
 let _booting = null
 let _booted = false
@@ -35,13 +37,11 @@ export function bootstrapData({ force = false } = {}) {
     bindUser(userStore.currentUser.value.id)
 
     await Promise.all([
-      tasksStore.fetchTasks(),
-      noticesStore.fetchNotifications(),
+      tasksStore.fetchTasks({ force }),
+      noticesStore.fetchNotifications({ force }),
       communityStore.fetchCommunities(),
       communityStore.fetchMembers(),
-      communityStore.fetchPosts(),
       studyStore.fetchSubjects(),
-      studyStore.fetchResources(),
       fetchFocusSessions(userStore.currentUser.value.id),
     ])
     useTagStore().syncFromCommunities(communityStore.communities.value)
@@ -56,4 +56,8 @@ export function bootstrapData({ force = false } = {}) {
 export function resetBootstrap() {
   _booted = false
   _booting = null
+  resetCommunityPostsCache()
+  resetNotificationSession()
+  resetTasksSession()
+  resetStudySession()
 }
