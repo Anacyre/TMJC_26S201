@@ -11,6 +11,8 @@ export async function fetchCommunities() {
   const { data, error } = await supabase
     .from('communities')
     .select('*')
+    .order('is_pinned', { ascending: false })
+    .order('pinned_at', { ascending: false, nullsFirst: false })
     .order('name')
   return {
     data: error ? [] : (data || []).map(rowToCommunity),
@@ -39,6 +41,7 @@ export async function createCommunity(payload) {
       name: payload.name,
       desc: payload.desc || '',
       created_by: user.id,
+      updated_at: new Date().toISOString(),
     })
     .select()
     .single()
@@ -63,16 +66,27 @@ export async function updateCommunity(id, payload) {
   if (payload.name !== undefined) patch.name = String(payload.name).trim()
   if (payload.desc !== undefined) patch.desc = String(payload.desc).trim()
   if (payload.icon !== undefined) patch.icon = String(payload.icon).trim() || '◉'
+  if (payload.pinned !== undefined) {
+    patch.is_pinned = !!payload.pinned
+    patch.pinned_at = payload.pinned ? new Date().toISOString() : null
+  }
   patch.updated_at = new Date().toISOString()
 
   const { data, error } = await supabase
     .from('communities')
     .update(patch)
     .eq('id', id)
-    .select()
+    .select('*')
     .single()
 
-  return { data: data ? rowToCommunity(data) : null, error }
+  if (error) {
+    if (error.code === '23505') {
+      return { data: null, error: new Error('A space with this name already exists') }
+    }
+    return { data: null, error }
+  }
+
+  return { data: data ? rowToCommunity(data) : null, error: null }
 }
 
 function rowToCommunity(row) {
@@ -91,6 +105,8 @@ function rowToCommunity(row) {
     createdByName: creatorName,
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || row.created_at || '',
+    pinned: !!row.is_pinned,
+    pinnedAt: row.pinned_at || '',
   }
 }
 
@@ -116,6 +132,8 @@ function rowToPost(row) {
     attachmentUrl: row.attachment_url || '',
     fileKey: row.file_key || '',
     liked: row.liked || false,
+    postType: row.post_type || 'regular',
+    fileSize: row.file_size || 0,
     createdAt: row.created_at,
   }
 }
@@ -137,6 +155,7 @@ export async function fetchPosts(options = {}) {
     `)
 
   if (options.communityId) query = query.eq('community_id', options.communityId)
+  if (options.postType) query = query.eq('post_type', options.postType)
 
   if (options.sort === 'hot') {
     query = query.order('likes_count', { ascending: false })
@@ -215,6 +234,8 @@ export async function createPost(payload) {
       attachment: payload.attachment || '',
       attachment_url: payload.attachmentUrl || '',
       file_key: payload.fileKey || '',
+      post_type: payload.postType || 'regular',
+      file_size: payload.fileSize || 0,
       likes_count: 0,
       comments_count: 0,
     })

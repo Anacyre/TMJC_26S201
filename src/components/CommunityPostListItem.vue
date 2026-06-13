@@ -7,7 +7,7 @@
         <text class="time">{{ post.timeLabel }}</text>
       </view>
       <view v-if="post.image || post.attachment" class="attachTag">
-        <text class="attachTagText">{{ post.image ? 'Image' : 'File' }}</text>
+        <text class="attachTagText">{{ attachLabel }}</text>
       </view>
     </view>
     <text class="title">{{ post.title }}</text>
@@ -20,6 +20,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import { isMaterialPost } from '@/lib/communityMaterials'
 
 const props = defineProps({
   post: { type: Object, required: true },
@@ -31,6 +32,12 @@ const authorName = computed(() =>
   props.post.anonymous ? 'Anonymous' : props.post.author
 )
 
+const attachLabel = computed(() => {
+  if (isMaterialPost(props.post)) return 'Material'
+  if (props.post.image) return 'Image'
+  return 'File'
+})
+
 function initials(name) {
   return String(name || '?').split(' ').map((x) => x[0]).join('').slice(0, 2).toUpperCase()
 }
@@ -38,14 +45,14 @@ function initials(name) {
 
 <style scoped>
 .item {
-  padding: 14rpx 16rpx;
-  border-radius: 20rpx;
-  background: rgba(16, 24, 40, 0.03);
+  padding: var(--list-card-pad-y, 14rpx) var(--list-card-pad-x, 16rpx);
+  border-radius: var(--list-card-radius, 20rpx);
+  background: rgba(255, 255, 255, 0.7);
   border: 1rpx solid rgba(16, 24, 40, 0.04);
 }
 .t-dark .item {
-  background: rgba(255, 255, 255, 0.03);
-  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.06);
 }
 .item:active { opacity: 0.9; transform: scale(0.99); }
 .itemHead { display: flex; align-items: center; gap: 10rpx; }

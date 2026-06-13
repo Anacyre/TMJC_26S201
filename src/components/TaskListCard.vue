@@ -11,7 +11,7 @@
         <view
           class="check tap"
           data-swipe-ignore
-          :class="{ on: task.done }"
+          :class="{ on: task.done || completing }"
           role="button"
           @tap.stop="$emit('toggle')"
           @touchstart.stop
@@ -166,15 +166,15 @@ function stepDeadlineLabel(step) {
   text-decoration: line-through;
   text-decoration-thickness: 2rpx;
   transition:
-    opacity 380ms cubic-bezier(0.4, 0, 0.2, 1),
-    text-decoration-color 380ms ease;
+    opacity var(--task-complete-strike-ms, 210ms) cubic-bezier(0.4, 0, 0.2, 1),
+    text-decoration-color var(--task-complete-strike-ms, 210ms) ease;
 }
 .card.completingFade {
   opacity: 0;
   transform: scale(0.985) translateY(-4rpx);
   transition:
-    opacity 480ms cubic-bezier(0.4, 0, 0.2, 1),
-    transform 480ms cubic-bezier(0.4, 0, 0.2, 1);
+    opacity var(--task-complete-fade-ms, 80ms) cubic-bezier(0.4, 0, 0.2, 1),
+    transform var(--task-complete-fade-ms, 80ms) cubic-bezier(0.4, 0, 0.2, 1);
 }
 .t-dark .card {
   background: rgba(255, 255, 255, 0.04);

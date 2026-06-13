@@ -546,6 +546,8 @@ function rowToPost(row, likedSet = new Set()) {
     attachmentUrl: row.attachment_url || '',
     fileKey: row.file_key || '',
     liked: likedSet.has(row.id),
+    postType: row.post_type || 'regular',
+    fileSize: row.file_size || 0,
     createdAt: row.created_at,
   }
 }
@@ -574,6 +576,8 @@ function rowToCommunity(row) {
     createdByName: creator?.display_name || creator?.name || '',
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || row.created_at || '',
+    pinned: !!row.is_pinned,
+    pinnedAt: row.pinned_at || '',
   }
 }
 
@@ -1082,7 +1086,13 @@ export async function deleteNotification(notificationId) {
 export async function fetchCommunities() {
   await tick()
   const data = [..._state.communities]
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => {
+      const pa = a.is_pinned ? 1 : 0
+      const pb = b.is_pinned ? 1 : 0
+      if (pa !== pb) return pb - pa
+      if (pa && pb) return (b.pinned_at || '').localeCompare(a.pinned_at || '')
+      return a.name.localeCompare(b.name)
+    })
     .map(rowToCommunity)
   return { data, error: null }
 }
@@ -1096,6 +1106,8 @@ export async function createCommunity(payload) {
     name: payload.name,
     desc: payload.desc || '',
     created_by: userId || '',
+    is_pinned: false,
+    pinned_at: '',
     created_at: nowIso(),
     updated_at: nowIso(),
   }
@@ -1116,6 +1128,10 @@ export async function updateCommunity(id, payload) {
   if (payload.name !== undefined) row.name = String(payload.name).trim()
   if (payload.desc !== undefined) row.desc = String(payload.desc).trim()
   if (payload.icon !== undefined) row.icon = String(payload.icon).trim() || row.icon
+  if (payload.pinned !== undefined) {
+    row.is_pinned = !!payload.pinned
+    row.pinned_at = payload.pinned ? nowIso() : ''
+  }
   row.updated_at = nowIso()
   persist()
   return { data: rowToCommunity(row), error: null }
@@ -1129,6 +1145,7 @@ export async function fetchPosts(options = {}) {
   )
   let rows = [..._state.posts]
   if (options.communityId) rows = rows.filter((r) => r.community_id === options.communityId)
+  if (options.postType) rows = rows.filter((r) => (r.post_type || 'regular') === options.postType)
   if (options.sort === 'hot') {
     rows.sort((a, b) => (b.likes_count || 0) - (a.likes_count || 0))
   } else if (options.sort === 'top') {
@@ -1154,6 +1171,8 @@ export async function createPost(payload) {
     attachment: payload.attachment || '',
     attachment_url: payload.attachmentUrl || '',
     file_key: payload.fileKey || '',
+    post_type: payload.postType || 'regular',
+    file_size: payload.fileSize || 0,
     likes_count: 0,
     comments_count: 0,
     created_at: nowIso(),

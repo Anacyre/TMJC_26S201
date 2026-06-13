@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import * as communityApi from '@/api/community'
 import { getMembers, getProfile } from '@/api/profile'
+import { filterMaterialPosts, isMaterialPost, sortCommunitiesWithPinned } from '@/lib/communityMaterials'
 
 const communities = ref([])
 const members = ref([])
@@ -76,6 +77,37 @@ function getComments(postId) {
 
 // ─── Writes ──────────────────────────────────────────────────────
 
+function communityIdMatch(a, b) {
+  return String(a || '') === String(b || '')
+}
+
+function applyCommunityRow(id, row, payload = {}) {
+  const key = String(id || row?.id || '')
+  if (!key || !row) return null
+
+  const idx = communities.value.findIndex((c) => communityIdMatch(c.id, key))
+  const prev = idx >= 0 ? communities.value[idx] : null
+  const merged = {
+    ...(prev || {}),
+    ...row,
+    id: row.id || prev?.id || key,
+    createdByName: row.createdByName || prev?.createdByName || '',
+  }
+
+  const next = [...communities.value]
+  if (idx >= 0) next[idx] = merged
+  else next.push(merged)
+  communities.value = next
+
+  if (payload.name !== undefined) {
+    posts.value = posts.value.map((p) =>
+      communityIdMatch(p.communityId, key) ? { ...p, communityName: merged.name } : p
+    )
+  }
+
+  return merged
+}
+
 async function addComment(postId, text, anonymous = false) {
   const { data, error } = await communityApi.addComment(postId, text, anonymous)
   if (!error && data) {
@@ -97,15 +129,15 @@ async function addCommunity(payload) {
 async function updateCommunity(id, payload) {
   const { data, error } = await communityApi.updateCommunity(id, payload)
   if (error) return { data: null, error }
-  if (data) {
-    const idx = communities.value.findIndex((c) => c.id === id)
-    if (idx >= 0) {
-      const next = [...communities.value]
-      next[idx] = data
-      communities.value = next
+  const merged = data ? applyCommunityRow(id, data, payload) : null
+  if (!merged && !error) {
+    await fetchCommunities()
+    return {
+      data: getCommunityById(id),
+      error: null,
     }
   }
-  return { data, error: null }
+  return { data: merged, error: null }
 }
 
 async function addPost(payload) {
@@ -142,9 +174,15 @@ async function deletePost(postId) {
 
 // ─── Computed ────────────────────────────────────────────────────
 
-const hotPosts = computed(() => [...posts.value].sort((a, b) => b.likesCount - a.likesCount))
-const newPosts = computed(() => posts.value)
-const topPosts = computed(() => [...posts.value].sort((a, b) => b.commentsCount - a.commentsCount))
+const hotPosts = computed(() =>
+  [...posts.value].filter((p) => !isMaterialPost(p)).sort((a, b) => b.likesCount - a.likesCount)
+)
+const newPosts = computed(() => posts.value.filter((p) => !isMaterialPost(p)))
+const topPosts = computed(() =>
+  [...posts.value].filter((p) => !isMaterialPost(p)).sort((a, b) => b.commentsCount - a.commentsCount)
+)
+const materialPosts = computed(() => filterMaterialPosts(posts.value))
+const sortedCommunities = computed(() => sortCommunitiesWithPinned(communities.value))
 
 export function useCommunityStore() {
   return {
@@ -155,6 +193,8 @@ export function useCommunityStore() {
     hotPosts,
     newPosts,
     topPosts,
+    materialPosts,
+    sortedCommunities,
     fetchCommunities,
     fetchMembers,
     fetchPosts,

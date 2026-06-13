@@ -71,6 +71,20 @@
 			}
 		},
 		{
+			"path": "pages/community/materials",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Materials"
+			}
+		},
+		{
+			"path": "pages/community/members",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Members"
+			}
+		},
+		{
 			"path": "pages/member/profile",
 			"style": {
 				"navigationStyle": "custom",

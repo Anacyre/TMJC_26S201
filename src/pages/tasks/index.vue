@@ -1,5 +1,5 @@
 <template>
-  <view class="page" :class="themeClass">
+  <view class="page" :class="themeClass" :style="taskCompleteAnimStyle">
     <view class="bg" />
 
     <AppHeader />
@@ -17,7 +17,22 @@
               <text class="filterChev">▾</text>
             </view>
           </view>
+          <view class="filterRow subjectRow">
+            <view class="filterDrop tap subjectDrop" role="button" @tap="subjectPickerOpen = true">
+              <text class="filterDropText">{{ subjectFilterLabel }}</text>
+              <text class="filterChev">▾</text>
+            </view>
+          </view>
         </view>
+
+        <SelectPickerSheet
+          :open="subjectPickerOpen"
+          :options="subjectFilterOptions"
+          :selected="subjectFilterLabel"
+          kind="tag"
+          @close="subjectPickerOpen = false"
+          @pick="onSubjectFilterPick"
+        />
 
         <SelectPickerSheet
           :open="filterPickerOpen"
@@ -84,7 +99,6 @@
                 class="taskRow"
                 :class="{
                   completing: completingAnim.has(t.id),
-                  completingStrike: completingStrike.has(t.id),
                   doneLeaving: isDoneView && leavingTaskIds.has(t.id),
                   activeLeaving: !isDoneView && exitingActiveTaskIds.has(t.id),
                   expanded: isTaskExpanded(t.id),
@@ -156,14 +170,23 @@ import SkeletonList from '@/components/SkeletonList.vue'
 import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
+import { useCommunityStore } from '@/composables/useCommunityStore'
+import {
+  communitySubjectFilterLabels,
+  communitySubjectFilterValue,
+  communitySubjectFilterLabel,
+  findCommunityByFilterValue,
+  taskMatchesCommunitySubject,
+} from '@/lib/communitySubjectLinks'
 import {
   buildTaskSections,
   taskDueBucket,
   resolveTaskStatusFromForm,
+  resolveDoneAfterChecklistToggle,
   taskInDonePool,
   taskIsActiveForTab,
 } from '@/lib/taskDueDate'
-import { TASK_COMPLETE_STRIKE_MS, TASK_COMPLETE_FADE_MS, DONE_LIST_REFLOW_MS } from '@/lib/taskCompleteAnim'
+import { TASK_COMPLETE_STRIKE_MS, TASK_COMPLETE_FADE_MS, TASK_COMPLETE_TOTAL_MS, DONE_LIST_REFLOW_MS } from '@/lib/taskCompleteAnim'
 import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { pushUndoable } from '@/composables/useUndo'
@@ -183,6 +206,7 @@ const {
   patchTask,
   fetchTasks,
 } = useTasksStore()
+const { sortedCommunities } = useCommunityStore()
 
 const tabItems = [
   { id: '', label: 'All tasks' },
@@ -215,12 +239,27 @@ function taskSwipeMode(task) {
 }
 const filterPickerOpen = ref(false)
 const sortPickerOpen = ref(false)
+const subjectPickerOpen = ref(false)
+const subjectFilter = ref('All')
+const subjectFilterOptions = computed(() =>
+  communitySubjectFilterLabels(sortedCommunities.value)
+)
+const subjectFilterLabel = computed(() =>
+  communitySubjectFilterLabel(subjectFilter.value, sortedCommunities.value)
+)
 const sortMode = ref('due-date')
 const pressedKey = ref('')
 const completingIds = ref(new Set())
 const completingStrike = ref(new Set())
 const completingAnim = ref(new Set())
 const completingBuckets = ref(new Map())
+/** @type {Map<string, { fade: ReturnType<typeof setTimeout>, hide: ReturnType<typeof setTimeout> }>} */
+const completeAnimTimers = new Map()
+const taskCompleteAnimStyle = {
+  '--task-complete-strike-ms': `${TASK_COMPLETE_STRIKE_MS}ms`,
+  '--task-complete-fade-ms': `${TASK_COMPLETE_FADE_MS}ms`,
+  '--task-complete-total-ms': `${TASK_COMPLETE_TOTAL_MS}ms`,
+}
 const createOpen = ref(false)
 const createEditorRef = ref(null)
 const collapsedSections = ref(new Set())
@@ -241,20 +280,27 @@ function unhideTask(id) {
 }
 
 const tabTasks = computed(() => {
+  const subjectCommunity = findCommunityByFilterValue(sortedCommunities.value, subjectFilter.value)
   const pool = tasks.value.filter((x) => !hiddenTaskIds.value.has(x.id))
+  let items
   if (filterTab.value === 'done') {
-    return pool.filter(
+    items = pool.filter(
       (x) =>
         taskInDonePool(x) ||
         completingIds.value.has(x.id) ||
         leavingTaskIds.value.has(x.id)
     )
+  } else {
+    items = pool.filter((x) => {
+      if (completingIds.value.has(x.id)) return true
+      if (exitingActiveTaskIds.value.has(x.id)) return true
+      return taskIsActiveForTab(x, filterTab.value)
+    })
   }
-  return pool.filter((x) => {
-    if (completingIds.value.has(x.id)) return true
-    if (exitingActiveTaskIds.value.has(x.id)) return true
-    return taskIsActiveForTab(x, filterTab.value)
-  })
+  if (subjectCommunity) {
+    items = items.filter((x) => taskMatchesCommunitySubject(x, subjectCommunity))
+  }
+  return items
 })
 
 const groupedSections = computed(() => {
@@ -265,13 +311,11 @@ const groupedSections = computed(() => {
   if (completingBuckets.value.size) {
     displayItems = items.map((t) => {
       const bucket = completingBuckets.value.get(t.id)
-      const striking = completingStrike.value.has(t.id) || completingAnim.value.has(t.id)
-      if (!bucket || bucket === 'completed' || bucket === 'archived') {
-        return striking ? { ...t, done: true } : t
-      }
+      if (!bucket || bucket === 'completed' || bucket === 'archived') return t
+      // Keep row in its pre-complete section; strikethrough comes from the completing prop.
       return {
         ...t,
-        done: striking ? true : false,
+        done: false,
         status: bucket === 'no-deadline' ? 'recent' : bucket,
       }
     })
@@ -306,6 +350,11 @@ function onSortPick(label) {
   sortPickerOpen.value = false
 }
 
+function onSubjectFilterPick(label) {
+  subjectFilter.value = communitySubjectFilterValue(label, sortedCommunities.value)
+  subjectPickerOpen.value = false
+}
+
 function isSectionCollapsed(key) {
   return collapsedSections.value.has(key)
 }
@@ -320,13 +369,22 @@ function toggleSection(key) {
 async function toggleStep(taskId, stepId) {
   const before = getTaskById(taskId)
   const wasDone = !!before?.done
+  let willComplete = false
+  if (before && !wasDone) {
+    const nextChecklist = (before.checklist || []).map((item) =>
+      item.id === stepId ? { ...item, done: !item.done } : item
+    )
+    willComplete = resolveDoneAfterChecklistToggle(nextChecklist, wasDone).done
+    if (willComplete) prepareTaskCompleteAnimation(before)
+  }
   const { data, error } = await toggleChecklist(taskId, stepId)
   if (error) {
+    if (willComplete) endCompleteHide(taskId)
     toast.show(error.message || 'Could not update step')
     return
   }
-  if (data?.done && !wasDone) {
-    playTaskCompleteAnimation(taskId, before || data)
+  if (!data?.done && willComplete) {
+    endCompleteHide(taskId)
   }
 }
 
@@ -344,16 +402,27 @@ function taskStatusSnapshot(task) {
   }
 }
 
-/** Unified strike-through then fade-out whenever a task becomes done. */
-async function playTaskCompleteAnimation(taskId, task) {
+/** Register completion animation before store marks task done (keeps row visible in place). */
+function prepareTaskCompleteAnimation(task) {
   beginCompleteHide(task)
-  delete expandedTaskIds.value[taskId]
+  delete expandedTaskIds.value[task.id]
   expandedTaskIds.value = { ...expandedTaskIds.value }
-  await nextTick()
-  setTimeout(() => {
-    startCompleteAnim(taskId)
-    setTimeout(() => endCompleteHide(taskId), TASK_COMPLETE_FADE_MS)
-  }, TASK_COMPLETE_STRIKE_MS)
+  scheduleTaskCompleteAnimationPhases(task.id)
+}
+
+function cancelTaskCompleteAnimation(taskId) {
+  const timers = completeAnimTimers.get(taskId)
+  if (!timers) return
+  clearTimeout(timers.fade)
+  clearTimeout(timers.hide)
+  completeAnimTimers.delete(taskId)
+}
+
+function scheduleTaskCompleteAnimationPhases(taskId) {
+  cancelTaskCompleteAnimation(taskId)
+  const fade = setTimeout(() => startCompleteAnim(taskId), TASK_COMPLETE_STRIKE_MS)
+  const hide = setTimeout(() => endCompleteHide(taskId), TASK_COMPLETE_TOTAL_MS)
+  completeAnimTimers.set(taskId, { fade, hide })
 }
 
 function isTaskExpanded(id) {
@@ -380,6 +449,7 @@ function startCompleteAnim(id) {
 }
 
 function endCompleteHide(id) {
+  cancelTaskCompleteAnimation(id)
   const buckets = new Map(completingBuckets.value)
   buckets.delete(id)
   completingBuckets.value = buckets
@@ -396,14 +466,15 @@ function endCompleteHide(id) {
 
 async function toggleDone(t) {
   const wasDone = !!t.done
+  if (!wasDone) prepareTaskCompleteAnimation(t)
   const { error } = await toggleTaskDone(t.id)
   if (error) {
+    if (!wasDone) endCompleteHide(t.id)
     toast.show(error.message || 'Could not update task')
     return
   }
-  if (!wasDone) {
-    const after = getTaskById(t.id)
-    if (after?.done) await playTaskCompleteAnimation(t.id, t)
+  if (!wasDone && !getTaskById(t.id)?.done) {
+    endCompleteHide(t.id)
   }
 }
 
@@ -600,6 +671,8 @@ function onTaskSwipeAction(id, actionId) {
 
 .filterWrap { padding: 8rpx 28rpx 14rpx; }
 .filterRow { display: flex; gap: 10rpx; align-items: stretch; }
+.subjectRow { margin-top: 8rpx; }
+.subjectDrop { flex: 1; }
 .filterDrop {
   flex: 1;
   min-width: 0;
@@ -757,9 +830,6 @@ function onTaskSwipeAction(id, actionId) {
 .listReflow-leave-from {
   max-height: 800rpx;
 }
-.taskRow.completingStrike {
-  transition: opacity 320ms ease;
-}
 .taskRow.completing {
   overflow: hidden;
   max-height: 0;
@@ -767,9 +837,9 @@ function onTaskSwipeAction(id, actionId) {
   transform: scale(0.97) translateY(-6rpx);
   pointer-events: none;
   transition:
-    max-height 480ms cubic-bezier(0.4, 0, 0.2, 1),
-    opacity 480ms ease,
-    transform 480ms cubic-bezier(0.4, 0, 0.2, 1);
+    max-height var(--task-complete-fade-ms, 80ms) cubic-bezier(0.4, 0, 0.2, 1),
+    opacity var(--task-complete-fade-ms, 80ms) ease,
+    transform var(--task-complete-fade-ms, 80ms) cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Done view: FLIP reflow when cards leave (delete / restore) */

@@ -34,7 +34,7 @@
             <view class="metaItem">
               <TagSelect
                 v-model="form.subject"
-                :options="tagNames"
+                :options="subjectOptions"
                 :allow-create="true"
                 :can-create="true"
                 kind="subject"
@@ -151,11 +151,13 @@
 </template>
 
 <script setup>
-import { reactive, watch, ref } from 'vue'
+import { reactive, watch, ref, computed } from 'vue'
 import DateField from '@/components/DateField.vue'
 import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTagStore } from '@/composables/useTagStore'
+import { useCommunityStore } from '@/composables/useCommunityStore'
+import { communitySubjectNames } from '@/lib/communitySubjectLinks'
 import { resolveTaskStatusFromForm } from '@/lib/taskDueDate'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { toast } from '@/composables/useToast'
@@ -181,6 +183,11 @@ const emit = defineEmits(['update:modelValue', 'save'])
 
 const { themeClass } = useTheme()
 const { tagNames, addTag } = useTagStore()
+const { sortedCommunities } = useCommunityStore()
+const subjectOptions = computed(() => {
+  const names = communitySubjectNames(sortedCommunities.value)
+  return names.length ? names : tagNames.value
+})
 
 const priorities = ['P1', 'P2', 'P3']
 const repeatOptions = [

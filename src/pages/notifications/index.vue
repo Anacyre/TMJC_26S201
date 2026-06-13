@@ -163,7 +163,7 @@
               <view class="collapseBody" :class="{ open: subjectExpanded }">
                 <TagSelect
                   v-model="draft.subject"
-                  :options="tagNames"
+                  :options="draftSubjectOptions.length ? draftSubjectOptions : tagNames"
                   :allow-create="true"
                   :can-create="true"
                   kind="subject"
@@ -230,17 +230,26 @@ import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useTagStore } from '@/composables/useTagStore'
+import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useAdminMode } from '@/composables/useAdminMode'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { navChild, navSibling } from '@/lib/navigation'
-import { canAddNoticeToTasks } from '@/lib/noticeRules'
 import {
   clearNoticeDraft,
   loadNoticeDraft,
   noticeDraftHasContent,
   saveNoticeDraft,
 } from '@/lib/noticeDraft'
+import {
+  communitySubjectFilterLabels,
+  communitySubjectFilterValue,
+  communitySubjectFilterLabel,
+  findCommunityByFilterValue,
+  noticeMatchesCommunity,
+  resolveCommunityFilterFromQuery,
+  communitySubjectNames,
+} from '@/lib/communitySubjectLinks'
 
 const { themeClass } = useTheme()
 const {
@@ -258,6 +267,7 @@ const {
 } = useNotificationStore()
 const { addTaskFromNotice, deleteTask } = useTasksStore()
 const { tagNames, addTag } = useTagStore()
+const { sortedCommunities } = useCommunityStore()
 const { currentUser } = useUserStore()
 const { isAdminActive } = useAdminMode()
 
@@ -274,24 +284,25 @@ const typeFilterLabelByValue = Object.fromEntries(
   Object.entries(typeFilterValueByLabel).map(([label, value]) => [value, label])
 )
 
-const subjectFilterOptions = computed(() => [
-  'All subjects',
-  ...tagNames.value.filter((n) => n !== 'General'),
-])
+const subjectFilterOptions = computed(() =>
+  communitySubjectFilterLabels(sortedCommunities.value)
+)
 const subjectFilterValueByLabel = computed(() => {
-  const map = { 'All subjects': 'All' }
-  subjectFilterOptions.value.slice(1).forEach((label) => {
-    map[label] = label
+  const map = {}
+  subjectFilterOptions.value.forEach((label) => {
+    map[label] = communitySubjectFilterValue(label, sortedCommunities.value)
   })
   return map
 })
 const subjectFilterLabelByValue = computed(() => {
-  const map = { All: 'All subjects' }
-  subjectFilterOptions.value.slice(1).forEach((label) => {
-    map[label] = label
+  const map = {}
+  subjectFilterOptions.value.forEach((label) => {
+    const value = communitySubjectFilterValue(label, sortedCommunities.value)
+    map[value] = label
   })
   return map
 })
+const draftSubjectOptions = computed(() => communitySubjectNames(sortedCommunities.value))
 
 const noticeTypes = [
   { id: 'homework', label: 'Homework' },
@@ -302,6 +313,7 @@ const noticeTypes = [
 
 const typeFilter = ref('')
 const subjectFilter = ref('All')
+const pendingRouteQuery = ref(null)
 const typePickerOpen = ref(false)
 const subjectPickerOpen = ref(false)
 const typeFilterLabel = computed(() => typeFilterLabelByValue[typeFilter.value] || 'All types')
@@ -365,11 +377,9 @@ function discardDraft() {
   toast.show('Draft cleared')
 }
 
-function subjectMatches(n, chip) {
-  if (chip === 'All') return true
-  const s = (n.subject || '').toLowerCase()
-  if (chip === 'GP') return s.includes('general paper') || s === 'gp'
-  return s.includes(chip.toLowerCase())
+function subjectMatches(n, filterValue) {
+  const community = findCommunityByFilterValue(sortedCommunities.value, filterValue)
+  return noticeMatchesCommunity(n, community)
 }
 
 function onTypeFilterPick(label) {
@@ -556,17 +566,27 @@ async function publish() {
   }
 }
 
-onLoad((q) => {
-  if (q?.subject) {
-    const map = { math: 'Math', physics: 'Physics', chemistry: 'Chemistry', economics: 'Economics', gp: 'GP' }
+function applyRouteSubjectQuery(q) {
+  if (!q) return
+  const communityFilter = resolveCommunityFilterFromQuery(sortedCommunities.value, q)
+  if (communityFilter !== 'All' || q?.subject || q?.communityId) {
     typeFilter.value = 'Homework'
-    subjectFilter.value = map[String(q.subject).toLowerCase()] || 'All'
+    subjectFilter.value = communityFilter
   }
+}
+
+onLoad((q) => {
+  pendingRouteQuery.value = q || null
+  applyRouteSubjectQuery(q)
   if (q?.id) {
     scrollInto.value = 'n-' + q.id
     const n = getNotificationById(q.id)
     if (n) markRead(n.id)
   }
+})
+
+watch(sortedCommunities, () => {
+  if (pendingRouteQuery.value) applyRouteSubjectQuery(pendingRouteQuery.value)
 })
 
 watch(typeFilter, (next, prev) => {

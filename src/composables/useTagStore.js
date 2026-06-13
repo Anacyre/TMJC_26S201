@@ -47,6 +47,27 @@ function addTag(name, color = 'slate') {
   return tag
 }
 
+function renameTag(fromName, toName) {
+  const from = findByName(fromName)
+  const cleanTo = String(toName || '').trim()
+  if (!from || !cleanTo || from.name === cleanTo) return false
+  if (from.system) return false
+  const conflict = tags.value.find(
+    (t) => t.id !== from.id && t.name.toLowerCase() === cleanTo.toLowerCase()
+  )
+  if (conflict) return false
+  tags.value = tags.value.map((t) => (t.id === from.id ? { ...t, name: cleanTo } : t))
+  saveTags(tags.value)
+  return true
+}
+
+function syncFromCommunities(communities = []) {
+  for (const community of communities) {
+    const name = String(community?.name || '').trim()
+    if (name) addTag(name)
+  }
+}
+
 function removeTag(id) {
   const target = tags.value.find((t) => t.id === id)
   if (!target || target.system) return false
@@ -62,5 +83,7 @@ export function useTagStore() {
     findByName,
     addTag,
     removeTag,
+    renameTag,
+    syncFromCommunities,
   }
 }

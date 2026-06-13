@@ -1,17 +1,13 @@
 <template>
   <view class="panel postPanel">
-    <view class="panelHead">
-      <text class="panelLabel">Post</text>
-      <view v-if="post.image || post.attachment" class="attachTag">
-        <text class="attachTagText">{{ post.image ? 'Image' : 'File' }}</text>
-      </view>
-    </view>
-
     <view class="authorRow">
       <view class="authorAvatar">{{ initials(authorName) }}</view>
       <view class="authorCopy">
         <text class="authorName">{{ authorName }}</text>
         <text class="authorTime">{{ timeLabel }}</text>
+      </view>
+      <view v-if="post.image || post.attachment" class="attachTag">
+        <text class="attachTagText">{{ post.image ? 'Image' : 'File' }}</text>
       </view>
     </view>
 
@@ -77,32 +73,20 @@ function initials(name) {
 
 <style scoped>
 .panel {
-  padding: 16rpx 18rpx;
-  border-radius: 24rpx;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1rpx solid rgba(16, 24, 40, 0.05);
+  padding: var(--list-card-pad-y, 14rpx) var(--list-card-pad-x, 16rpx);
+  border-radius: var(--list-card-radius, 20rpx);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1rpx solid rgba(16, 24, 40, 0.04);
 }
 .t-dark .panel {
   background: rgba(255, 255, 255, 0.04);
   border-color: rgba(255, 255, 255, 0.06);
 }
-.panelHead {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14rpx;
-}
-.panelLabel {
-  font-size: 20rpx;
-  font-weight: 700;
-  color: rgba(16, 24, 40, 0.42);
-  letter-spacing: 0.3rpx;
-}
-.t-dark .panelLabel { color: rgba(245, 247, 255, 0.38); }
 .attachTag {
   padding: 4rpx 10rpx;
   border-radius: 999rpx;
   background: rgba(46, 99, 255, 0.1);
+  flex-shrink: 0;
 }
 .attachTagText { font-size: 17rpx; font-weight: 700; color: rgba(46, 99, 255, 0.88); }
 
@@ -110,10 +94,8 @@ function initials(name) {
   display: flex;
   align-items: center;
   gap: 12rpx;
-  padding-bottom: 14rpx;
-  border-bottom: 1rpx solid rgba(16, 24, 40, 0.06);
+  padding-bottom: 12rpx;
 }
-.t-dark .authorRow { border-bottom-color: rgba(255, 255, 255, 0.06); }
 .authorAvatar {
   width: 56rpx; height: 56rpx; border-radius: 50%; flex-shrink: 0;
   background: rgba(46, 99, 255, 0.14);
@@ -129,8 +111,8 @@ function initials(name) {
 
 .title {
   display: block;
-  margin-top: 14rpx;
-  font-size: 28rpx;
+  margin-top: 4rpx;
+  font-size: 26rpx;
   font-weight: 780;
   color: rgba(16, 24, 40, 0.92);
   line-height: 1.35;
@@ -167,27 +149,24 @@ function initials(name) {
 .t-dark .attachAction { color: rgba(245, 247, 255, 0.55); }
 
 .actionSeg {
-  margin-top: 16rpx;
+  margin-top: 14rpx;
   display: flex;
-  gap: 6rpx;
-  padding: 4rpx;
-  border-radius: 16rpx;
-  background: rgba(16, 24, 40, 0.04);
+  gap: 10rpx;
 }
-.t-dark .actionSeg { background: rgba(255, 255, 255, 0.04); }
 .segBtn {
   flex: 1;
   height: 56rpx;
-  border-radius: 12rpx;
+  border-radius: 16rpx;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(16, 24, 40, 0.04);
 }
+.t-dark .segBtn { background: rgba(255, 255, 255, 0.04); }
 .segBtn.on {
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 2rpx 8rpx rgba(16, 24, 40, 0.06);
+  background: rgba(46, 99, 255, 0.12);
 }
-.t-dark .segBtn.on { background: rgba(255, 255, 255, 0.08); box-shadow: none; }
+.t-dark .segBtn.on { background: rgba(120, 160, 255, 0.16); }
 .segBtnText { font-size: 20rpx; font-weight: 660; color: rgba(16, 24, 40, 0.58); }
 .segBtn.on .segBtnText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
 .t-dark .segBtnText { color: rgba(245, 247, 255, 0.48); }

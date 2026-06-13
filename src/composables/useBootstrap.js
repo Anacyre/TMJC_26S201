@@ -4,6 +4,7 @@ import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useStudyStore } from '@/composables/useStudyStore'
 import { useFocusStore } from '@/composables/useFocusStore'
+import { useTagStore } from '@/composables/useTagStore'
 
 let _booting = null
 let _booted = false
@@ -43,6 +44,7 @@ export function bootstrapData({ force = false } = {}) {
       studyStore.fetchResources(),
       fetchFocusSessions(userStore.currentUser.value.id),
     ])
+    useTagStore().syncFromCommunities(communityStore.communities.value)
     _booted = true
   })().finally(() => {
     _booting = null
