@@ -33,12 +33,16 @@
           <view
             class="originBtn tap"
             role="button"
-            aria-label="Back to origin"
+            aria-label="回到原点"
             @tap.stop="resetToOrigin"
             @touchstart.stop
           >
-            <text class="originBtnIcon">⊙</text>
-            <text class="originBtnLabel">原点</text>
+            <view class="originGlyph" aria-hidden="true">
+              <view class="originRing" />
+              <view class="originAxis originAxisX" />
+              <view class="originAxis originAxisY" />
+              <view class="originCenter" />
+            </view>
           </view>
         </view>
 
@@ -777,8 +781,8 @@ onBeforeUnmount(() => {
 
 .originBtn {
   position: absolute; top: 14rpx; right: 14rpx; z-index: 3;
-  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx;
-  min-width: 72rpx; min-height: 72rpx; padding: 8rpx 12rpx; border-radius: 20rpx;
+  display: flex; align-items: center; justify-content: center;
+  width: 72rpx; height: 72rpx; border-radius: 50%;
   background: rgba(255, 255, 255, 0.78); border: 1rpx solid rgba(46, 99, 255, 0.18);
   box-shadow: 0 8rpx 24rpx rgba(16, 24, 40, 0.08); pointer-events: auto;
 }
@@ -787,10 +791,22 @@ onBeforeUnmount(() => {
   box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.22);
 }
 .originBtn:active { transform: scale(0.94); background: rgba(46, 99, 255, 0.12); }
-.originBtnIcon { font-size: 28rpx; line-height: 1; color: rgba(46, 99, 255, 0.92); }
-.originBtnLabel { font-size: 18rpx; font-weight: 620; color: rgba(16, 24, 40, 0.62); }
-.t-dark .originBtnIcon { color: rgba(170, 200, 255, 0.92); }
-.t-dark .originBtnLabel { color: rgba(245, 247, 255, 0.58); }
+.originGlyph { position: relative; width: 34rpx; height: 34rpx; }
+.originRing {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 2rpx solid rgba(46, 99, 255, 0.88);
+}
+.originAxis { position: absolute; background: rgba(46, 99, 255, 0.88); }
+.originAxisX { left: 0; right: 0; top: 50%; height: 2rpx; transform: translateY(-50%); }
+.originAxisY { top: 0; bottom: 0; left: 50%; width: 2rpx; transform: translateX(-50%); }
+.originCenter {
+  position: absolute; left: 50%; top: 50%; width: 8rpx; height: 8rpx;
+  margin-left: -4rpx; margin-top: -4rpx; border-radius: 50%;
+  background: rgba(46, 99, 255, 0.96);
+}
+.t-dark .originRing { border-color: rgba(170, 200, 255, 0.9); }
+.t-dark .originAxis { background: rgba(170, 200, 255, 0.9); }
+.t-dark .originCenter { background: rgba(170, 200, 255, 0.96); }
 
 .inputDock {
   flex: 0 0 auto; min-height: 0; max-height: 52vh; display: flex; flex-direction: column; gap: 8rpx;
