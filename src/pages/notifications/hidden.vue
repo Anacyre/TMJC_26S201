@@ -80,11 +80,15 @@ async function restore(id) {
 async function remove(id) {
   const notice = list.value.find((n) => n.id === id)
   if (!notice || !deletableNoticeIds.value.has(id)) return
-  const ok = await deleteConfirm.notice()
+  const ok = await deleteConfirm.notice({
+    message: notice.inPlanner
+      ? 'This notice is in your planner. The linked task will be removed too.'
+      : 'This cannot be undone.',
+  })
   if (!ok) return
   const { error } = await removeNotification(id)
   if (error) {
-    toast.show('Could not delete')
+    toast.show(error.message || 'Could not delete')
     return
   }
   toast.noticeDeleted()

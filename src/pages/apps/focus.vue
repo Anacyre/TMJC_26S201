@@ -125,6 +125,7 @@
             </view>
             <text class="noisePillLabel">{{ activeNoise?.name || 'No noise' }}</text>
           </view>
+          <text class="weekStat">{{ weekMinutesLabel }} this week</text>
         </view>
 
         <view class="weekStrip focusChrome" :class="chromeClass">
@@ -183,6 +184,7 @@ const {
   prefs,
   noiseLibrary,
   weekTotals,
+  weekMinutesLabel,
   fetchFocusSessions,
   recordSession,
   setVisibility,
@@ -1455,10 +1457,19 @@ onBeforeUnmount(() => {
   width: 100%;
   max-width: 560rpx;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  gap: 14rpx;
   opacity: 0.82;
 }
+
+.weekStat {
+  font-size: 22rpx;
+  font-weight: 640;
+  color: rgba(16, 24, 40, 0.48);
+  letter-spacing: 0.2rpx;
+}
+.t-dark .weekStat { color: rgba(245, 247, 255, 0.5); }
 
 .noisePill {
   display: flex;

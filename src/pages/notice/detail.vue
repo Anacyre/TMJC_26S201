@@ -19,6 +19,9 @@
         </view>
 
         <view class="actions">
+          <view v-if="canEdit" class="btn ghost tap" @tap="editOpen = true">
+            <text class="btnText">Edit</text>
+          </view>
           <view class="btn ghost tap" @tap="togglePinned">
             <text class="btnText">{{ notice.important ? 'Unpin' : 'Pin' }}</text>
           </view>
@@ -31,6 +34,14 @@
       </view>
     </view>
     </PageContent>
+    <NoticeEditorSheet
+      v-model="editOpen"
+      mode="edit"
+      :notice="notice"
+      :subject-options="subjectOptions"
+      @save="saveNotice"
+      @create-tag="onCreateTag"
+    />
     <GlobalSearchOverlay />
   </view>
 </template>
@@ -42,21 +53,38 @@ import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
+import NoticeEditorSheet from '@/components/NoticeEditorSheet.vue'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useUserStore } from '@/composables/useUserStore'
-import { useAdminMode } from '@/composables/useAdminMode'
+import { useTagStore } from '@/composables/useTagStore'
+import { useCommunityStore } from '@/composables/useCommunityStore'
 import { toast } from '@/composables/useToast'
 import { deleteConfirm } from '@/composables/useConfirmDelete'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
 import { addNoticeToPlanner } from '@/lib/noticePlanner'
 import { shortTimeLabel } from '@/lib/timeLabel'
 
+import { communitySubjectNames } from '@/lib/communitySubjectLinks'
+
 const { themeClass } = useTheme()
-const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, patchNotificationState, removeNotification } = useNotificationStore()
+const {
+  getNotificationById,
+  markRead,
+  toggleImportant,
+  setHidden,
+  setInPlanner,
+  patchNotificationState,
+  removeNotification,
+  updateNotification,
+  isNoticeDeletable,
+  isNoticeEditable,
+} = useNotificationStore()
 const { addTaskFromNotice, deleteTask } = useTasksStore()
 const { currentUser } = useUserStore()
-const { isAdminActive } = useAdminMode()
+const { addTag } = useTagStore()
+const { sortedCommunities } = useCommunityStore()
+const editOpen = ref(false)
 const id = ref('')
 const fallback = {
   id: '',
@@ -74,12 +102,9 @@ const fallback = {
 const notice = computed(() => getNotificationById(id.value) || fallback)
 const canAddToTasks = computed(() => canAddNoticeToTasks(notice.value))
 const timeLabel = computed(() => shortTimeLabel(notice.value.createdAt))
-const canDelete = computed(() => {
-  const userId = currentUser.value?.id
-  const n = notice.value
-  if (!userId || !n?.id) return false
-  return isAdminActive.value || n.createdBy === userId
-})
+const subjectOptions = computed(() => communitySubjectNames(sortedCommunities.value))
+const canEdit = computed(() => isNoticeEditable(notice.value, currentUser.value?.id))
+const canDelete = computed(() => isNoticeDeletable(notice.value, currentUser.value?.id))
 
 function markAsRead() {
   if (!notice.value?.id) return
@@ -101,15 +126,34 @@ function hideNotice() {
 
 async function deleteNotice() {
   if (!notice.value?.id || !canDelete.value) return
-  const ok = await deleteConfirm.notice()
+  const ok = await deleteConfirm.notice({
+    message: notice.value.inPlanner
+      ? 'This notice is in your planner. The linked task will be removed too.'
+      : 'This cannot be undone.',
+  })
   if (!ok) return
   const { error } = await removeNotification(notice.value.id)
   if (error) {
-    toast.show('Could not delete')
+    toast.show(error.message || 'Could not delete')
     return
   }
   toast.noticeDeleted()
   setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
+}
+
+function onCreateTag(name) {
+  addTag(name)
+}
+
+async function saveNotice(payload) {
+  if (!notice.value?.id) return
+  const { error } = await updateNotification(notice.value.id, payload)
+  if (error) {
+    toast.show(error.message || 'Could not save')
+    return
+  }
+  editOpen.value = false
+  toast.noticeUpdated()
 }
 
 function addToPlanner() {

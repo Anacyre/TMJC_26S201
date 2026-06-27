@@ -1,10 +1,16 @@
-/**
- * Whether the current user may delete a post (author or real admin).
- * Anonymous posts are only deletable by admins.
- */
-export function canDeletePost(post, { userId, isRealAdmin } = {}) {
-  if (!post?.id || !userId) return false
-  if (isRealAdmin) return true
-  if (post.anonymous) return false
-  return post.authorId === userId
+function postAuthorId(post) {
+  return String(post?.authorId || post?.user_id || post?.userId || '').trim()
 }
+
+/**
+ * Publisher may always delete; admins only when admin mode is active.
+ */
+export function canDeletePost(post, { userId, isAdminActive } = {}) {
+  const uid = String(userId || '').trim()
+  if (!post?.id || !uid) return false
+  const authorId = postAuthorId(post)
+  if (authorId !== '' && authorId === uid) return true
+  return !!isAdminActive
+}
+
+export { postAuthorId }

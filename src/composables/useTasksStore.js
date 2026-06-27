@@ -1,7 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import * as tasksApi from '@/api/tasks'
+import { noticeTaskFieldsDiffer, taskPatchFromNotice } from '@/lib/noticeTaskSync'
 import {
-  parseDueDateKey,
   resolveTaskStatusFromForm,
   taskDueBucket,
   resolveDoneAfterChecklistToggle,
@@ -188,22 +188,18 @@ async function addTaskFromNotice({
   const existing = tasks.value.find((t) => t.sourceNoticeId === id)
 
   if (existing) {
-    const currentKey = parseDueDateKey(existing.deadline)
-    if (deadlineDate && currentKey !== deadlineDate) {
+    const noticeRow = noticeInput || { deadline, deadlineAt, title, subject, description, id }
+    if (noticeTaskFieldsDiffer(noticeRow, existing)) {
+      const patch = taskPatchFromNotice(noticeRow, existing)
       await updateTask(existing.id, {
-        title: existing.title,
-        description: existing.description,
-        deadline: nextDeadline,
-        subject: existing.subject,
+        ...patch,
         priority: existing.priority,
         reminder: existing.reminder,
         checklist: existing.checklist ?? [],
         done: existing.done,
-        status: resolveTaskStatusFromForm({ deadlineDate, done: existing.done }),
       })
-      return getTaskById(existing.id) || existing
     }
-    return existing
+    return getTaskById(existing.id) || existing
   }
 
   const { data } = await addTask({
@@ -250,9 +246,33 @@ async function deleteTask(id, { syncNotice = true } = {}) {
 
 /** Remove planner task linked to a notice (e.g. when the notice is deleted). */
 export async function deleteTaskBySourceNotice(noticeId) {
-  const task = tasks.value.find((t) => t.sourceNoticeId === noticeId)
-  if (!task) return { error: null }
-  return deleteTask(task.id, { syncNotice: false })
+  const { error } = await tasksApi.deleteTasksBySourceNotice(noticeId)
+  if (!error) {
+    tasks.value = tasks.value.filter((t) => t.sourceNoticeId !== noticeId)
+  }
+  return { error }
+}
+
+/** Keep notice-sourced planner tasks aligned after a notice edit. */
+export async function syncTasksFromNotice(notice) {
+  if (!notice?.id) return
+  const noticeId = notice.id
+  let linked = tasks.value.filter((t) => t.sourceNoticeId === noticeId)
+  if (!linked.length) {
+    await fetchTasks({ force: true })
+    linked = tasks.value.filter((t) => t.sourceNoticeId === noticeId)
+  }
+  for (const task of linked) {
+    if (!noticeTaskFieldsDiffer(notice, task)) continue
+    const patch = taskPatchFromNotice(notice, task)
+    await updateTask(task.id, {
+      ...patch,
+      priority: task.priority,
+      reminder: task.reminder,
+      checklist: task.checklist ?? [],
+      done: task.done,
+    })
+  }
 }
 
 // ─── Computed ────────────────────────────────────────────────────

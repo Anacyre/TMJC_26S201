@@ -12,12 +12,16 @@ import {
   DEFAULT_MEMBER_PASSWORD,
   isAdminMember,
   memberEmail,
+  findClassMember,
   authLoginEmail,
   ROSTER_VERSION,
   slugifyUsername,
   CLASS_MEMBERS,
   mergeProfilesWithClassRoster,
 } from '@/lib/classMembers'
+import { canDeletePost } from '@/lib/postPermissions'
+import { canEditNotice } from '@/lib/noticePermissions'
+import { adminModeEnabled } from '@/composables/adminModeState'
 import {
   enrichTask,
   normalizeTaskStatus,
@@ -35,6 +39,7 @@ export const USE_MOCK = (import.meta.env.VITE_USE_MOCK ?? 'true') === 'true'
 const STORAGE_KEY = 'mock_backend_v1'
 const SESSION_KEY = 'mock_backend_session_v1'
 const COMMUNITY_SEED_VERSION = 2
+const FOCUS_DATA_VERSION = 'focus_reset_20260627'
 const DEMO_COMMUNITY_IDS = new Set(['cmt_study', 'cmt_math', 'cmt_prod', 'cmt_rand'])
 const DEMO_POST_IDS = new Set(['p1', 'p2', 'p3', 'p4', 'p5'])
 
@@ -317,6 +322,7 @@ function seedState() {
 
     focusSounds: [],
     focusSessions: [],
+    focus_data_version: FOCUS_DATA_VERSION,
     community_seed_version: COMMUNITY_SEED_VERSION,
   }
 }
@@ -329,6 +335,7 @@ if (!_state) {
 } else {
   _state = ensureClassRoster(_state)
   _state = ensureCommunitySeed(_state)
+  _state = ensureFocusDataReset(_state)
   safeSet(STORAGE_KEY, _state)
 }
 
@@ -360,6 +367,13 @@ function persistNow() {
     _persistTimer = null
   }
   safeSet(STORAGE_KEY, _state)
+}
+
+function ensureFocusDataReset(state) {
+  if (state.focus_data_version === FOCUS_DATA_VERSION) return state
+  state.focusSessions = []
+  state.focus_data_version = FOCUS_DATA_VERSION
+  return state
 }
 
 function ensureCommunitySeed(state) {
@@ -456,6 +470,7 @@ function ensureClassRoster(state) {
 /** Reset the mock backend back to its seeded state (used for "Reset preview"). */
 export function resetMockBackend() {
   _state = seedState()
+  _state = ensureFocusDataReset(_state)
   setSession(null)
   persistNow()
 }
@@ -475,6 +490,8 @@ export function resolveAccountToEmail(input) {
   if (trimmed.includes('@')) return trimmed
   const byUsername = _state.authUsers.find((u) => u.username?.toLowerCase() === trimmed)
   if (byUsername?.email) return byUsername.email
+  const rosterMember = findClassMember(trimmed)
+  if (rosterMember) return authLoginEmail(rosterMember.username, rosterMember.role)
   const byEmailPrefix = _state.authUsers.find((u) => u.email?.split('@')[0]?.toLowerCase() === trimmed)
   return byEmailPrefix?.email || ''
 }
@@ -521,7 +538,9 @@ function rowToTask(row) {
   return enrichTask(task)
 }
 
-function rowToNotification(row, state = {}) {
+function rowToNotification(row, state = null) {
+  const hasUserState = state != null
+  const s = state || {}
   return {
     id: row.id,
     type: row.type,
@@ -535,10 +554,11 @@ function rowToNotification(row, state = {}) {
     by: row.by || 'Admin',
     createdBy: row.created_by || '',
     createdAt: row.created_at,
-    hidden: state.hidden ?? false,
-    read: state.read ?? false,
-    important: state.important ?? !!row.important,
-    inPlanner: state.in_planner ?? false,
+    hidden: s.hidden ?? false,
+    read: s.read ?? false,
+    important: s.important ?? !!row.important,
+    inPlanner: s.in_planner ?? false,
+    hasUserState,
   }
 }
 
@@ -553,7 +573,7 @@ function rowToPost(row, likedSet = new Set(), lookup = null) {
     title: row.title,
     content: row.content || '',
     author: row.anonymous ? 'Anonymous' : (author?.name || 'Unknown'),
-    authorId: row.anonymous ? null : row.user_id,
+    authorId: row.user_id || null,
     anonymous: !!row.anonymous,
     likesCount: row.likes_count || 0,
     commentsCount: row.comments_count || 0,
@@ -574,7 +594,7 @@ function rowToComment(row) {
     id: row.id,
     postId: row.post_id,
     author: row.anonymous ? 'Anonymous' : (author?.name || 'Unknown'),
-    authorId: row.anonymous ? null : row.user_id,
+    authorId: row.user_id || null,
     anonymous: !!row.anonymous,
     text: row.text,
     createdAt: row.created_at,
@@ -643,11 +663,13 @@ export async function login(email, password) {
     user: { id: user.id, email: user.email, user_metadata: { display_name: user.display_name } },
   }
   setSession(session)
+  const mustChangePassword =
+    !!user.must_change_password || String(password || '') === DEFAULT_MEMBER_PASSWORD
   return {
     data: {
       user: session.user,
       session,
-      mustChangePassword: !!user.must_change_password,
+      mustChangePassword,
     },
     error: null,
   }
@@ -683,9 +705,18 @@ export async function getCurrentUser() {
   const authUser = findAuthUser(id)
   const profile = findProfile(id)
   if (!authUser) return { user: null, profile: null, error: null }
+  const mustChangePassword = !!authUser.must_change_password
   return {
-    user: { id: authUser.id, email: authUser.email, user_metadata: { display_name: authUser.display_name } },
-    profile,
+    user: {
+      id: authUser.id,
+      email: authUser.email,
+      user_metadata: {
+        display_name: authUser.display_name,
+        must_change_password: mustChangePassword,
+      },
+      app_metadata: { must_change_password: mustChangePassword },
+    },
+    profile: profile ? { ...profile, must_change_password: mustChangePassword } : null,
     error: null,
   }
 }
@@ -827,6 +858,9 @@ export async function changePassword(userId, newPassword) {
   if (!user) return { error: new Error('User not found') }
   const next = String(newPassword || '').trim()
   if (next.length < 6) return { error: new Error('Password must be at least 6 characters') }
+  if (next === DEFAULT_MEMBER_PASSWORD) {
+    return { error: new Error('Please choose a password other than the default') }
+  }
   user.password = next
   user.must_change_password = false
   persist()
@@ -1020,8 +1054,8 @@ export async function fetchNotifications(options = {}) {
   if (!userId) return { data: [], error: new Error('Not signed in') }
   const rows = [..._state.notifications].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
   const list = rows.map((row) => {
-    const state = getNoticeState(userId, row.id) || {}
-    return rowToNotification(row, state)
+    const state = getNoticeState(userId, row.id)
+    return rowToNotification(row, state ?? null)
   })
   const filtered = options.hidden !== undefined
     ? list.filter((n) => n.hidden === options.hidden)
@@ -1106,10 +1140,63 @@ export async function patchNotificationState(notificationId, patch) {
 export async function deleteNotification(notificationId) {
   await tick(20)
   const id = currentUserId()
+  if (!id) return { error: new Error('Not signed in'), userId: '' }
+  const row = _state.notifications.find((n) => n.id === notificationId)
+  if (!row) return { error: new Error('Notice not found'), userId: id }
+
+  const profile = _state.profiles.find((p) => p.id === id)
+  const allowed = canEditNotice(
+    { id: row.id, createdBy: row.created_by || '' },
+    { userId: id, isAdminActive: isAdminMember(profile) && adminModeEnabled.value },
+  )
+  if (!allowed) return { error: new Error('Not allowed'), userId: id }
+
+  _state.tasks = _state.tasks.filter((t) => t.source_notice_id !== notificationId)
   _state.notifications = _state.notifications.filter((n) => n.id !== notificationId)
   _state.notificationUserStates = _state.notificationUserStates.filter((s) => s.notification_id !== notificationId)
   persist()
-  return { error: null, userId: id || '' }
+  return { error: null, userId: id }
+}
+
+export async function updateNotification(notificationId, payload) {
+  await tick(20)
+  const id = currentUserId()
+  if (!id) return { data: null, error: new Error('Not signed in') }
+  const idx = _state.notifications.findIndex((n) => n.id === notificationId)
+  if (idx < 0) return { data: null, error: new Error('Notice not found') }
+  const row = _state.notifications[idx]
+  const profile = _state.profiles.find((p) => p.id === id)
+  const allowed = canEditNotice(
+    { id: row.id, createdBy: row.created_by || '' },
+    { userId: id, isAdminActive: isAdminMember(profile) && adminModeEnabled.value },
+  )
+  if (!allowed) return { data: null, error: new Error('Not allowed') }
+
+  const next = { ...row }
+  if (payload.type !== undefined) next.type = payload.type
+  if (payload.title !== undefined) next.title = payload.title
+  if (payload.subject !== undefined) next.subject = payload.subject
+  if (payload.deadline !== undefined) next.deadline = payload.deadline
+  if (payload.deadlineAt !== undefined) next.deadline_at = payload.deadlineAt
+  if (payload.description !== undefined) next.description = payload.description
+  if (payload.attachment !== undefined) next.attachment = payload.attachment
+  if (payload.attachmentUrl !== undefined) next.attachment_url = payload.attachmentUrl
+  if (payload.important !== undefined) next.important = payload.important
+  _state.notifications[idx] = next
+  persist()
+  const state = getNoticeState(id, notificationId)
+  return { data: rowToNotification(next, state ?? null), error: null }
+}
+
+export async function deleteTasksBySourceNotice(noticeId) {
+  await tick(10)
+  const userId = currentUserId()
+  if (!userId) return { error: new Error('Not signed in') }
+  _state.tasks = _state.tasks.filter(
+    (t) => !(t.user_id === userId && t.source_notice_id === noticeId),
+  )
+  persist()
+  return { error: null }
 }
 
 // ═════════════════════════════════════════════════════════════════════
@@ -1226,7 +1313,10 @@ export async function deletePost(postId) {
   if (idx < 0) return { error: new Error('Post not found') }
   const post = _state.posts[idx]
   const profile = findProfile(userId)
-  if (post.user_id !== userId && !isAdminMember(profile)) {
+  if (!canDeletePost(
+    { id: post.id, authorId: post.user_id },
+    { userId, isAdminActive: isAdminMember(profile) && adminModeEnabled.value }
+  )) {
     return { error: new Error('Not allowed') }
   }
   _state.posts.splice(idx, 1)
@@ -1447,15 +1537,38 @@ function focusSessionRowToClient(row) {
   }
 }
 
+function focusSessionsForUser(userId) {
+  return (_state.focusSessions || [])
+    .filter((s) => s.user_id === userId)
+    .sort((a, b) => new Date(b.ended_at).getTime() - new Date(a.ended_at).getTime())
+    .slice(0, 200)
+    .map(focusSessionRowToClient)
+}
+
+export async function fetchFocusPrefsForUser(userId) {
+  await tick(10)
+  if (!userId) return { data: null, error: new Error('User required') }
+  const profile = findProfile(userId)
+  return { data: profile?.focus_prefs || null, error: null }
+}
+
+export async function fetchFocusSessionsForUser(userId) {
+  await tick(20)
+  if (!userId) return { data: [], error: new Error('User required') }
+  const profile = findProfile(userId)
+  const prefs = profile?.focus_prefs || {}
+  const viewerId = currentUserId()
+  if (prefs.visibility === 'private' && viewerId !== userId) {
+    return { data: [], error: null }
+  }
+  return { data: focusSessionsForUser(userId), error: null }
+}
+
 export async function fetchFocusSessions() {
   await tick(20)
   const userId = currentUserId()
   if (!userId) return { data: [], error: new Error('Not signed in') }
-  const rows = (_state.focusSessions || [])
-    .filter((s) => s.user_id === userId)
-    .sort((a, b) => new Date(b.ended_at).getTime() - new Date(a.ended_at).getTime())
-    .slice(0, 200)
-  return { data: rows.map(focusSessionRowToClient), error: null }
+  return { data: focusSessionsForUser(userId), error: null }
 }
 
 export async function createFocusSession(payload) {

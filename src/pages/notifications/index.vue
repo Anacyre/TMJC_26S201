@@ -214,7 +214,7 @@
 
 <script setup>
 import { computed, ref, watch } from 'vue'
-import { onLoad } from '@dcloudio/uni-app'
+import { onLoad, onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import NoticeCard from '@/components/NoticeCard.vue'
@@ -244,6 +244,10 @@ import {
   saveNoticeDraft,
 } from '@/lib/noticeDraft'
 import {
+  editorFormToNoticePayload,
+  emptyNoticeEditorForm,
+} from '@/lib/noticeForm'
+import {
   buildCommunitySubjectFilterMaps,
   findCommunityByFilterValue,
   noticeMatchesCommunity,
@@ -264,6 +268,7 @@ const {
   addNotification,
   removeNotification,
   fetchNotifications,
+  touchInboxSeen,
   buildDeletableNoticeIds,
   isNoticeDeletable,
 } = useNotificationStore()
@@ -317,13 +322,7 @@ let draftSaveTimer = null
 let draftSavedHintTimer = null
 
 function emptyDraft() {
-  return {
-    type: 'Homework',
-    title: '',
-    subject: '',
-    deadlineDate: '',
-    description: '',
-  }
+  return emptyNoticeEditorForm()
 }
 
 const draft = ref(emptyDraft())
@@ -435,7 +434,11 @@ function canDeleteNotice(n) {
 }
 
 async function onNoticeLongPressDelete(n) {
-  const ok = await deleteConfirm.notice()
+  const ok = await deleteConfirm.notice({
+    message: n.inPlanner
+      ? 'This notice is in your planner. The linked task will be removed too.'
+      : 'This cannot be undone.',
+  })
   if (!ok) return
   await performDeleteNotice(n)
 }
@@ -446,7 +449,11 @@ async function onNoticeSwipe(n, actionId) {
     return
   }
   if (actionId === 'delete') {
-    const ok = await deleteConfirm.notice()
+    const ok = await deleteConfirm.notice({
+      message: n.inPlanner
+        ? 'This notice is in your planner. The linked task will be removed too.'
+        : 'This cannot be undone.',
+    })
     if (!ok) return
     hidingId.value = n.id
     setTimeout(async () => {
@@ -460,7 +467,7 @@ async function performDeleteNotice(n) {
   if (!canDeleteNotice(n)) return
   const { error } = await removeNotification(n.id)
   if (error) {
-    toast.show('Could not delete')
+    toast.show(error.message || 'Could not delete')
     fetchNotifications({ force: true })
     return
   }
@@ -499,17 +506,6 @@ function onCreateTag(name) {
   addTag(name)
 }
 
-function formatDeadline(value) {
-  if (!value) return ''
-  const [y, m, d] = value.split('-')
-  if (!y) return value
-  const date = new Date(Number(y), Number(m) - 1, Number(d))
-  if (Number.isNaN(date.getTime())) return value
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  return `${weekdays[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`
-}
-
 async function publish() {
   if (publishing.value) return
   if (!isAdminActive.value) {
@@ -526,13 +522,9 @@ async function publish() {
   }
   publishing.value = true
   try {
+    const payload = editorFormToNoticePayload(draft.value)
     const { error } = await addNotification({
-      type: String(draft.value.type).trim(),
-      title: String(draft.value.title).trim(),
-      subject: draft.value.type === 'Homework' ? String(draft.value.subject || '').trim() : '',
-      deadline: formatDeadline(draft.value.deadlineDate),
-      deadlineAt: draft.value.deadlineDate || null,
-      description: String(draft.value.description || '').trim(),
+      ...payload,
       by: currentUser.value?.name || 'Admin',
       important: false,
     })
@@ -571,6 +563,11 @@ onLoad((q) => {
     const n = getNotificationById(q.id)
     if (n) markRead(n.id)
   }
+})
+
+onShow(async () => {
+  await fetchNotifications({ force: true })
+  touchInboxSeen()
 })
 
 watch(sortedCommunities, () => {

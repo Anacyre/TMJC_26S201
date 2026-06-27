@@ -301,3 +301,16 @@ export async function toggleChecklistItem(taskId, checklistId) {
 
   return { data: data ? rowToTask(data) : null, error }
 }
+
+/** Delete the current user's planner tasks created from a notice. */
+export async function deleteTasksBySourceNotice(noticeId) {
+  if (USE_MOCK) return mock.deleteTasksBySourceNotice(noticeId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: new Error('Not signed in') }
+  const { error } = await supabase
+    .from('tasks')
+    .delete()
+    .eq('user_id', user.id)
+    .eq('source_notice_id', noticeId)
+  return { error }
+}

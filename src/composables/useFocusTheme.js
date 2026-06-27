@@ -28,8 +28,8 @@ function applyFocusVars(tier) {
 }
 
 export function useFocusTheme() {
-  const { totalMinutes } = useFocusStore()
-  const tier = computed(() => tierFromMinutes(totalMinutes.value))
+  const { weekMinutes } = useFocusStore()
+  const tier = computed(() => tierFromMinutes(weekMinutes.value))
 
   if (!bound) {
     bound = true

@@ -4,14 +4,39 @@ import {
   uploadFocusSoundRecord,
   BUILTIN_NOISES,
 } from '@/lib/focusNoise'
+import {
+  buildFocusStats,
+} from '@/lib/focusStats'
 import * as focusSoundsApi from '@/api/focusSounds'
 import * as focusApi from '@/api/focus'
 
 const FOCUS_KEY_PREFIX = 'focus_sessions_v1'
 const FOCUS_PREFS_KEY_PREFIX = 'focus_prefs_v1'
 const FOCUS_ACTIVE_KEY_PREFIX = 'focus_active_v1'
+const FOCUS_LOCAL_RESET_VERSION = 'focus_reset_20260627'
+const FOCUS_LOCAL_RESET_KEY = 'focus_cache_reset_version'
 
 const DEFAULT_PREFS = { visibility: 'public', defaultMinutes: 25, soundId: 'silence' }
+
+function ensureFocusLocalReset() {
+  try {
+    if (uni.getStorageSync(FOCUS_LOCAL_RESET_KEY) === FOCUS_LOCAL_RESET_VERSION) return
+    const info = uni.getStorageInfoSync()
+    for (const key of info.keys || []) {
+      if (
+        key.startsWith(FOCUS_KEY_PREFIX) ||
+        key.startsWith(FOCUS_ACTIVE_KEY_PREFIX) ||
+        key === FOCUS_KEY_PREFIX ||
+        key === FOCUS_ACTIVE_KEY_PREFIX
+      ) {
+        uni.removeStorageSync(key)
+      }
+    }
+    uni.setStorageSync(FOCUS_LOCAL_RESET_KEY, FOCUS_LOCAL_RESET_VERSION)
+  } catch (e) {}
+}
+
+ensureFocusLocalReset()
 
 let _activeUserId = ''
 
@@ -261,60 +286,17 @@ function setSound(soundId) {
   pushPrefsRemote()
 }
 
-const totalMinutes = computed(() => sessions.value.reduce((acc, s) => acc + (s.minutes || 0), 0))
-const totalHoursLabel = computed(() => `${totalMinutes.value} min`)
-
-const weekTotals = computed(() => {
-  const labels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  const today = new Date()
-  const out = labels.map((label, idx) => {
-    const day = new Date(today)
-    day.setDate(today.getDate() - (today.getDay() - idx))
-    day.setHours(0, 0, 0, 0)
-    return { label, key: day.toISOString().slice(0, 10), minutes: 0 }
-  })
-  for (const s of sessions.value) {
-    const k = (s.endedAt || '').slice(0, 10)
-    const bucket = out.find((b) => b.key === k)
-    if (bucket) bucket.minutes += s.minutes || 0
-  }
-  return out
-})
-
-const monthTrend = computed(() => {
-  const today = new Date()
-  const out = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1)
-    const next = new Date(today.getFullYear(), today.getMonth() - i + 1, 1)
-    const minutes = sessions.value
-      .filter((s) => {
-        const t = new Date(s.endedAt).getTime()
-        return t >= d.getTime() && t < next.getTime()
-      })
-      .reduce((acc, s) => acc + (s.minutes || 0), 0)
-    out.push({
-      key: `${d.getFullYear()}-${d.getMonth() + 1}`,
-      label: d.toLocaleString('en-US', { month: 'short' }),
-      minutes,
-    })
-  }
-  return out
-})
-
-const subjectDistribution = computed(() => {
-  const tally = {}
-  for (const s of sessions.value) {
-    const k = s.subject || 'Focus'
-    tally[k] = (tally[k] || 0) + (s.minutes || 0)
-  }
-  const entries = Object.entries(tally).map(([name, minutes]) => ({ name, minutes }))
-  entries.sort((a, b) => b.minutes - a.minutes)
-  return entries
-})
+const focusStats = computed(() => buildFocusStats(sessions.value))
+const totalMinutes = computed(() => focusStats.value.totalMinutes)
+const weekMinutes = computed(() => focusStats.value.weekMinutes)
+const totalHoursLabel = computed(() => focusStats.value.totalHoursLabel)
+const weekMinutesLabel = computed(() => focusStats.value.weekMinutesLabel)
+const weekTotals = computed(() => focusStats.value.weekTotals)
+const monthTrend = computed(() => focusStats.value.monthTrend)
+const subjectDistribution = computed(() => focusStats.value.subjectDistribution)
 
 const publicFocusHoursLabel = computed(() =>
-  prefs.value.visibility === 'private' ? '' : totalHoursLabel.value
+  prefs.value.visibility === 'private' ? '' : weekMinutesLabel.value
 )
 
 /** @deprecated use noiseLibrary */
@@ -327,7 +309,9 @@ export function useFocusStore() {
     noiseLibrary,
     syncing,
     totalMinutes,
+    weekMinutes,
     totalHoursLabel,
+    weekMinutesLabel,
     publicFocusHoursLabel,
     weekTotals,
     monthTrend,

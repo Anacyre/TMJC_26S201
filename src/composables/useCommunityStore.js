@@ -17,25 +17,48 @@ async function fetchCommunities() {
   if (!error) communities.value = data
 }
 
+function mapProfileRow(p) {
+  if (!p) return null
+  return {
+    id: p.id,
+    username: p.username || '',
+    display_name: p.display_name || p.name || '',
+    name: p.display_name || p.name || '',
+    birthday: p.birthday || '',
+    mbti: p.mbti || '',
+    interests: p.interests || '',
+    bio: p.bio || '',
+    links: p.links || [],
+    role: p.role || 'student',
+    is_admin: !!p.is_admin,
+    email: p.email || '',
+    avatar: p.avatar_url || p.avatar || '',
+  }
+}
+
 async function fetchMembers() {
   const { data, error } = await getMembers()
   if (!error && data) {
-    members.value = data.map((p) => ({
-      id: p.id,
-      username: p.username || '',
-      display_name: p.display_name || p.name || '',
-      name: p.display_name || p.name || '',
-      birthday: p.birthday || '',
-      mbti: p.mbti || '',
-      interests: p.interests || '',
-      bio: p.bio || '',
-      links: p.links || [],
-      role: p.role || 'student',
-      is_admin: !!p.is_admin,
-      email: p.email || '',
-      avatar: p.avatar_url || '',
-    }))
+    members.value = data.map(mapProfileRow).filter(Boolean)
   }
+}
+
+function patchMember(userId, fields) {
+  if (!userId || !fields) return
+  const idx = members.value.findIndex((m) => m.id === userId)
+  if (idx < 0) return
+  const next = [...members.value]
+  next[idx] = { ...next[idx], ...fields }
+  members.value = next
+}
+
+async function fetchMemberProfile(userId) {
+  if (!userId) return null
+  const { data, error } = await getProfile(userId)
+  if (error || !data) return getMemberById(userId)
+  const mapped = mapProfileRow(data)
+  patchMember(userId, mapped)
+  return mapped
 }
 
 async function fetchPosts(options = {}) {
@@ -67,7 +90,7 @@ export function resetCommunityPostsCache() {
   _postsLoaded = false
 }
 
-export { members, fetchMembers, addCommunity, communities }
+export { members, fetchMembers, patchMember, addCommunity, communities }
 
 // ─── Indexes ───────────────────────────────────────────────────────
 
@@ -126,7 +149,8 @@ function getCommunityById(id) {
 }
 
 function getMemberById(id) {
-  return membersById.value.get(id) || members.value[0] || null
+  if (!id) return null
+  return membersById.value.get(id) || null
 }
 
 function getPostById(id) {
@@ -224,7 +248,7 @@ async function updateCommunity(id, payload) {
 async function addPost(payload) {
   const { data, error } = await communityApi.createPost(payload)
   if (error) return { data: null, error }
-  if (data) posts.value.unshift(data)
+  if (data) posts.value = [data, ...posts.value]
   return { data, error: null }
 }
 
@@ -295,6 +319,8 @@ export function useCommunityStore() {
     fetchComments,
     getCommunityById,
     getMemberById,
+    fetchMemberProfile,
+    patchMember,
     getPostById,
     getPostsByCommunity,
     getRegularPostCount,

@@ -1,13 +1,17 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
 import { isAdminMember } from '@/lib/classMembers'
+import { adminModeEnabled } from '@/composables/adminModeState'
+import { canEditNotice } from '@/lib/noticePermissions'
 
 const USE_MOCK = mock.USE_MOCK
 
 /**
  * Map a database row to a frontend Notification object
  */
-function rowToNotification(row, state = {}) {
+function rowToNotification(row, state) {
+  const hasUserState = state != null
+  const s = state || {}
   return {
     id: row.id,
     type: row.type,
@@ -21,10 +25,11 @@ function rowToNotification(row, state = {}) {
     by: row.by || 'Admin',
     createdBy: row.created_by || '',
     createdAt: row.created_at,
-    hidden: !!state.hidden,
-    read: !!state.read,
-    important: !!state.important,
-    inPlanner: !!state.in_planner,
+    hidden: !!s.hidden,
+    read: !!s.read,
+    important: !!s.important,
+    inPlanner: !!s.in_planner,
+    hasUserState,
   }
 }
 
@@ -52,13 +57,53 @@ export async function fetchNotifications(options = {}) {
     .in('notification_id', data.map((n) => n.id))
 
   const stateMap = new Map((states || []).map((s) => [s.notification_id, s]))
-  const list = data.map((row) => rowToNotification(row, stateMap.get(row.id) || {}))
+  const list = data.map((row) => rowToNotification(row, stateMap.get(row.id)))
 
   const filtered = options.hidden !== undefined
     ? list.filter((n) => n.hidden === options.hidden)
     : list
 
   return { data: filtered, error: null, userId: user.id }
+}
+
+async function fetchNoticeUserState(userId, notificationId) {
+  const { data } = await supabase
+    .from('notification_user_states')
+    .select('notification_id, hidden, read, important, in_planner')
+    .eq('user_id', userId)
+    .eq('notification_id', notificationId)
+    .maybeSingle()
+  return data || null
+}
+
+async function assertNoticeMutable(notificationId) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: new Error('Not signed in'), user: null }
+
+  const { data: row, error: fetchError } = await supabase
+    .from('notifications')
+    .select('id, created_by')
+    .eq('id', notificationId)
+    .maybeSingle()
+  if (fetchError) return { error: fetchError, user }
+  if (!row) return { error: new Error('Notice not found'), user }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_admin, username, display_name, name')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (profileError) return { error: profileError, user }
+
+  const allowed = canEditNotice(
+    { id: row.id, createdBy: row.created_by },
+    {
+      userId: user.id,
+      isAdminActive: isAdminMember(profile) && adminModeEnabled.value,
+    },
+  )
+  if (!allowed) return { error: new Error('Not allowed'), user }
+  return { error: null, user }
 }
 
 /**
@@ -175,12 +220,45 @@ export async function setInPlanner(notificationId, value) {
 }
 
 /**
- * Delete a notification (admin or publisher)
+ * Update a notification (publisher or admin with admin mode)
+ */
+export async function updateNotification(notificationId, payload) {
+  if (USE_MOCK) return mock.updateNotification(notificationId, payload)
+  const gate = await assertNoticeMutable(notificationId)
+  if (gate.error) return { data: null, error: gate.error }
+
+  const patch = {}
+  if (payload.type !== undefined) patch.type = String(payload.type || '').trim()
+  if (payload.title !== undefined) patch.title = String(payload.title || '').trim()
+  if (payload.subject !== undefined) patch.subject = String(payload.subject || '').trim()
+  if (payload.deadline !== undefined) patch.deadline = String(payload.deadline || '').trim()
+  if (payload.deadlineAt !== undefined) patch.deadline_at = payload.deadlineAt || null
+  if (payload.description !== undefined) patch.description = String(payload.description || '').trim()
+  if (payload.attachment !== undefined) patch.attachment = String(payload.attachment || '').trim()
+  if (payload.attachmentUrl !== undefined) patch.attachment_url = String(payload.attachmentUrl || '').trim()
+  if (payload.important !== undefined) patch.important = !!payload.important
+
+  const { data, error } = await supabase
+    .from('notifications')
+    .update(patch)
+    .eq('id', notificationId)
+    .select('*')
+    .single()
+
+  if (error || !data) return { data: null, error: error || new Error('Update failed') }
+
+  const state = await fetchNoticeUserState(gate.user.id, notificationId)
+  return { data: rowToNotification(data, state), error: null }
+}
+
+/**
+ * Delete a notification (publisher or admin with admin mode)
  */
 export async function deleteNotification(notificationId) {
   if (USE_MOCK) return mock.deleteNotification(notificationId)
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return { error: new Error('Not signed in'), userId: '' }
+  const gate = await assertNoticeMutable(notificationId)
+  if (gate.error) return { error: gate.error, userId: gate.user?.id || '' }
+
   const { error } = await supabase.from('notifications').delete().eq('id', notificationId)
-  return { error, userId: user.id }
+  return { error, userId: gate.user.id }
 }

@@ -1,6 +1,8 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import { canDeletePost } from '@/lib/postPermissions'
 import { isAdminMember } from '@/lib/classMembers'
+import { adminModeEnabled } from '@/composables/adminModeState'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -247,17 +249,36 @@ export async function createPost(payload) {
 }
 
 /**
- * Delete a post (author or admin; RLS enforced)
+ * Delete a post/material (publisher or admin only; RLS enforced)
  */
 export async function deletePost(postId) {
   if (USE_MOCK) return mock.deletePost(postId)
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: new Error('Not signed in') }
+
   const { data: row, error: fetchError } = await supabase
     .from('posts')
-    .select('id, file_key')
+    .select('id, user_id, file_key')
     .eq('id', postId)
     .maybeSingle()
   if (fetchError) return { error: fetchError }
   if (!row) return { error: new Error('Post not found') }
+
+  const { data: profile, error: profileError } = await supabase
+    .from('profiles')
+    .select('role, is_admin, username, display_name, name')
+    .eq('id', user.id)
+    .maybeSingle()
+  if (profileError) return { error: profileError }
+
+  const allowed = canDeletePost(
+    { id: row.id, authorId: row.user_id },
+    {
+      userId: user.id,
+      isAdminActive: isAdminMember(profile) && adminModeEnabled.value,
+    }
+  )
+  if (!allowed) return { error: new Error('Not allowed') }
 
   const { error } = await supabase.from('posts').delete().eq('id', postId)
   if (error) return { error }

@@ -6,6 +6,18 @@ export function isNoticeRelevantToUser(notice, userId = '') {
   return true
 }
 
-export function countUnreadRelevantNotices(notices, userId = '') {
-  return (notices || []).filter((n) => isNoticeRelevantToUser(n, userId) && !n.read).length
+/**
+ * Unread badge / dot: not explicitly read, and created after the user last opened
+ * the notice inbox (see noticeInboxSeen.js).
+ */
+export function isNoticeUnreadForUser(notice, userId = '', lastSeenAt = 0) {
+  if (!isNoticeRelevantToUser(notice, userId)) return false
+  if (notice.read) return false
+  const created = new Date(notice.createdAt || 0).getTime()
+  if (!Number.isFinite(created)) return false
+  return created > lastSeenAt
+}
+
+export function countUnreadRelevantNotices(notices, userId = '', lastSeenAt = 0) {
+  return (notices || []).filter((n) => isNoticeUnreadForUser(n, userId, lastSeenAt)).length
 }

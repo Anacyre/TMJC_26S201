@@ -8,12 +8,12 @@ import { deleteConfirm } from '@/composables/useConfirmDelete'
 export function usePostDelete() {
   const { deletePost } = useCommunityStore()
   const { currentUser } = useUserStore()
-  const { isRealAdmin } = useAdminMode()
+  const { isAdminActive } = useAdminMode()
 
   function canDelete(post) {
     return canDeletePost(post, {
       userId: currentUser.value?.id,
-      isRealAdmin: isRealAdmin.value,
+      isAdminActive: isAdminActive.value,
     })
   }
 

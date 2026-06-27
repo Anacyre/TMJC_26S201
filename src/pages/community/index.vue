@@ -199,7 +199,7 @@ import {
 
 const { themeClass } = useTheme()
 const { sortedCommunities, totalMaterialCount, loading, addCommunity, ensurePostsLoaded } = useCommunityStore()
-const { unreadRelevantCount } = useNotificationStore()
+const { unreadRelevantCount, fetchNotifications, touchInboxSeen } = useNotificationStore()
 const { syncFromCommunities } = useTagStore()
 
 const unreadCount = unreadRelevantCount
@@ -269,7 +269,10 @@ function openMaterials(communityId = '') {
   navChild(`/pages/community/materials${q}`)
 }
 function openMembers() { navChild('/pages/community/members') }
-function openNotifications() { navSibling('/pages/notifications/index') }
+function openNotifications() {
+  touchInboxSeen()
+  navSibling('/pages/notifications/index')
+}
 function openManage() { navSibling('/pages/member/manage') }
 
 async function createCommunity() {
@@ -295,6 +298,7 @@ async function createCommunity() {
 
 onShow(() => {
   ensurePostsLoaded()
+  fetchNotifications({ force: true })
 })
 </script>
 

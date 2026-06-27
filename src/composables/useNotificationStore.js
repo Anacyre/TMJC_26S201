@@ -5,10 +5,17 @@ import { communities } from '@/composables/useCommunityStore'
 import { adminModeEnabled } from '@/composables/adminModeState'
 import { isAdminMember } from '@/lib/classMembers'
 import { noticeMatchesCommunity } from '@/lib/communitySubjectLinks'
-import { countUnreadRelevantNotices, isNoticeRelevantToUser } from '@/lib/noticeRelevance'
+import { countUnreadRelevantNotices, isNoticeRelevantToUser, isNoticeUnreadForUser } from '@/lib/noticeRelevance'
+import { canEditNotice } from '@/lib/noticePermissions'
+import {
+  ensureNoticeInboxBaseline,
+  getNoticeInboxSeenAt,
+  touchNoticeInboxSeen,
+} from '@/lib/noticeInboxSeen'
 
 const notifications = shallowRef([])
 const loading = ref(false)
+const inboxSeenVersion = ref(0)
 let fetchGeneration = 0
 let _lastFetchAt = 0
 const FETCH_TTL_MS = 30_000
@@ -110,7 +117,9 @@ async function fetchNotifications({ force = false } = {}) {
     const { data, error, userId } = await notificationsApi.fetchNotifications()
     if (gen !== fetchGeneration) return
     if (!error) {
-      notifications.value = syncHiddenCacheFromServer(data, userId || '')
+      const userKey = userId || ''
+      notifications.value = syncHiddenCacheFromServer(data, userKey)
+      ensureNoticeInboxBaseline(userKey, data)
       _lastFetchAt = Date.now()
     } else {
       console.error('[useNotificationStore] fetchNotifications:', error.message)
@@ -145,7 +154,7 @@ function _rememberHidden(id, hidden, userId = '') {
 }
 
 async function markRead(id) {
-  _patchLocal(id, { read: true })
+  _patchLocal(id, { read: true, hasUserState: true })
   await notificationsApi.markRead(id)
 }
 
@@ -236,6 +245,13 @@ async function setInPlanner(id, value) {
 }
 
 async function removeNotification(id) {
+  try {
+    const tasksApi = await import('@/api/tasks')
+    await tasksApi.deleteTasksBySourceNotice(id)
+  } catch (e) {
+    console.error('[useNotificationStore] removeNotification: task pre-delete', e)
+  }
+
   const { error, userId } = await notificationsApi.deleteNotification(id)
   if (!error) {
     notifications.value = notifications.value.filter((n) => n.id !== id)
@@ -248,6 +264,22 @@ async function removeNotification(id) {
     }
   }
   return { error }
+}
+
+async function updateNotification(id, payload) {
+  const { data, error } = await notificationsApi.updateNotification(id, payload)
+  if (!error && data) {
+    _patchLocal(id, data)
+    try {
+      const { syncTasksFromNotice } = await import('@/composables/useTasksStore')
+      await syncTasksFromNotice(data)
+    } catch (e) {
+      console.error('[useNotificationStore] updateNotification: task sync', e)
+    }
+  } else if (error) {
+    console.error('[useNotificationStore] updateNotification:', error.message)
+  }
+  return { data, error }
 }
 
 async function addNotification(payload) {
@@ -311,7 +343,14 @@ function getVisibleNoticeCountForCommunity(communityOrId) {
 
 function isNoticeDeletable(notice, userId = currentUser.value?.id) {
   if (!userId || !notice?.id) return false
-  return (isAdminMember(currentUser.value) && adminModeEnabled.value) || notice.createdBy === userId
+  return canEditNotice(notice, {
+    userId,
+    isAdminActive: isAdminMember(currentUser.value) && adminModeEnabled.value,
+  })
+}
+
+function isNoticeEditable(notice, userId = currentUser.value?.id) {
+  return isNoticeDeletable(notice, userId)
 }
 
 function buildDeletableNoticeIds(notices = []) {
@@ -322,16 +361,33 @@ function buildDeletableNoticeIds(notices = []) {
   return set
 }
 
-const unreadRelevantCount = computed(() =>
-  countUnreadRelevantNotices(visibleNotifications.value, currentUser.value?.id || '')
-)
+const unreadRelevantCount = computed(() => {
+  inboxSeenVersion.value
+  const userId = currentUser.value?.id || ''
+  return countUnreadRelevantNotices(
+    visibleNotifications.value,
+    userId,
+    getNoticeInboxSeenAt(userId)
+  )
+})
+
+function touchInboxSeen(userId = currentUser.value?.id || '') {
+  touchNoticeInboxSeen(userId)
+  inboxSeenVersion.value += 1
+}
+
+function noticeShowsUnread(notice, userId = currentUser.value?.id || '') {
+  inboxSeenVersion.value
+  return isNoticeUnreadForUser(notice, userId, getNoticeInboxSeenAt(userId))
+}
 
 export function resetNotificationSession() {
   invalidateNotificationFetches()
   notifications.value = []
+  inboxSeenVersion.value = 0
 }
 
-export { setInPlanner, patchNotificationState, unhide, setHidden, isNoticeRelevantToUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable }
+export { setInPlanner, patchNotificationState, unhide, setHidden, isNoticeRelevantToUser, isNoticeUnreadForUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable, isNoticeEditable }
 
 export function useNotificationStore() {
   return {
@@ -340,11 +396,14 @@ export function useNotificationStore() {
     visibleNotifications,
     hiddenNotifications,
     unreadRelevantCount,
+    touchInboxSeen,
+    noticeShowsUnread,
     pinnedNotifications,
     getVisibleNoticesForCommunity,
     getVisibleNoticeCountForCommunity,
     buildDeletableNoticeIds,
     isNoticeDeletable,
+    isNoticeEditable,
     fetchNotifications,
     getNotificationById,
     markRead,
@@ -355,6 +414,7 @@ export function useNotificationStore() {
     setHidden,
     unhide,
     removeNotification,
+    updateNotification,
     addNotification,
   }
 }

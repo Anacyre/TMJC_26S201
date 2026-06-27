@@ -79,8 +79,8 @@
 import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
-import { isNoticeRelevantToUser } from '@/lib/noticeRelevance'
 import { useUserStore } from '@/composables/useUserStore'
+import { useNotificationStore } from '@/composables/useNotificationStore'
 
 const props = defineProps({
   notice: { type: Object, required: true },
@@ -92,6 +92,7 @@ const emit = defineEmits(['open', 'planner', 'important'])
 
 const { themeClass } = useTheme()
 const { currentUser } = useUserStore()
+const { noticeShowsUnread } = useNotificationStore()
 const starPop = ref(false)
 const checkAnimating = ref(false)
 const localHiding = ref(false)
@@ -100,7 +101,7 @@ const plannerBusy = ref(false)
 const canAddToPlanner = computed(() => canAddNoticeToTasks(props.notice))
 
 const showUnread = computed(
-  () => !props.notice.read && isNoticeRelevantToUser(props.notice, currentUser.value?.id || '')
+  () => noticeShowsUnread(props.notice, currentUser.value?.id || '')
 )
 
 const showPlus = computed(

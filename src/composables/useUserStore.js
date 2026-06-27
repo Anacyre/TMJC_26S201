@@ -3,6 +3,7 @@ import { getCurrentUser, hasActiveSession } from '@/api/auth'
 import { updateProfile as apiUpdateProfile } from '@/api/profile'
 import { isAdminMember } from '@/lib/classMembers'
 import { resetAdminMode, syncAdminModeForUser } from '@/composables/adminModeState'
+import { patchMember } from '@/composables/useCommunityStore'
 
 const currentUser = ref({
   id: '',
@@ -97,6 +98,15 @@ async function updateProfile(payload) {
       avatarUrl: payload.avatarUrl ?? payload.avatar,
     })
     if (error) console.error('[useUserStore] updateProfile error:', error.message)
+    patchMember(currentUser.value.id, {
+      name: currentUser.value.name,
+      display_name: currentUser.value.display_name,
+      mbti: currentUser.value.mbti,
+      interests: currentUser.value.interests,
+      bio: currentUser.value.bio,
+      links: currentUser.value.links,
+      avatar: currentUser.value.avatar,
+    })
   }
 }
 

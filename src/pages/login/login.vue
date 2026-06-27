@@ -177,7 +177,7 @@ import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import ClassLogo from '@/components/ClassLogo.vue'
 import ThemeToggle from '@/components/ThemeToggle.vue'
 import { useTheme } from '@/composables/useTheme'
-import { login, register, forgotPassword, changePassword, logout, getCurrentUser, userMustChangePassword, resolveAccountToEmailAsync } from '@/api/auth'
+import { login, register, forgotPassword, changePassword, logout, getCurrentUser, userMustChangePassword, isDefaultMemberPassword, resolveAccountToEmailAsync } from '@/api/auth'
 import { bootstrapData } from '@/composables/useBootstrap'
 import { resolveAliasToEmail } from '@/composables/useMemberStore'
 import { clearAuthSession, loadRememberMeToggle, loadRememberedAccount, setRememberPref, restoreActiveSession } from '@/composables/useAuthSession'
@@ -274,6 +274,15 @@ function validate() {
   return ''
 }
 
+function openPasswordChangeModal() {
+  pwdStatus.value = ''
+  pwdDone.value = false
+  newPassword.value = ''
+  newPassword2.value = ''
+  pwdChangeOpen.value = true
+  toast.show('Set a new password to continue')
+}
+
 async function onPrimary() {
   if (loading.value) return
   const msg = validate()
@@ -294,13 +303,8 @@ async function onPrimary() {
       }
       setRememberPref({ enabled: rememberMe.value, account: raw })
       await bootstrapData({ force: true })
-      if (data?.mustChangePassword) {
-        pwdStatus.value = ''
-        pwdDone.value = false
-        newPassword.value = ''
-        newPassword2.value = ''
-        pwdChangeOpen.value = true
-        toast.show('Set a new password to continue')
+      if (data?.mustChangePassword || isDefaultMemberPassword(password.value)) {
+        openPasswordChangeModal()
         return
       }
       if (rememberMe.value) toast.rememberMeEnabled()
@@ -332,6 +336,12 @@ async function submitPasswordChange() {
   }
   if (newPassword.value !== newPassword2.value) {
     pwdStatus.value = 'Passwords do not match'
+    pwdStatusKind.value = 'error'
+    toast.show(pwdStatus.value)
+    return
+  }
+  if (isDefaultMemberPassword(newPassword.value)) {
+    pwdStatus.value = 'Please choose a password other than the default'
     pwdStatusKind.value = 'error'
     toast.show(pwdStatus.value)
     return
@@ -399,8 +409,7 @@ onLoad(async () => {
   if (restored) {
     const { user, profile } = await getCurrentUser()
     if (userMustChangePassword(profile, user)) {
-      pwdChangeOpen.value = true
-      toast.show('Set a new password to continue')
+      openPasswordChangeModal()
       return
     }
     uni.reLaunch({ url: '/pages/index/index' })

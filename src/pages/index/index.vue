@@ -43,7 +43,7 @@
                 <text class="metricNum">{{ focusMinutesDisplay }}</text>
                 <text class="metricChev">&gt;</text>
               </view>
-              <text class="metricLabel">focused</text>
+              <text class="metricLabel">this week</text>
             </view>
           </view>
         </view>
@@ -146,15 +146,15 @@ import { isHomeTodayTask } from '@/lib/taskDueDate'
 import { useAppearancePrefs } from '@/composables/useAppearancePrefs'
 import { navChild, navSibling } from '@/lib/navigation'
 import { useTasksStore } from '@/composables/useTasksStore'
-import { useNotificationStore, isNoticeRelevantToUser } from '@/composables/useNotificationStore'
+import { useNotificationStore } from '@/composables/useNotificationStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
 
 const { themeClass } = useTheme()
 const { tasks, toggleTaskDone, loading: tasksLoading, fetchTasks } = useTasksStore()
-const { visibleNotifications, loading: noticesLoading, fetchNotifications, unreadRelevantCount } = useNotificationStore()
+const { visibleNotifications, loading: noticesLoading, fetchNotifications, unreadRelevantCount, noticeShowsUnread, touchInboxSeen } = useNotificationStore()
 const { currentUser, fetchCurrentUser } = useUserStore()
-const { totalHoursLabel, fetchFocusSessions } = useFocusStore()
+const { weekMinutesLabel, fetchFocusSessions } = useFocusStore()
 const { showHomeTodayFocus } = useAppearancePrefs()
 const userName = computed(() => currentUser.value.name || 'Guest')
 
@@ -169,7 +169,7 @@ const notices = computed(() => {
     title: n.title,
     type: n.type || 'General',
     deadline: n.deadline || '',
-    unread: isNoticeRelevantToUser(n, userId) && !n.read,
+    unread: noticeShowsUnread(n, userId),
   }))
 })
 
@@ -201,9 +201,10 @@ const todayText = computed(() => {
 const todayTasksCount = computed(() => homeTodayTasks.value.length)
 const unreadNoticesCount = unreadRelevantCount
 const hasUnreadNotices = computed(() => unreadRelevantCount.value > 0)
-const focusMinutesDisplay = computed(() => totalHoursLabel.value || '0 min')
+const focusMinutesDisplay = computed(() => weekMinutesLabel.value || '0m')
 
 function viewAllNotices() {
+  touchInboxSeen()
   navSibling('/pages/notifications/index')
 }
 

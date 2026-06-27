@@ -1,6 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
-import { authLoginEmail } from '@/lib/classMembers'
+import { authLoginEmail, DEFAULT_MEMBER_PASSWORD, findClassMember } from '@/lib/classMembers'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -12,7 +12,16 @@ function resolveMustChangePassword(profile, user) {
   return user?.app_metadata?.must_change_password === true
 }
 
+export function isDefaultMemberPassword(password) {
+  return String(password || '') === DEFAULT_MEMBER_PASSWORD
+}
+
 export function userMustChangePassword(profile, user) {
+  return resolveMustChangePassword(profile, user)
+}
+
+export function loginRequiresPasswordChange(profile, user, enteredPassword) {
+  if (isDefaultMemberPassword(enteredPassword)) return true
   return resolveMustChangePassword(profile, user)
 }
 
@@ -26,6 +35,11 @@ export async function hasActiveSession() {
 
 export function resolveAccountToEmail(input) {
   if (USE_MOCK) return mock.resolveAccountToEmail(input)
+  const trimmed = String(input || '').trim().toLowerCase()
+  if (!trimmed) return ''
+  if (trimmed.includes('@')) return trimmed
+  const rosterMember = findClassMember(trimmed)
+  if (rosterMember) return authLoginEmail(rosterMember.username, rosterMember.role)
   return ''
 }
 
@@ -34,6 +48,10 @@ export async function resolveAccountToEmailAsync(input) {
   const trimmed = String(input || '').trim().toLowerCase()
   if (!trimmed) return ''
   if (trimmed.includes('@')) return trimmed
+
+  // Roster lookup works before auth; profiles SELECT requires authenticated (RLS).
+  const rosterMember = findClassMember(trimmed)
+  if (rosterMember) return authLoginEmail(rosterMember.username, rosterMember.role)
 
   const { data } = await supabase
     .from('profiles')
@@ -69,9 +87,11 @@ export async function login(email, password) {
     .eq('id', data.user.id)
     .maybeSingle()
 
-  if (profileError) return { data, error: profileError }
+  if (profileError) {
+    console.warn('[login] profile lookup failed:', profileError.message)
+  }
 
-  const mustChangePassword = resolveMustChangePassword(profile, data.user)
+  const mustChangePassword = loginRequiresPasswordChange(profile, data.user, password)
 
   return { data: { ...data, mustChangePassword }, error: null }
 }
@@ -147,6 +167,9 @@ export async function changePassword(newPassword) {
 
   const next = String(newPassword || '').trim()
   if (next.length < 6) return { data: null, error: new Error('Password must be at least 6 characters') }
+  if (isDefaultMemberPassword(next)) {
+    return { data: null, error: new Error('Please choose a password other than the default') }
+  }
 
   const { data, error } = await supabase.auth.updateUser({
     password: next,

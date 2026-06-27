@@ -51,15 +51,29 @@
                 <text class="sectionCount">{{ displayItems.length }}</text>
               </view>
               <view class="sectionBody">
-                <CommunityMaterialListItem
+                <view
                   v-for="item in displayItems"
                   :key="item.id"
-                  v-memo="[item.id, item.title, item.timeLabel, item.fileSize]"
-                  :post="item"
-                  :time-label="item.timeLabel"
+                  v-memo="[item.id, item.title, item.timeLabel, item.fileSize, deletablePostIds.has(item.id)]"
                   data-reveal-card
-                  @open="openPost(item.id)"
-                />
+                >
+                  <ContextActionWrap
+                    v-if="deletablePostIds.has(item.id)"
+                    @activate="onDeleteMaterial(item)"
+                  >
+                    <CommunityMaterialListItem
+                      :post="item"
+                      :time-label="item.timeLabel"
+                      @open="openPost(item.id)"
+                    />
+                  </ContextActionWrap>
+                  <CommunityMaterialListItem
+                    v-else
+                    :post="item"
+                    :time-label="item.timeLabel"
+                    @open="openPost(item.id)"
+                  />
+                </view>
               </view>
             </view>
           </view>
@@ -82,14 +96,17 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
 import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import CommunityMaterialListItem from '@/components/CommunityMaterialListItem.vue'
+import ContextActionWrap from '@/components/ContextActionWrap.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
+import { usePostDelete } from '@/composables/usePostDelete'
 import { filterMaterialPosts, sortMaterialPosts } from '@/lib/communityMaterials'
 import { shortTimeLabel } from '@/lib/timeLabel'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
 const { posts, sortedCommunities, loading, ensurePostsLoaded } = useCommunityStore()
+const { canDelete, confirmDeletePost } = usePostDelete()
 
 const presetCommunityId = ref('')
 const communityFilter = ref('')
@@ -125,6 +142,18 @@ const displayItems = computed(() => {
   })
   return sorted.map((p) => ({ ...p, timeLabel: shortTimeLabel(p.createdAt, { compact: true }) }))
 })
+
+const deletablePostIds = computed(() => {
+  const set = new Set()
+  for (const p of displayItems.value) {
+    if (canDelete(p)) set.add(p.id)
+  }
+  return set
+})
+
+function onDeleteMaterial(item) {
+  confirmDeletePost(item)
+}
 
 function onCommunityPick(label) {
   if (label === 'All spaces') {

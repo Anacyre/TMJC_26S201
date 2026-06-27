@@ -13,7 +13,7 @@
         <text v-if="member.bio" class="bio">{{ member.bio }}</text>
       </view>
 
-      <view v-if="isMe || focusVisible" class="section">
+      <view v-if="showFocusSection" class="section">
         <view class="sectionHead">
           <text class="sectionLabel">Focus</text>
           <text v-if="isMe" class="sectionLink" role="button" @tap="openFocus">Open</text>
@@ -21,7 +21,7 @@
         <view class="card pad">
           <view class="focusTop">
             <view class="focusStat">
-              <text class="focusNum">{{ totalHoursLabel }}</text>
+              <text class="focusNum">{{ profileFocus.totalHoursLabel }}</text>
               <text class="focusLabel">Total</text>
             </view>
             <view class="focusStat">
@@ -38,7 +38,7 @@
             <text class="chartLabel">Weekly</text>
           </view>
           <view class="weekRow">
-            <view v-for="d in weekTotals" :key="d.key" class="bar">
+            <view v-for="d in profileFocus.weekTotals" :key="d.key" class="bar">
               <view class="barTrack">
                 <view class="barFill" :style="{ height: barHeight(d.minutes) + '%' }" />
               </view>
@@ -50,17 +50,17 @@
             <text class="chartLabel">Monthly</text>
           </view>
           <view class="monthRow">
-            <view v-for="m in monthTrend" :key="m.key" class="monthBar">
+            <view v-for="m in profileFocus.monthTrend" :key="m.key" class="monthBar">
               <view class="monthFill" :style="{ height: monthHeight(m.minutes) + '%' }" />
               <text class="monthLabel">{{ m.label }}</text>
             </view>
           </view>
 
-          <view v-if="subjectDistribution.length" class="chartHead">
+          <view v-if="profileFocus.subjectDistribution.length" class="chartHead">
             <text class="chartLabel">Subjects</text>
           </view>
-          <view v-if="subjectDistribution.length" class="distRow">
-            <view v-for="(s, idx) in subjectDistribution.slice(0, 4)" :key="s.name" class="distLine">
+          <view v-if="profileFocus.subjectDistribution.length" class="distRow">
+            <view v-for="(s, idx) in profileFocus.subjectDistribution.slice(0, 4)" :key="s.name" class="distLine">
               <text class="distName">{{ s.name }}</text>
               <view class="distTrack">
                 <view class="distFill" :style="{ width: distWidth(s.minutes) + '%', background: distColor(idx) }" />
@@ -187,38 +187,88 @@ import { getQuickLoginAlias, setQuickLoginAlias } from '@/composables/useMemberS
 import { toast } from '@/composables/useToast'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { hasActiveSession } from '@/api/auth'
+import { fetchFocusPrefsForUser, fetchFocusSessionsForUser } from '@/api/focus'
+import { buildFocusStats } from '@/lib/focusStats'
 import { signOut, goLogin } from '@/composables/useAuthSession'
 import { navSibling } from '@/lib/navigation'
 import { personInitials } from '@/lib/personDisplay'
 
 const { themeClass } = useTheme()
-const { getMemberById } = useCommunityStore()
-const { currentUser, updateProfile } = useUserStore()
+const { getMemberById, fetchMemberProfile } = useCommunityStore()
+const { currentUser, updateProfile, fetchCurrentUser } = useUserStore()
 const {
+  sessions,
   prefs,
-  totalHoursLabel,
-  weekTotals,
-  monthTrend,
-  subjectDistribution,
+  fetchFocusSessions,
   setVisibility,
 } = useFocusStore()
 
+const DEFAULT_FOCUS_PREFS = { visibility: 'public', defaultMinutes: 25, soundId: 'silence' }
+
 const id = ref('')
+const viewedMember = ref(null)
+const viewedFocusSessions = ref([])
+const viewedFocusPrefs = ref({ ...DEFAULT_FOCUS_PREFS })
 const editOpen = ref(false)
 const aliasOpen = ref(false)
 const aliasDraft = ref('')
 const visibilityOptions = ['Private', 'Friends', 'Class']
 const draft = ref({ mbti: '', interests: '', bio: '', birthdayVisibility: 'Friends' })
 
-const member = computed(() =>
-  id.value === currentUser.value.id ? currentUser.value : (getMemberById(id.value) || currentUser.value)
-)
-
 const isMe = computed(() => {
   const uid = currentUser.value.id
   if (!uid) return !id.value
-  return id.value === uid
+  return !id.value || id.value === uid
 })
+
+const member = computed(() => {
+  if (isMe.value) return currentUser.value
+  if (viewedMember.value) return viewedMember.value
+  const cached = getMemberById(id.value)
+  if (cached) return cached
+  return currentUser.value
+})
+
+async function loadFocusView(targetId) {
+  if (!targetId) return
+
+  const uid = currentUser.value.id
+  const viewingSelf = uid && (!id.value || id.value === uid)
+
+  if (viewingSelf) {
+    await fetchFocusSessions(uid)
+    viewedFocusSessions.value = []
+    viewedFocusPrefs.value = { ...DEFAULT_FOCUS_PREFS }
+    return
+  }
+
+  const { data: prefsData } = await fetchFocusPrefsForUser(targetId)
+  viewedFocusPrefs.value = { ...DEFAULT_FOCUS_PREFS, ...(prefsData || {}) }
+  if (viewedFocusPrefs.value.visibility === 'private') {
+    viewedFocusSessions.value = []
+    return
+  }
+
+  const { data } = await fetchFocusSessionsForUser(targetId)
+  viewedFocusSessions.value = data || []
+}
+
+async function loadProfileView() {
+  const uid = currentUser.value.id
+  const targetId = id.value || uid
+  if (!targetId) return
+
+  if (uid && (!id.value || id.value === uid)) {
+    if (!id.value) id.value = uid
+    await fetchCurrentUser()
+    viewedMember.value = null
+    await loadFocusView(targetId)
+    return
+  }
+
+  viewedMember.value = await fetchMemberProfile(targetId)
+  await loadFocusView(targetId)
+}
 
 const isSignedIn = ref(false)
 
@@ -230,7 +280,16 @@ async function refreshSignedIn() {
   }
 }
 const alias = computed(() => getQuickLoginAlias(currentUser.value.id))
-const focusVisible = computed(() => prefs.value.visibility !== 'private')
+
+const showFocusSection = computed(() => {
+  if (isMe.value) return true
+  return viewedFocusPrefs.value.visibility !== 'private'
+})
+
+const profileFocus = computed(() => {
+  if (isMe.value) return buildFocusStats(sessions.value)
+  return buildFocusStats(viewedFocusSessions.value)
+})
 
 const memberLinks = computed(() => {
   const raw = member.value.links || []
@@ -238,12 +297,12 @@ const memberLinks = computed(() => {
 })
 
 const weekMinutesLabel = computed(() => {
-  const total = weekTotals.value.reduce((acc, d) => acc + d.minutes, 0)
+  const total = profileFocus.value.weekTotals.reduce((acc, d) => acc + d.minutes, 0)
   return total >= 60 ? `${(total / 60).toFixed(1)}h` : `${total}m`
 })
 
 const topSubjectLabel = computed(() => {
-  const list = subjectDistribution.value
+  const list = profileFocus.value.subjectDistribution
   if (!list.length) return '-'
   return list[0].name
 })
@@ -256,6 +315,7 @@ async function saveProfile() {
       bio: draft.value.bio,
       birthdayVisibility: draft.value.birthdayVisibility,
     })
+    await loadProfileView()
     editOpen.value = false
     toast.profileSaved()
   } catch (e) {
@@ -283,19 +343,19 @@ function saveAlias() {
 }
 
 function barHeight(minutes) {
-  const max = Math.max(60, ...weekTotals.value.map((d) => d.minutes))
+  const max = Math.max(60, ...profileFocus.value.weekTotals.map((d) => d.minutes))
   if (!max) return 6
   return Math.max(6, Math.min(100, Math.round((minutes / max) * 100)))
 }
 
 function monthHeight(minutes) {
-  const max = Math.max(60, ...monthTrend.value.map((m) => m.minutes))
+  const max = Math.max(60, ...profileFocus.value.monthTrend.map((m) => m.minutes))
   if (!max) return 6
   return Math.max(6, Math.min(100, Math.round((minutes / max) * 100)))
 }
 
 function distWidth(minutes) {
-  const max = Math.max(60, ...subjectDistribution.value.map((s) => s.minutes))
+  const max = Math.max(60, ...profileFocus.value.subjectDistribution.map((s) => s.minutes))
   if (!max) return 4
   return Math.max(4, Math.min(100, Math.round((minutes / max) * 100)))
 }
@@ -320,6 +380,14 @@ function openFocus() {
 }
 
 watch(
+  () => currentUser.value.id,
+  (uid) => {
+    if (uid && !id.value) id.value = uid
+    if (uid) loadProfileView()
+  }
+)
+
+watch(
   () => currentUser.value,
   (u) => {
     draft.value = {
@@ -334,12 +402,14 @@ watch(
 )
 
 onLoad((q) => {
-  id.value = q?.id || currentUser.value.id
+  id.value = q?.id || currentUser.value.id || ''
   refreshSignedIn()
+  loadProfileView()
 })
 
 onShow(() => {
   refreshSignedIn()
+  loadProfileView()
 })
 </script>
 

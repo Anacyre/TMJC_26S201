@@ -17,7 +17,7 @@
           </view>
           <view class="appStat">
             <text class="appStatNum">{{ focusHoursLabel }}</text>
-            <text class="appStatLabel">focused</text>
+            <text class="appStatLabel">this week</text>
           </view>
         </view>
 
@@ -62,8 +62,8 @@ import { useFocusStore } from '@/composables/useFocusStore'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
-const { totalHoursLabel } = useFocusStore()
-const focusHoursLabel = computed(() => totalHoursLabel.value || '0 min')
+const { weekMinutesLabel } = useFocusStore()
+const focusHoursLabel = computed(() => weekMinutesLabel.value || '0m')
 
 function openFocus() { navSibling('/pages/apps/focus') }
 function openCalculator() { navSibling('/pages/apps/calculator') }
