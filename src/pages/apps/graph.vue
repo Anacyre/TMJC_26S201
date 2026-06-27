@@ -30,6 +30,16 @@
           <view v-if="panelCollapsed" class="zoomHint" aria-hidden="true">
             <text class="zoomHintText">Scroll / pinch · drag to pan</text>
           </view>
+          <view
+            class="originBtn tap"
+            role="button"
+            aria-label="Back to origin"
+            @tap.stop="resetToOrigin"
+            @touchstart.stop
+          >
+            <text class="originBtnIcon">⊙</text>
+            <text class="originBtnLabel">原点</text>
+          </view>
         </view>
 
         <view class="inputDock" :class="{ collapsed: panelCollapsed }">
@@ -177,6 +187,7 @@ const {
 const centerX = ref(0)
 const centerY = ref(0)
 const scale = ref(40)
+const DEFAULT_SCALE = 40
 const zoomMin = ref(4)
 const zoomMax = ref(800)
 
@@ -592,6 +603,13 @@ function draw() {
   }
 }
 
+function resetToOrigin() {
+  centerX.value = 0
+  centerY.value = 0
+  scale.value = Math.min(zoomMax.value, Math.max(zoomMin.value, DEFAULT_SCALE))
+  flushDraw()
+}
+
 function zoomAt(screenX, screenY, factor) {
   const sx = Math.max(0, Math.min(canvasW, screenX))
   const sy = Math.max(0, Math.min(canvasH, screenY))
@@ -756,6 +774,23 @@ onBeforeUnmount(() => {
 }
 .zoomHintText { font-size: 18rpx; color: rgba(16, 24, 40, 0.42); }
 .t-dark .zoomHintText { color: rgba(245, 247, 255, 0.38); }
+
+.originBtn {
+  position: absolute; top: 14rpx; right: 14rpx; z-index: 3;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2rpx;
+  min-width: 72rpx; min-height: 72rpx; padding: 8rpx 12rpx; border-radius: 20rpx;
+  background: rgba(255, 255, 255, 0.78); border: 1rpx solid rgba(46, 99, 255, 0.18);
+  box-shadow: 0 8rpx 24rpx rgba(16, 24, 40, 0.08); pointer-events: auto;
+}
+.t-dark .originBtn {
+  background: rgba(24, 28, 34, 0.82); border-color: rgba(120, 160, 255, 0.24);
+  box-shadow: 0 8rpx 24rpx rgba(0, 0, 0, 0.22);
+}
+.originBtn:active { transform: scale(0.94); background: rgba(46, 99, 255, 0.12); }
+.originBtnIcon { font-size: 28rpx; line-height: 1; color: rgba(46, 99, 255, 0.92); }
+.originBtnLabel { font-size: 18rpx; font-weight: 620; color: rgba(16, 24, 40, 0.62); }
+.t-dark .originBtnIcon { color: rgba(170, 200, 255, 0.92); }
+.t-dark .originBtnLabel { color: rgba(245, 247, 255, 0.58); }
 
 .inputDock {
   flex: 0 0 auto; min-height: 0; max-height: 52vh; display: flex; flex-direction: column; gap: 8rpx;
