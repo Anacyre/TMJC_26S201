@@ -40,12 +40,14 @@
       <text class="attachAction">Download</text>
     </view>
 
-    <view class="actionSeg">
-      <view class="segBtn tap" :class="{ on: post.liked }" role="button" @tap="$emit('toggleLike')">
-        <text class="segBtnText">♥ {{ post.likesCount || 0 }}</text>
+    <view class="actionBar">
+      <view class="actionBtn like tap" :class="{ on: post.liked }" role="button" @tap="$emit('toggleLike')">
+        <text class="actionIcon">{{ post.liked ? '♥' : '♡' }}</text>
+        <text class="actionLabel">{{ post.likesCount || 0 }}</text>
       </view>
-      <view class="segBtn tap" :class="{ on: saved }" role="button" @tap="$emit('toggleSave')">
-        <text class="segBtnText">{{ saved ? '★ Saved' : '☆ Save' }}</text>
+      <view class="actionBtn save tap" :class="{ on: saved }" role="button" @tap="$emit('toggleSave')">
+        <text class="actionIcon">{{ saved ? '★' : '☆' }}</text>
+        <text class="actionLabel">{{ saved ? 'Saved' : 'Save' }}</text>
       </view>
     </view>
   </view>
@@ -146,27 +148,41 @@ const avatarInitials = computed(() => personInitials(authorName.value))
 .attachAction { font-size: 20rpx; font-weight: 640; color: rgba(16, 24, 40, 0.55); }
 .t-dark .attachAction { color: rgba(245, 247, 255, 0.55); }
 
-.actionSeg {
-  margin-top: 14rpx;
-  display: flex;
-  gap: 10rpx;
-}
-.segBtn {
-  flex: 1;
-  height: 56rpx;
-  border-radius: 16rpx;
+.actionBar {
+  margin-top: 12rpx;
+  padding-top: 10rpx;
+  border-top: 1rpx solid rgba(16, 24, 40, 0.06);
   display: flex;
   align-items: center;
-  justify-content: center;
-  background: rgba(16, 24, 40, 0.04);
+  gap: 28rpx;
 }
-.t-dark .segBtn { background: rgba(255, 255, 255, 0.04); }
-.segBtn.on {
-  background: rgba(46, 99, 255, 0.12);
+.t-dark .actionBar { border-top-color: rgba(255, 255, 255, 0.06); }
+.actionBtn {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 2rpx 0;
+  min-height: 36rpx;
 }
-.t-dark .segBtn.on { background: rgba(120, 160, 255, 0.16); }
-.segBtnText { font-size: 20rpx; font-weight: 660; color: rgba(16, 24, 40, 0.58); }
-.segBtn.on .segBtnText { color: rgba(46, 99, 255, 0.96); font-weight: 720; }
-.t-dark .segBtnText { color: rgba(245, 247, 255, 0.48); }
-.t-dark .segBtn.on .segBtnText { color: rgba(170, 200, 255, 0.96); }
+.actionBtn:active { opacity: 0.65; }
+.actionIcon {
+  font-size: 24rpx;
+  line-height: 1;
+  color: rgba(16, 24, 40, 0.42);
+}
+.actionLabel {
+  font-size: 19rpx;
+  font-weight: 620;
+  color: rgba(16, 24, 40, 0.48);
+}
+.actionBtn.like.on .actionIcon,
+.actionBtn.like.on .actionLabel { color: rgba(229, 72, 77, 0.92); }
+.actionBtn.save.on .actionIcon,
+.actionBtn.save.on .actionLabel { color: rgba(46, 99, 255, 0.92); }
+.t-dark .actionIcon { color: rgba(245, 247, 255, 0.38); }
+.t-dark .actionLabel { color: rgba(245, 247, 255, 0.42); }
+.t-dark .actionBtn.like.on .actionIcon,
+.t-dark .actionBtn.like.on .actionLabel { color: rgba(255, 122, 122, 0.92); }
+.t-dark .actionBtn.save.on .actionIcon,
+.t-dark .actionBtn.save.on .actionLabel { color: rgba(170, 200, 255, 0.92); }
 </style>

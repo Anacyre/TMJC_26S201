@@ -123,7 +123,7 @@ function rowToPost(row) {
     title: row.title,
     content: row.content || '',
     author: row.anonymous ? 'Anonymous' : (row.profiles?.name || 'Unknown'),
-    authorId: row.anonymous ? null : row.user_id,
+    authorId: row.user_id || null,
     anonymous: row.anonymous || false,
     likesCount: row.likes_count || 0,
     commentsCount: row.comments_count || 0,
@@ -281,16 +281,32 @@ export async function togglePostLike(postId, currentLiked, currentCount) {
 
 // ─── Comments ───────────────────────────────────────────────────
 
-function rowToComment(row) {
+function rowToComment(row, authorName = 'Unknown') {
   return {
     id: row.id,
     postId: row.post_id,
-    author: row.anonymous ? 'Anonymous' : (row.profiles?.name || 'Unknown'),
-    authorId: row.anonymous ? null : row.user_id,
+    author: row.anonymous ? 'Anonymous' : authorName,
+    authorId: row.user_id || null,
     anonymous: row.anonymous || false,
     text: row.text,
     createdAt: row.created_at,
   }
+}
+
+async function hydrateCommentRows(rows = []) {
+  if (!rows.length) return []
+  const userIds = [...new Set(rows.map((row) => row.user_id).filter(Boolean))]
+  const nameById = new Map()
+  if (userIds.length) {
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, name, display_name')
+      .in('id', userIds)
+    for (const profile of profiles || []) {
+      nameById.set(profile.id, profile.display_name || profile.name || 'Unknown')
+    }
+  }
+  return rows.map((row) => rowToComment(row, nameById.get(row.user_id) || 'Unknown'))
 }
 
 /**
@@ -300,11 +316,12 @@ export async function fetchComments(postId) {
   if (USE_MOCK) return mock.fetchComments(postId)
   const { data, error } = await supabase
     .from('comments')
-    .select(`*, profiles(name)`)
+    .select('*')
     .eq('post_id', postId)
     .order('created_at', { ascending: false })
 
-  return { data: error ? [] : data.map(rowToComment), error }
+  if (error) return { data: [], error }
+  return { data: await hydrateCommentRows(data || []), error: null }
 }
 
 /**
@@ -323,8 +340,10 @@ export async function addComment(postId, text, anonymous = false) {
       text: text.trim(),
       anonymous,
     })
-    .select(`*, profiles(name)`)
+    .select('*')
     .single()
 
-  return { data: data ? rowToComment(data) : null, error }
+  if (error) return { data: null, error }
+  const [comment] = await hydrateCommentRows(data ? [data] : [])
+  return { data: comment || null, error: null }
 }

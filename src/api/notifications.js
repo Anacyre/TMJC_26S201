@@ -100,34 +100,53 @@ export async function createNotification(payload) {
 }
 
 /**
- * Upsert the current user's personal state for a notification
+ * Upsert the current user's personal state for a notification.
+ * Uses partial UPDATE so concurrent patches (e.g. in_planner + hidden) do not clobber each other.
  */
 async function upsertState(notificationId, patch) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: new Error('Not signed in'), userId: '' }
 
-  const { data: existing } = await supabase
+  const now = new Date().toISOString()
+  const { data: updated, error: updateError } = await supabase
     .from('notification_user_states')
-    .select('hidden, read, important, in_planner')
+    .update({ ...patch, updated_at: now })
     .eq('user_id', user.id)
     .eq('notification_id', notificationId)
+    .select('notification_id')
     .maybeSingle()
+
+  if (updateError) return { error: updateError, userId: user.id }
+  if (updated) return { error: null, userId: user.id }
 
   const row = {
     user_id: user.id,
     notification_id: notificationId,
-    hidden: existing?.hidden ?? false,
-    read: existing?.read ?? false,
-    important: existing?.important ?? false,
-    in_planner: existing?.in_planner ?? false,
+    hidden: false,
+    read: false,
+    important: false,
+    in_planner: false,
+    updated_at: now,
     ...patch,
   }
 
-  const { error } = await supabase
+  const { error: insertError } = await supabase
     .from('notification_user_states')
-    .upsert(row, { onConflict: 'user_id,notification_id' })
+    .insert(row)
 
-  return { error, userId: user.id }
+  return { error: insertError, userId: user.id }
+}
+
+/** Atomically patch multiple state fields in one request. */
+export async function patchNotificationState(notificationId, patch) {
+  if (USE_MOCK) return mock.patchNotificationState(notificationId, patch)
+  const apiPatch = {}
+  if (patch.hidden !== undefined) apiPatch.hidden = !!patch.hidden
+  if (patch.read !== undefined) apiPatch.read = !!patch.read
+  if (patch.important !== undefined) apiPatch.important = !!patch.important
+  if (patch.in_planner !== undefined) apiPatch.in_planner = !!patch.in_planner
+  if (patch.inPlanner !== undefined) apiPatch.in_planner = !!patch.inPlanner
+  return upsertState(notificationId, apiPatch)
 }
 
 export async function markRead(notificationId) {

@@ -92,10 +92,10 @@
 			}
 		},
 		{
-			"path": "pages/study/index",
+			"path": "pages/apps/index",
 			"style": {
 				"navigationStyle": "custom",
-				"navigationBarTitleText": "Study"
+				"navigationBarTitleText": "Apps"
 			}
 		},
 		{
@@ -134,13 +134,27 @@
 			}
 		},
 		{
-			"path": "pages/study/focus",
+			"path": "pages/apps/focus",
 			"style": {
 				"navigationStyle": "custom",
 				"navigationBarTitleText": "Focus",
 				"mp-weixin": {
 					"requiredBackgroundModes": ["audio"]
 				}
+			}
+		},
+		{
+			"path": "pages/apps/calculator",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Calculator"
+			}
+		},
+		{
+			"path": "pages/apps/graph",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Graph"
 			}
 		},
 		{

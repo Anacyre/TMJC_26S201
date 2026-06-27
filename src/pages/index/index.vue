@@ -224,7 +224,7 @@ function openPlanner() {
 }
 
 function openFocus() {
-  navSibling('/pages/study/focus')
+  navSibling('/pages/apps/focus')
 }
 
 async function refreshHome({ force = false } = {}) {

@@ -99,14 +99,58 @@ export function inferResourceType(fileName = '') {
 }
 
 export function choosePostFile() {
+  const extensions = [
+    '.png', '.jpg', '.jpeg', '.webp', '.gif',
+    '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
+    '.zip', '.txt', '.mp4', '.mov',
+  ]
+  // #ifdef H5
+  if (typeof document !== 'undefined') {
+    return chooseFileViaInput(extensions)
+  }
+  // #endif
+  return choosePostFileNative(extensions)
+}
+
+function chooseFileViaInput(extensions) {
+  return new Promise((resolve, reject) => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = extensions.join(',')
+    input.style.display = 'none'
+
+    const cleanup = () => {
+      input.removeEventListener('change', onChange)
+      input.remove()
+    }
+
+    const onChange = () => {
+      const file = input.files?.[0]
+      cleanup()
+      if (!file) {
+        reject(new Error('Pick cancelled'))
+        return
+      }
+      resolve({
+        file,
+        path: URL.createObjectURL(file),
+        name: file.name || 'file',
+        size: file.size || 0,
+        type: file.type || '',
+      })
+    }
+
+    input.addEventListener('change', onChange)
+    document.body.appendChild(input)
+    input.click()
+  })
+}
+
+function choosePostFileNative(extensions) {
   return new Promise((resolve, reject) => {
     uni.chooseFile({
       count: 1,
-      extension: [
-        '.png', '.jpg', '.jpeg', '.webp', '.gif',
-        '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.ppt', '.pptx',
-        '.zip', '.txt', '.mp4', '.mov',
-      ],
+      extension: extensions,
       success: (res) => {
         const file = res.tempFiles?.[0]
         if (file) {

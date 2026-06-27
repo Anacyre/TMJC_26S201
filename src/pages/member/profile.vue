@@ -316,7 +316,7 @@ function minuteLabel(minutes) {
 }
 
 function openFocus() {
-  navSibling('/pages/study/focus')
+  navSibling('/pages/apps/focus')
 }
 
 watch(

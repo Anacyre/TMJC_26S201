@@ -185,7 +185,8 @@ function applyCommunityRow(id, row, payload = {}) {
 
 async function addComment(postId, text, anonymous = false) {
   const { data, error } = await communityApi.addComment(postId, text, anonymous)
-  if (!error && data) {
+  if (error) return { data: null, error }
+  if (data) {
     if (!commentsByPost.value[postId]) commentsByPost.value[postId] = []
     commentsByPost.value[postId].unshift(data)
     const idx = posts.value.findIndex((p) => p.id === postId)
@@ -196,6 +197,7 @@ async function addComment(postId, text, anonymous = false) {
       posts.value = next
     }
   }
+  return { data, error: null }
 }
 
 async function addCommunity(payload) {

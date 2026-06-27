@@ -82,17 +82,12 @@
                     v-memo="[p.id, p.likesCount, p.commentsCount, p.timeLabel, deletablePostIds.has(p.id)]"
                     data-reveal-card
                   >
-                    <SwipeRow
+                    <ContextActionWrap
                       v-if="deletablePostIds.has(p.id)"
-                      side="right"
-                      action-style="strip"
-                      :actions="deleteActions"
-                      commit-action="delete"
-                      @action="onDeletePost(p)"
-                      @commit="onDeletePost(p)"
+                      @activate="onDeletePost(p)"
                     >
                       <PostListItem :post="p" @open="openPost(p.id)" />
-                    </SwipeRow>
+                    </ContextActionWrap>
                     <PostListItem v-else :post="p" @open="openPost(p.id)" />
                   </view>
                 </view>
@@ -132,7 +127,7 @@
             placeholder-class="ph"
           />
         </view>
-        <view v-if="showPostOptions || draft.postType === 'material'" class="optionsBlock">
+        <view class="optionsBlock">
           <view class="field">
             <view class="fileRow tap" role="button" @tap="pickAttachment">
               <text class="fileLabel">{{ draft.fileName || 'Choose file' }}</text>
@@ -146,9 +141,6 @@
             <view class="check" :class="{ on: draft.anonymous }"><view class="checkDot" /></view>
             <text class="anonText">Anonymous</text>
           </view>
-        </view>
-        <view v-if="draft.postType === 'regular'" class="optionsToggle tap" role="button" @tap="showPostOptions = !showPostOptions">
-          <text class="optionsToggleText">{{ showPostOptions ? 'Hide options' : 'More options' }}</text>
         </view>
         <view class="commit tap" :class="{ busy: posting }" role="button" @tap="createPost">
           <text class="commitText">{{ posting ? '…' : (draft.postType === 'material' ? 'Share' : 'Post') }}</text>
@@ -168,7 +160,7 @@ import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
-import SwipeRow from '@/components/SwipeRow.vue'
+import ContextActionWrap from '@/components/ContextActionWrap.vue'
 import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import CommunitySegTabs from '@/components/community/CommunitySegTabs.vue'
 import CommunityRowLink from '@/components/community/CommunityRowLink.vue'
@@ -201,9 +193,7 @@ const filter = ref('hot')
 const contentTab = ref('posts')
 const sortPickerOpen = ref(false)
 const showCreate = ref(false)
-const showPostOptions = ref(false)
 const posting = ref(false)
-const deleteActions = [{ id: 'delete', label: 'Delete', icon: 'trash', danger: true }]
 const draft = ref({
   text: '',
   postType: POST_TYPE_REGULAR,
@@ -365,7 +355,6 @@ async function createPost() {
       return
     }
     showCreate.value = false
-    showPostOptions.value = false
     draft.value = {
       text: '',
       postType: POST_TYPE_REGULAR,

@@ -1090,6 +1090,19 @@ export async function setInPlanner(notificationId, value) {
   return { error: null }
 }
 
+export async function patchNotificationState(notificationId, patch) {
+  await tick(20)
+  const id = currentUserId(); if (!id) return { error: new Error('Not signed in'), userId: '' }
+  const apiPatch = {}
+  if (patch.hidden !== undefined) apiPatch.hidden = !!patch.hidden
+  if (patch.read !== undefined) apiPatch.read = !!patch.read
+  if (patch.important !== undefined) apiPatch.important = !!patch.important
+  if (patch.in_planner !== undefined) apiPatch.in_planner = !!patch.in_planner
+  if (patch.inPlanner !== undefined) apiPatch.in_planner = !!patch.inPlanner
+  upsertNoticeState(id, notificationId, apiPatch)
+  return { error: null, userId: id }
+}
+
 export async function deleteNotification(notificationId) {
   await tick(20)
   const id = currentUserId()

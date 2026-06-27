@@ -17,14 +17,9 @@
             </view>
           </view>
 
-          <SwipeRow
+          <ContextActionWrap
             v-if="showDeleteBtn && post"
-            side="right"
-            action-style="strip"
-            :actions="deleteActions"
-            commit-action="delete"
-            @action="confirmDelete"
-            @commit="confirmDelete"
+            @activate="confirmDelete"
           >
             <CommunityPostBody
               :post="post"
@@ -34,7 +29,7 @@
               @toggle-save="saved = !saved"
               @open-attachment="openAttachment"
             />
-          </SwipeRow>
+          </ContextActionWrap>
           <CommunityPostBody
             v-else-if="post"
             :post="post"
@@ -74,6 +69,10 @@
               <input class="replyInput" v-model="reply" placeholder="Write a reply…" placeholder-class="placeholder" />
               <view class="replySend tap" role="button" @tap="send"><text class="replySendText">Send</text></view>
             </view>
+            <view class="anonRow tap" role="button" @tap="replyAnonymous = !replyAnonymous">
+              <view class="check" :class="{ on: replyAnonymous }"><view class="checkDot" /></view>
+              <text class="anonText">Anonymous</text>
+            </view>
           </view>
         </view>
         <view class="gap" />
@@ -89,7 +88,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
-import SwipeRow from '@/components/SwipeRow.vue'
+import ContextActionWrap from '@/components/ContextActionWrap.vue'
 import CommunityPostBody from '@/components/CommunityPostBody.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useCommunityStore } from '@/composables/useCommunityStore'
@@ -107,7 +106,7 @@ const { canDelete, confirmDeletePost } = usePostDelete()
 const id = ref('')
 const saved = ref(false)
 const reply = ref('')
-const deleteActions = [{ id: 'delete', label: 'Delete', icon: 'trash', danger: true }]
+const replyAnonymous = ref(false)
 const post = computed(() => getPostById(id.value))
 const comments = computed(() => getComments(id.value))
 const commentsView = computed(() =>
@@ -165,11 +164,17 @@ function confirmDelete() {
   })
 }
 
-function send() {
-  if (!reply.value.trim()) return
-  addComment(id.value, reply.value)
+async function send() {
+  const text = reply.value.trim()
+  if (!text) return
+  const { error } = await addComment(id.value, text, replyAnonymous.value)
+  if (error) {
+    toast.show(error.message || 'Could not reply')
+    return
+  }
   toast.commentAdded()
   reply.value = ''
+  replyAnonymous.value = false
 }
 
 onLoad(async (q) => {
@@ -259,5 +264,13 @@ onLoad(async (q) => {
   display: flex; align-items: center; justify-content: center;
 }
 .replySendText { font-size: 21rpx; font-weight: 720; color: #fff; }
+.anonRow { margin-top: 12rpx; display: flex; align-items: center; gap: 10rpx; }
+.check { width: 32rpx; height: 32rpx; border-radius: 10rpx; background: rgba(16, 24, 40, 0.06); border: 1rpx solid rgba(16, 24, 40, 0.08); display: flex; align-items: center; justify-content: center; }
+.t-dark .check { background: rgba(255, 255, 255, 0.06); border-color: rgba(255, 255, 255, 0.08); }
+.check.on { background: rgba(46, 99, 255, 0.14); border-color: rgba(46, 99, 255, 0.24); }
+.checkDot { width: 12rpx; height: 12rpx; border-radius: 50%; background: rgba(16, 24, 40, 0.2); }
+.check.on .checkDot { background: rgba(46, 99, 255, 0.95); }
+.anonText { font-size: 21rpx; color: rgba(16, 24, 40, 0.7); }
+.t-dark .anonText { color: rgba(245, 247, 255, 0.62); }
 .gap { height: 24rpx; }
 </style>

@@ -27,9 +27,11 @@
             <view class="roof" />
             <view class="base" />
           </template>
-          <template v-else-if="tab.id === 'study'">
-            <view class="sheet a" />
-            <view class="sheet b" />
+          <template v-else-if="tab.id === 'apps'">
+            <view class="appTile a" />
+            <view class="appTile b" />
+            <view class="appTile c" />
+            <view class="appTile d" />
           </template>
           <template v-else>
             <view class="gridDot" />
@@ -57,7 +59,7 @@ const tabs = [
   { id: 'tasks', label: 'Tasks' },
   { id: 'community', label: 'Community' },
   { id: 'home', label: 'Home' },
-  { id: 'study', label: 'Study' },
+  { id: 'apps', label: 'Apps' },
   { id: 'other', label: 'Other' },
 ]
 
@@ -190,15 +192,20 @@ function go(key) {
   transition: border-color 180ms ease;
 }
 
-/* study */
-.g-study .sheet {
-  position: absolute;
-  border-radius: 8rpx;
-  border: 2.4rpx solid rgba(16, 24, 40, 0.55);
+/* apps */
+.g-apps {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5rpx;
+  width: 32rpx;
+  height: 32rpx;
+  margin: 4rpx auto 0;
+}
+.g-apps .appTile {
+  border-radius: 5rpx;
+  border: 2.2rpx solid rgba(16, 24, 40, 0.55);
   transition: border-color 180ms ease;
 }
-.g-study .sheet.a { inset: 0 8rpx 6rpx 0; }
-.g-study .sheet.b { inset: 6rpx 0 0 8rpx; }
 
 /* other grid */
 .g-other {
@@ -219,7 +226,7 @@ function go(key) {
 
 .t-dark .g-tasks .line,
 .t-dark .g-community .dot,
-.t-dark .g-study .sheet,
+.t-dark .g-apps .appTile,
 .t-dark .g-home .roof,
 .t-dark .g-home .base {
   border-color: rgba(245, 247, 255, 0.58);
@@ -229,7 +236,7 @@ function go(key) {
 
 .slot.active .g-tasks .line,
 .slot.active .g-community .dot,
-.slot.active .g-study .sheet,
+.slot.active .g-apps .appTile,
 .slot.active .g-home .roof,
 .slot.active .g-home .base {
   border-color: rgba(46, 99, 255, 0.95);

@@ -14,13 +14,13 @@ export const PAGE_ENTER_KEY = 'page_enter_pending'
 /** @deprecated use PAGE_ENTER_KEY */
 export const TAB_ENTER_KEY = PAGE_ENTER_KEY
 
-export const TAB_ORDER = ['tasks', 'community', 'home', 'study', 'other']
+export const TAB_ORDER = ['tasks', 'community', 'home', 'apps', 'other']
 
 export const TAB_PATHS = {
   tasks: '/pages/tasks/index',
   community: '/pages/community/index',
   home: '/pages/index/index',
-  study: '/pages/study/index',
+  apps: '/pages/apps/index',
   other: '/pages/other/other',
 }
 

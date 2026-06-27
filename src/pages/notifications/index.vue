@@ -258,6 +258,7 @@ const {
   markRead,
   toggleImportant,
   setInPlanner,
+  patchNotificationState,
   setHidden,
   getNotificationById,
   addNotification,
@@ -420,7 +421,7 @@ function onPlanner(n) {
     addTaskFromNotice,
     deleteTask,
     setInPlanner,
-    setHidden,
+    patchNotificationState,
     toast,
   })
 }

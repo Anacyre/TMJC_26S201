@@ -5,7 +5,7 @@ import { canAddNoticeToTasks } from '@/lib/noticeRules'
  */
 export async function addNoticeToPlanner(
   n,
-  { addTaskFromNotice, deleteTask, setInPlanner, setHidden, toast },
+  { addTaskFromNotice, deleteTask, setInPlanner, patchNotificationState, toast },
   { hide = true } = {}
 ) {
   if (!canAddNoticeToTasks(n)) {
@@ -29,14 +29,18 @@ export async function addNoticeToPlanner(
   const prevInPlanner = !!n.inPlanner
   const prevHidden = !!n.hidden
 
-  const writes = [setInPlanner(n.id, true)]
-  if (hide) writes.push(setHidden(n.id, true))
-  await Promise.all(writes)
+  if (hide) {
+    await patchNotificationState(n.id, { inPlanner: true, hidden: true })
+  } else {
+    await setInPlanner(n.id, true)
+  }
 
   toast.showUndoToast('Added to planner', async () => {
     if (task?.id) await deleteTask(task.id)
-    const undos = [setInPlanner(n.id, prevInPlanner)]
-    if (hide) undos.push(setHidden(n.id, prevHidden))
-    await Promise.all(undos)
+    if (hide) {
+      await patchNotificationState(n.id, { inPlanner: prevInPlanner, hidden: prevHidden })
+    } else {
+      await setInPlanner(n.id, prevInPlanner)
+    }
   })
 }

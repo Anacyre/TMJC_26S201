@@ -9,7 +9,8 @@ export const PAGE_MS = 200
 /** Routes with bespoke motion — do not apply unified enter reveal */
 export const PAGE_TRANSITION_SKIP = new Set([
   'pages/login/login',
-  'pages/study/focus',
+  'pages/apps/focus',
+  'pages/apps/calculator',
 ])
 
 export function shouldSkipPageEnterTransition(route = '') {

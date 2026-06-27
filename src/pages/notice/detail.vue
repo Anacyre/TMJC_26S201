@@ -53,7 +53,7 @@ import { addNoticeToPlanner } from '@/lib/noticePlanner'
 import { shortTimeLabel } from '@/lib/timeLabel'
 
 const { themeClass } = useTheme()
-const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, removeNotification } = useNotificationStore()
+const { getNotificationById, markRead, toggleImportant, setHidden, setInPlanner, patchNotificationState, removeNotification } = useNotificationStore()
 const { addTaskFromNotice, deleteTask } = useTasksStore()
 const { currentUser } = useUserStore()
 const { isAdminActive } = useAdminMode()
@@ -116,7 +116,7 @@ function addToPlanner() {
   if (!notice.value?.id) return
   addNoticeToPlanner(
     notice.value,
-    { addTaskFromNotice, deleteTask, setInPlanner, setHidden, toast },
+    { addTaskFromNotice, deleteTask, setInPlanner, patchNotificationState, toast },
     { hide: false }
   )
 }

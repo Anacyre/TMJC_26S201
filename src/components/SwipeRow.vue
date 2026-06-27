@@ -30,6 +30,10 @@
       @touchmove.stop="onTouchMove"
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
+      @mousedown="onMouseDown"
+      @mousemove="onMouseMove"
+      @mouseup="onMouseEnd"
+      @mouseleave="onMouseEnd"
       @contextmenu="onContextMenu"
       @longpress="onLongPress"
     >
@@ -222,10 +226,13 @@ function isSwipeIgnoredTarget(target) {
   return !!target.closest('[data-swipe-ignore]')
 }
 
-function onTouchStart(e) {
-  if (isDesktop.value) return
+function pointerFromEvent(e) {
+  return e.touches?.[0] || e.changedTouches?.[0] || e
+}
+
+function onDragStart(e) {
   if (isSwipeIgnoredTarget(e.target)) return
-  const t = e.touches?.[0]
+  const t = pointerFromEvent(e)
   if (!t) return
   startX.value = t.clientX
   startY.value = t.clientY
@@ -237,9 +244,9 @@ function onTouchStart(e) {
   dragOffset.value = 0
 }
 
-function onTouchMove(e) {
-  if (!dragging.value || isDesktop.value) return
-  const t = e.touches?.[0]
+function onDragMove(e) {
+  if (!dragging.value) return
+  const t = pointerFromEvent(e)
   if (!t) return
   const dx = t.clientX - startX.value
   const dy = t.clientY - startY.value
@@ -251,12 +258,13 @@ function onTouchMove(e) {
   }
 
   if (lockedAxis.value === 'x') {
+    e.preventDefault?.()
     const clamped = clampOffset(rawDragTotal(dx))
     dragOffset.value = clamped - baseOffset.value
   }
 }
 
-function onTouchEnd() {
+function onDragEnd() {
   if (!dragging.value) return
   dragging.value = false
   const total = displayOffset.value
@@ -297,6 +305,36 @@ function onTouchEnd() {
     }
   }
   dragOffset.value = 0
+}
+
+function onTouchStart(e) {
+  if (isDesktop.value) return
+  onDragStart(e)
+}
+
+function onTouchMove(e) {
+  if (!dragging.value || isDesktop.value) return
+  onDragMove(e)
+}
+
+function onTouchEnd() {
+  if (isDesktop.value) return
+  onDragEnd()
+}
+
+function onMouseDown(e) {
+  if (!isDesktop.value || e.button !== 0) return
+  onDragStart(e)
+}
+
+function onMouseMove(e) {
+  if (!isDesktop.value || !dragging.value) return
+  onDragMove(e)
+}
+
+function onMouseEnd() {
+  if (!isDesktop.value) return
+  onDragEnd()
 }
 
 function onActionTap(id) {

@@ -200,6 +200,36 @@ async function unhide(id) {
   return setHidden(id, false)
 }
 
+async function patchNotificationState(id, patch) {
+  const localPatch = {}
+  if (patch.hidden !== undefined) localPatch.hidden = !!patch.hidden
+  if (patch.inPlanner !== undefined) localPatch.inPlanner = !!patch.inPlanner
+  if (patch.read !== undefined) localPatch.read = !!patch.read
+  if (patch.important !== undefined) localPatch.important = !!patch.important
+
+  const item = getNotificationById(id)
+  const prevHidden = item?.hidden ?? false
+  const prevInPlanner = item?.inPlanner ?? false
+  const prevRead = item?.read ?? false
+  const prevImportant = item?.important ?? false
+
+  if (Object.keys(localPatch).length) _patchLocal(id, localPatch)
+  if (patch.hidden !== undefined) _rememberHidden(id, !!patch.hidden)
+
+  const { error } = await notificationsApi.patchNotificationState(id, patch)
+  if (error) {
+    _patchLocal(id, {
+      hidden: prevHidden,
+      inPlanner: prevInPlanner,
+      read: prevRead,
+      important: prevImportant,
+    })
+    _rememberHidden(id, prevHidden)
+    console.error('[useNotificationStore] patchNotificationState:', error.message)
+  }
+  return { error }
+}
+
 async function setInPlanner(id, value) {
   _patchLocal(id, { inPlanner: value })
   await notificationsApi.setInPlanner(id, value)
@@ -244,6 +274,7 @@ const partitionedNotifications = computed(() => {
       hidden.push(n)
       continue
     }
+    if (n.inPlanner) continue
     visible.push(n)
     if (n.important) pinned.push(n)
   }
@@ -300,7 +331,7 @@ export function resetNotificationSession() {
   notifications.value = []
 }
 
-export { setInPlanner, unhide, setHidden, isNoticeRelevantToUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable }
+export { setInPlanner, patchNotificationState, unhide, setHidden, isNoticeRelevantToUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable }
 
 export function useNotificationStore() {
   return {
@@ -319,6 +350,7 @@ export function useNotificationStore() {
     markRead,
     toggleImportant,
     setInPlanner,
+    patchNotificationState,
     toggleHidden,
     setHidden,
     unhide,
