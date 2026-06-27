@@ -357,6 +357,53 @@ function updateZoomLimits() {
   zoomMax.value = limits.maxScale
 }
 
+function clampScale(next) {
+  return Math.min(zoomMax.value, Math.max(zoomMin.value, next))
+}
+
+function refreshViewportFromTouchEvent(e) {
+  // #ifdef H5
+  const rect = e?.currentTarget?.getBoundingClientRect?.()
+  if (rect?.width > 0 && rect?.height > 0) {
+    viewportRect = rect
+    return
+  }
+  // #endif
+  updateViewportRect()
+}
+
+function clampScreenX(x) {
+  return Math.max(0, Math.min(canvasW, x))
+}
+
+function clampScreenY(y) {
+  return Math.max(0, Math.min(canvasH, y))
+}
+
+function localFromTouch(t) {
+  if (Number.isFinite(t.x) && Number.isFinite(t.y)) {
+    return { x: clampScreenX(t.x), y: clampScreenY(t.y) }
+  }
+
+  const left = viewportRect.left || 0
+  const top = viewportRect.top || 0
+  if (Number.isFinite(t.clientX) && Number.isFinite(t.clientY)) {
+    return {
+      x: clampScreenX(t.clientX - left),
+      y: clampScreenY(t.clientY - top),
+    }
+  }
+
+  if (Number.isFinite(t.pageX) && Number.isFinite(t.pageY)) {
+    return {
+      x: clampScreenX(t.pageX - left),
+      y: clampScreenY(t.pageY - top),
+    }
+  }
+
+  return { x: canvasW / 2, y: canvasH / 2 }
+}
+
 function plotAll() {
   const layers = []
   curves.value.forEach((curve, index) => {
@@ -372,7 +419,7 @@ function plotAll() {
   })
   plotLayers.value = layers
   updateZoomLimits()
-  scale.value = Math.min(zoomMax.value, Math.max(zoomMin.value, scale.value))
+  scale.value = clampScale(scale.value)
   flushDraw()
 }
 
@@ -433,8 +480,12 @@ function flushDraw() {
     return
   }
   drawPending = true
-  requestAnimationFrame(() => {
+  requestAnimationFrame(async () => {
     drawPending = false
+    if (!canvasReady || !canvasW || !canvasH) {
+      await updateViewportRect()
+      await initCanvas()
+    }
     draw()
     if (drawAgain) {
       drawAgain = false
@@ -614,30 +665,22 @@ function draw() {
 function resetToOrigin() {
   centerX.value = 0
   centerY.value = 0
-  scale.value = Math.min(zoomMax.value, Math.max(zoomMin.value, DEFAULT_SCALE))
-  flushDraw()
+  scale.value = clampScale(DEFAULT_SCALE)
+  scheduleDraw(true)
 }
 
 function zoomAt(screenX, screenY, factor) {
-  const sx = Math.max(0, Math.min(canvasW, screenX))
-  const sy = Math.max(0, Math.min(canvasH, screenY))
+  if (!canvasW || !canvasH || !Number.isFinite(factor) || factor <= 0) return
+  const sx = clampScreenX(screenX)
+  const sy = clampScreenY(screenY)
   const before = screenToMath(sx, sy, centerX.value, centerY.value, scale.value, canvasW, canvasH)
-  scale.value = Math.min(zoomMax.value, Math.max(zoomMin.value, scale.value * factor))
+  const nextScale = clampScale(scale.value * factor)
+  if (nextScale === scale.value) return
+  scale.value = nextScale
   const after = screenToMath(sx, sy, centerX.value, centerY.value, scale.value, canvasW, canvasH)
   centerX.value += before.x - after.x
   centerY.value += before.y - after.y
   flushDraw()
-}
-
-function localFromTouch(t) {
-  const p = { x: t.x ?? t.clientX ?? t.pageX ?? 0, y: t.y ?? t.clientY ?? t.pageY ?? 0 }
-  if (typeof t.x === 'number' && typeof t.y === 'number') {
-    return { x: Math.max(0, Math.min(canvasW, t.x)), y: Math.max(0, Math.min(canvasH, t.y)) }
-  }
-  return {
-    x: Math.max(0, Math.min(canvasW, p.x - viewportRect.left)),
-    y: Math.max(0, Math.min(canvasH, p.y - viewportRect.top)),
-  }
 }
 
 function touchDist(t1, t2) {
@@ -653,14 +696,17 @@ function touchMid(t1, t2) {
 }
 
 function onTouchStart(e) {
-  updateViewportRect()
+  refreshViewportFromTouchEvent(e)
   const touches = e.touches || e.changedTouches
+  if (!touches?.length) return
   if (touches.length >= 2) {
     pinchState.active = true
     pinchState.startDist = touchDist(touches[0], touches[1])
     panState.active = false
     return
   }
+  pinchState.active = false
+  pinchState.startDist = 0
   const p = localFromTouch(touches[0])
   panState.active = true
   panState.lastX = p.x
@@ -668,11 +714,15 @@ function onTouchStart(e) {
 }
 
 function onTouchMove(e) {
+  refreshViewportFromTouchEvent(e)
   const touches = e.touches
-  if (pinchState.active && touches.length >= 2) {
+  if (pinchState.active && touches?.length >= 2) {
     const dist = touchDist(touches[0], touches[1])
-    if (pinchState.startDist > 0) {
-      zoomAt(touchMid(touches[0], touches[1]).x, touchMid(touches[0], touches[1]).y, dist / pinchState.startDist)
+    if (pinchState.startDist > 0 && dist > 0) {
+      const mid = touchMid(touches[0], touches[1])
+      const rawFactor = dist / pinchState.startDist
+      const factor = Math.max(0.86, Math.min(1.14, rawFactor))
+      zoomAt(mid.x, mid.y, factor)
       pinchState.startDist = dist
     }
     return
@@ -688,8 +738,22 @@ function onTouchMove(e) {
 
 function onTouchEnd(e) {
   const touches = e.touches
-  if (!touches || touches.length < 2) pinchState.active = false
-  if (!touches || touches.length === 0) panState.active = false
+  if (!touches || touches.length < 2) {
+    pinchState.active = false
+    pinchState.startDist = 0
+  }
+  if (!touches || touches.length === 0) {
+    panState.active = false
+    return
+  }
+  if (touches.length === 1) {
+    pinchState.active = false
+    pinchState.startDist = 0
+    const p = localFromTouch(touches[0])
+    panState.active = true
+    panState.lastX = p.x
+    panState.lastY = p.y
+  }
 }
 
 // #ifdef H5
