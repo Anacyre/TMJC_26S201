@@ -33,76 +33,6 @@
         </view>
 
         <view class="inputDock" :class="{ collapsed: panelCollapsed }">
-          <view class="dockHandle tap" role="button" @tap="onTogglePanel">
-            <view class="handleBar" aria-hidden="true" />
-            <text class="handleHint">{{ panelCollapsed ? 'Expand keyboard' : 'Hide keyboard' }}</text>
-          </view>
-
-          <view v-if="expandedCurveIndex >= 0 && !panelCollapsed" class="dockEditor">
-            <view class="displayPanel">
-              <view class="displayCap" aria-hidden="true" />
-              <view class="displayInner">
-                <view class="curveTitleRow">
-                  <view class="curveDot" :style="{ background: curveColor(expandedCurveIndex) }" />
-                  <text class="curveTitle">Curve {{ expandedCurveIndex + 1 }}</text>
-                </view>
-
-                <view class="exprEditor" @tap="focusExpr">
-                  <view v-if="!activeCurveText" class="exprPlaceholder">y = f(x) · x² + y² = 1</view>
-                  <view v-else class="exprRow">
-                    <view class="cursorHit tap" @tap.stop="setExprCursor(0)">
-                      <view v-if="activeField === 'expr' && activeCurveCursor === 0" class="caret" aria-hidden="true" />
-                    </view>
-                    <template v-for="(ch, index) in exprChars" :key="'e-' + index">
-                      <text
-                        class="exprChar tap"
-                        :class="{ fracBar: ch === '⁄' }"
-                        @tap.stop="setExprCursor(index + 1)"
-                      >{{ ch }}</text>
-                      <view class="cursorHit tap" @tap.stop="setExprCursor(index + 1)">
-                        <view v-if="activeField === 'expr' && activeCurveCursor === index + 1" class="caret" aria-hidden="true" />
-                      </view>
-                    </template>
-                  </view>
-                </view>
-
-                <text v-if="activeCurveError" class="statusLine error">{{ activeCurveError }}</text>
-
-                <view class="toolbar">
-                  <view class="toolBtn tap" role="button" @tap="setExprCursor(Math.max(0, activeCurveCursor - 1))">
-                    <text class="toolLabel">◀</text>
-                  </view>
-                  <view class="toolBtn tap" role="button" @tap="setExprCursor(Math.min(activeCurveText.length, activeCurveCursor + 1))">
-                    <text class="toolLabel">▶</text>
-                  </view>
-                  <view class="toolBtn tap" :class="{ on: sciOpen }" role="button" @tap="sciOpen = !sciOpen">
-                    <text class="toolLabel">f(x)</text>
-                  </view>
-                </view>
-              </view>
-            </view>
-
-            <view v-if="sciOpen" class="sciPanel">
-              <view v-for="key in sciKeys" :key="key.id" class="key sci tap" role="button" @tap="onKey(key)">
-                <text class="keyLabel">{{ key.label }}</text>
-              </view>
-            </view>
-
-            <view class="keypad">
-              <view
-                v-for="key in basicKeys"
-                :key="key.id"
-                class="key tap"
-                :class="key.kind"
-                :style="keyStyle(key)"
-                role="button"
-                @tap="onKey(key)"
-              >
-                <text class="keyLabel">{{ key.label }}</text>
-              </view>
-            </view>
-          </view>
-
           <view class="curveTabRow">
             <view
               v-for="(curve, index) in curves"
@@ -115,8 +45,86 @@
               <view class="curveTabDot" :style="{ background: curveColor(index) }" />
               <text class="curveTabLabel">C{{ index + 1 }}</text>
               <text v-if="curve.text.trim()" class="curveTabExpr">{{ curvePreview(curve.text) }}</text>
+              <text v-else class="curveTabExpr empty">tap to edit</text>
             </view>
           </view>
+
+          <view class="dockHandle tap" role="button" @tap="onTogglePanel">
+            <view class="handleBar" aria-hidden="true" />
+            <text class="handleHint">{{ panelCollapsed ? 'Expand keyboard' : 'Hide keyboard' }}</text>
+          </view>
+
+          <scroll-view
+            v-if="expandedCurveIndex >= 0 && !panelCollapsed"
+            class="dockEditorScroll"
+            scroll-y
+            :show-scrollbar="false"
+          >
+            <view class="dockEditor">
+              <view class="displayPanel">
+                <view class="displayCap" aria-hidden="true" />
+                <view class="displayInner">
+                  <view class="curveTitleRow">
+                    <view class="curveDot" :style="{ background: curveColor(expandedCurveIndex) }" />
+                    <text class="curveTitle">Curve {{ expandedCurveIndex + 1 }}</text>
+                  </view>
+
+                  <view class="exprEditor" @tap="focusExpr">
+                    <view v-if="!activeCurveText" class="exprPlaceholder">y = f(x) · x² + y² = 1</view>
+                    <view v-else class="exprRow">
+                      <view class="cursorHit tap" @tap.stop="setExprCursor(0)">
+                        <view v-if="activeField === 'expr' && activeCurveCursor === 0" class="caret" aria-hidden="true" />
+                      </view>
+                      <template v-for="(ch, index) in exprChars" :key="'e-' + index">
+                        <text
+                          class="exprChar tap"
+                          :class="{ fracBar: ch === '⁄' }"
+                          @tap.stop="setExprCursor(index + 1)"
+                        >{{ ch }}</text>
+                        <view class="cursorHit tap" @tap.stop="setExprCursor(index + 1)">
+                          <view v-if="activeField === 'expr' && activeCurveCursor === index + 1" class="caret" aria-hidden="true" />
+                        </view>
+                      </template>
+                    </view>
+                  </view>
+
+                  <text v-if="activeCurveError" class="statusLine error">{{ activeCurveError }}</text>
+
+                  <view class="toolbar">
+                    <view class="toolBtn tap" role="button" @tap="setExprCursor(Math.max(0, activeCurveCursor - 1))">
+                      <text class="toolLabel">◀</text>
+                    </view>
+                    <view class="toolBtn tap" role="button" @tap="setExprCursor(Math.min(activeCurveText.length, activeCurveCursor + 1))">
+                      <text class="toolLabel">▶</text>
+                    </view>
+                    <view class="toolBtn tap" :class="{ on: sciOpen }" role="button" @tap="sciOpen = !sciOpen">
+                      <text class="toolLabel">f(x)</text>
+                    </view>
+                  </view>
+                </view>
+              </view>
+
+              <view v-if="sciOpen" class="sciPanel">
+                <view v-for="key in sciKeys" :key="key.id" class="key sci tap" role="button" @tap="onKey(key)">
+                  <text class="keyLabel">{{ key.label }}</text>
+                </view>
+              </view>
+
+              <view class="keypad">
+                <view
+                  v-for="key in basicKeys"
+                  :key="key.id"
+                  class="key tap"
+                  :class="key.kind"
+                  :style="keyStyle(key)"
+                  role="button"
+                  @tap="onKey(key)"
+                >
+                  <text class="keyLabel">{{ key.label }}</text>
+                </view>
+              </view>
+            </view>
+          </scroll-view>
         </view>
       </view>
     </view>
@@ -720,9 +728,9 @@ onBeforeUnmount(() => {
 </script>
 
 <style scoped>
-.page { min-height: 100vh; position: relative; overflow: hidden; }
+.page { height: 100vh; height: 100dvh; position: relative; overflow: hidden; }
 .page.t-dark { background: #0a0c0e; }
-.graphCanvas { position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column; }
+.graphCanvas { position: absolute; inset: 0; z-index: 0; display: flex; flex-direction: column; overflow: hidden; }
 .bg {
   position: absolute; inset: 0; z-index: 0;
   background: radial-gradient(900rpx 640rpx at 50% 8%, rgba(46, 99, 255, 0.12), transparent 62%), linear-gradient(180deg, #f8faff, #eef1f7);
@@ -732,12 +740,12 @@ onBeforeUnmount(() => {
 }
 .headerWrap { position: relative; z-index: 2; }
 .shell {
-  position: relative; z-index: 1; flex: 1; display: flex; flex-direction: column;
+  position: relative; z-index: 1; flex: 1; min-height: 0; display: flex; flex-direction: column;
   padding: calc(var(--shell-header-offset, 148rpx) + 12rpx) 24rpx calc(12rpx + env(safe-area-inset-bottom));
-  gap: 10rpx; box-sizing: border-box; min-height: 100vh;
+  gap: 10rpx; box-sizing: border-box; overflow: hidden;
 }
 .plotViewport {
-  position: relative; flex: 1; min-height: 180rpx; border-radius: 28rpx; overflow: hidden;
+  position: relative; flex: 1; min-height: 0; border-radius: 28rpx; overflow: hidden;
   border: 1rpx solid rgba(46, 99, 255, 0.16); background: rgba(255, 255, 255, 0.42); touch-action: none;
 }
 .t-dark .plotViewport { border-color: rgba(120, 160, 255, 0.22); background: rgba(255, 255, 255, 0.03); }
@@ -749,8 +757,12 @@ onBeforeUnmount(() => {
 .zoomHintText { font-size: 18rpx; color: rgba(16, 24, 40, 0.42); }
 .t-dark .zoomHintText { color: rgba(245, 247, 255, 0.38); }
 
-.inputDock { flex-shrink: 0; display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
-.inputDock.collapsed .dockEditor { display: none; }
+.inputDock {
+  flex: 0 0 auto; min-height: 0; max-height: 52vh; display: flex; flex-direction: column; gap: 8rpx;
+  min-width: 0; position: relative; z-index: 2;
+}
+.inputDock.collapsed .dockEditorScroll { display: none; }
+.dockEditorScroll { flex: 1; min-height: 0; max-height: 42vh; }
 .dockHandle {
   display: flex; flex-direction: column; align-items: center; gap: 4rpx; padding: 8rpx 12rpx 4rpx;
   border-radius: 20rpx; background: rgba(255, 255, 255, 0.38); border: 1rpx solid rgba(46, 99, 255, 0.12);
@@ -762,11 +774,11 @@ onBeforeUnmount(() => {
 
 .dockEditor { display: flex; flex-direction: column; gap: 10rpx; }
 
-.curveTabRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8rpx; }
+.curveTabRow { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8rpx; flex-shrink: 0; }
 .curveTab {
   display: flex; flex-direction: column; align-items: center; gap: 4rpx; padding: 12rpx 8rpx;
-  border-radius: 20rpx; background: rgba(255, 255, 255, 0.52); border: 1rpx solid rgba(142, 142, 147, 0.14);
-  min-width: 0;
+  border-radius: 20rpx; background: rgba(255, 255, 255, 0.72); border: 1rpx solid rgba(142, 142, 147, 0.14);
+  min-width: 0; min-height: 96rpx; box-sizing: border-box;
 }
 .t-dark .curveTab { background: rgba(255, 255, 255, 0.05); border-color: rgba(255, 255, 255, 0.08); }
 .curveTab.on { background: rgba(46, 99, 255, 0.10); border-color: rgba(46, 99, 255, 0.28); }
@@ -778,7 +790,9 @@ onBeforeUnmount(() => {
   font-size: 16rpx; color: rgba(16, 24, 40, 0.42); max-width: 100%; overflow: hidden;
   text-overflow: ellipsis; white-space: nowrap;
 }
+.curveTabExpr.empty { color: rgba(16, 24, 40, 0.28); font-size: 14rpx; }
 .t-dark .curveTabExpr { color: rgba(245, 247, 255, 0.38); }
+.t-dark .curveTabExpr.empty { color: rgba(245, 247, 255, 0.24); }
 
 .displayPanel { position: relative; width: 100%; border-radius: 32rpx; overflow: hidden; flex-shrink: 0; }
 .displayCap {
