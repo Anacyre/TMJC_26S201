@@ -180,7 +180,7 @@ import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { choosePostFile, isPostImageFile, uploadFile } from '@/api/upload'
 
 const { themeClass } = useTheme()
-const { getPostsByCommunity, getMaterialPostCount, addPost, loading, getCommunityById, ensurePostsLoaded } = useCommunityStore()
+const { posts, getPostsByCommunity, getMaterialPostCount, addPost, loading, getCommunityById, ensurePostsLoaded } = useCommunityStore()
 const { loading: noticesLoading, getVisibleNoticesForCommunity, getVisibleNoticeCountForCommunity } = useNotificationStore()
 const { visibleMemberCount } = useMemberStore()
 const { currentUser } = useUserStore()
@@ -238,6 +238,8 @@ const listLoading = computed(() =>
 const visiblePosts = computed(() => {
   const cid = id.value
   if (!cid) return []
+  // Track posts ref so list updates immediately after publish.
+  posts.value
   let items = getPostsByCommunity(cid).filter((p) => !isMaterialPost(p))
   if (filter.value === 'hot') {
     items = [...items].sort((a, b) => b.likesCount - a.likesCount)
@@ -364,7 +366,12 @@ async function createPost() {
       previewUrl: '',
       isImage: false,
     }
-    toast.postPublished()
+    if (isMaterial) {
+      toast.show('Material shared')
+      openMaterials()
+    } else {
+      toast.postPublished()
+    }
   } finally {
     posting.value = false
   }

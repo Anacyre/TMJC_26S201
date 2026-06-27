@@ -9,6 +9,11 @@ const posts = shallowRef([])
 const commentsByPost = ref({})
 const loading = ref(false)
 let _postsLoaded = false
+let postsFetchGeneration = 0
+
+function invalidatePostsFetches() {
+  postsFetchGeneration += 1
+}
 
 // ─── Data fetch ────────────────────────────────────────────────────
 
@@ -62,15 +67,17 @@ async function fetchMemberProfile(userId) {
 }
 
 async function fetchPosts(options = {}) {
+  const gen = ++postsFetchGeneration
   loading.value = true
   try {
     const { data, error } = await communityApi.fetchPosts(options)
+    if (gen !== postsFetchGeneration) return
     if (!error) {
       posts.value = data
       _postsLoaded = true
     } else console.error('[useCommunityStore] fetchPosts:', error.message)
   } finally {
-    loading.value = false
+    if (gen === postsFetchGeneration) loading.value = false
   }
 }
 
@@ -87,6 +94,7 @@ async function fetchComments(postId, { force = false } = {}) {
 }
 
 export function resetCommunityPostsCache() {
+  invalidatePostsFetches()
   _postsLoaded = false
 }
 
@@ -245,10 +253,22 @@ async function updateCommunity(id, payload) {
   return { data: merged, error: null }
 }
 
+function upsertPost(post) {
+  if (!post?.id) return
+  const idx = posts.value.findIndex((x) => x.id === post.id)
+  const next = [...posts.value]
+  if (idx >= 0) next[idx] = post
+  else next.unshift(post)
+  posts.value = next
+}
+
 async function addPost(payload) {
   const { data, error } = await communityApi.createPost(payload)
   if (error) return { data: null, error }
-  if (data) posts.value = [data, ...posts.value]
+  if (data) {
+    invalidatePostsFetches()
+    upsertPost(data)
+  }
   return { data, error: null }
 }
 
@@ -269,6 +289,7 @@ async function togglePostLike(postId) {
 async function deletePost(postId) {
   const { error } = await communityApi.deletePost(postId)
   if (error) return { error }
+  invalidatePostsFetches()
   const idx = posts.value.findIndex((p) => p.id === postId)
   if (idx >= 0) posts.value = posts.value.filter((p) => p.id !== postId)
   if (commentsByPost.value[postId]) {

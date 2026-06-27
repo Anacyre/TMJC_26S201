@@ -282,10 +282,23 @@ async function updateNotification(id, payload) {
   return { data, error }
 }
 
+function upsertNotification(notice) {
+  if (!notice?.id) return
+  const idx = notifications.value.findIndex((x) => x.id === notice.id)
+  const next = [...notifications.value]
+  if (idx >= 0) next[idx] = notice
+  else next.unshift(notice)
+  notifications.value = next
+}
+
 async function addNotification(payload) {
   const { data, error } = await notificationsApi.createNotification(payload)
-  if (!error && data) notifications.value.unshift(data)
-  else if (error) console.error('[useNotificationStore] addNotification:', error.message)
+  if (!error && data) {
+    invalidateNotificationFetches()
+    upsertNotification(data)
+  } else if (error) {
+    console.error('[useNotificationStore] addNotification:', error.message)
+  }
   return { data, error }
 }
 
