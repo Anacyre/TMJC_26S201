@@ -153,6 +153,7 @@
 
 <script setup>
 import { computed, getCurrentInstance, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useGraphSession } from '@/composables/useGraphSession'
@@ -507,23 +508,26 @@ function drawGrid(bounds) {
   }
   ctx.stroke()
 
-  if (bounds.xmin <= 0 && bounds.xmax >= 0) {
-    const x0 = mathToScreen(0, 0, centerX.value, centerY.value, scale.value, canvasW, canvasH)
-    ctx.strokeStyle = axisAccentColor()
-    ctx.lineWidth = 2.8
+  drawAccentAxes()
+}
+
+function drawAccentAxes() {
+  if (!ctx || !canvasW || !canvasH) return
+  const origin = mathToScreen(0, 0, centerX.value, centerY.value, scale.value, canvasW, canvasH)
+  ctx.strokeStyle = axisAccentColor()
+  ctx.lineWidth = 2.8
+
+  if (origin.sx >= -1 && origin.sx <= canvasW + 1) {
     ctx.beginPath()
-    ctx.moveTo(x0.sx, 0)
-    ctx.lineTo(x0.sx, canvasH)
+    ctx.moveTo(origin.sx, 0)
+    ctx.lineTo(origin.sx, canvasH)
     ctx.stroke()
   }
 
-  if (bounds.ymin <= 0 && bounds.ymax >= 0) {
-    const y0 = mathToScreen(0, 0, centerX.value, centerY.value, scale.value, canvasW, canvasH)
-    ctx.strokeStyle = axisAccentColor()
-    ctx.lineWidth = 2.8
+  if (origin.sy >= -1 && origin.sy <= canvasH + 1) {
     ctx.beginPath()
-    ctx.moveTo(0, y0.sy)
-    ctx.lineTo(canvasW, y0.sy)
+    ctx.moveTo(0, origin.sy)
+    ctx.lineTo(canvasW, origin.sy)
     ctx.stroke()
   }
 }
@@ -734,11 +738,16 @@ onMounted(async () => {
   await updateViewportRect()
   await initCanvas()
   plotAll()
+  scheduleDraw(true)
   // #ifdef H5
   await nextTick()
   bindResizeObserver()
   // #endif
   bindWindowResize()
+})
+
+onShow(() => {
+  nextTick(() => scheduleDraw(true))
 })
 
 watch(isDark, () => scheduleDraw())
