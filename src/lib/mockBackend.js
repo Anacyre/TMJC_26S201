@@ -18,9 +18,11 @@ import {
   slugifyUsername,
   CLASS_MEMBERS,
   mergeProfilesWithClassRoster,
+  resolveRosterMemberRole,
 } from '@/lib/classMembers'
 import { canDeletePost } from '@/lib/postPermissions'
 import { canEditNotice } from '@/lib/noticePermissions'
+import { isTestMaintainer } from '@/lib/testAccount'
 import { adminModeEnabled } from '@/composables/adminModeState'
 import {
   enrichTask,
@@ -69,6 +71,7 @@ function isoDaysFromNow(days) {
 // ─── Seed data ───────────────────────────────────────────────────────
 function seedState() {
   const userId = 'usr_test_admin'
+  const testMaintainerId = 'usr_test_maintainer'
   const rosterRecords = buildRosterRecords(() => uid('usr'))
   const peerA = rosterRecords[0].profile.id
   const peerB = rosterRecords[1].profile.id
@@ -101,12 +104,14 @@ function seedState() {
   const dueMon = isoDaysFromNow(4)
   const dueSat = isoDaysFromNow(3)
   const dueNextSun = isoDaysFromNow(7)
+  const feedbackThreadSeed = 'fdb_thread_seed'
 
   return {
     roster_version: ROSTER_VERSION,
     // —— Auth users ——
     authUsers: [
       { id: userId, email: 'test@class.com', username: 'alex_tan', display_name: 'Alex Tan' },
+      { id: testMaintainerId, email: 'test.maintainer@class.com', username: 'test_maintainer', display_name: 'Test Maintainer' },
       ...rosterRecords.map((r) => r.auth),
     ],
 
@@ -125,6 +130,21 @@ function seedState() {
         bio: 'Class rep for 26S201. Loves a good study sprint.',
         links: [{ label: 'Notion', url: 'https://notion.so' }],
         birthday_visibility: 'Friends',
+        avatar_url: '',
+      },
+      {
+        id: testMaintainerId,
+        username: 'test_maintainer',
+        display_name: 'Test Maintainer',
+        name: 'Test Maintainer',
+        role: 'member',
+        is_admin: false,
+        birthday: '',
+        mbti: '',
+        interests: '',
+        bio: 'Maintainer inbox for private feedback.',
+        links: [],
+        birthday_visibility: 'Private',
         avatar_url: '',
       },
       ...rosterRecords.map((r) => r.profile),
@@ -322,6 +342,26 @@ function seedState() {
 
     focusSounds: [],
     focusSessions: [],
+    feedback_threads: [
+      {
+        id: feedbackThreadSeed,
+        user_id: peerA,
+        status: 'open',
+        created_at: nowIso(),
+        updated_at: nowIso(),
+        resolved_at: null,
+        resolved_by: null,
+      },
+    ],
+    feedback_messages: [
+      {
+        id: 'fdb_msg_seed',
+        thread_id: feedbackThreadSeed,
+        sender_id: peerA,
+        body: 'The tasks page feels slow when switching tabs. Could we cache more?',
+        created_at: nowIso(),
+      },
+    ],
     focus_data_version: FOCUS_DATA_VERSION,
     community_seed_version: COMMUNITY_SEED_VERSION,
   }
@@ -336,6 +376,7 @@ if (!_state) {
   _state = ensureClassRoster(_state)
   _state = ensureCommunitySeed(_state)
   _state = ensureFocusDataReset(_state)
+  _state = ensureFeedbackData(_state)
   safeSet(STORAGE_KEY, _state)
 }
 
@@ -376,6 +417,44 @@ function ensureFocusDataReset(state) {
   return state
 }
 
+function ensureFeedbackData(state) {
+  if (!Array.isArray(state.feedback_threads)) state.feedback_threads = []
+  if (!Array.isArray(state.feedback_messages)) state.feedback_messages = []
+
+  const hasMaintainer = (state.profiles || []).some((p) => isTestMaintainer(p))
+  if (!hasMaintainer) {
+    const testMaintainerId = 'usr_test_maintainer'
+    state.authUsers = state.authUsers || []
+    state.profiles = state.profiles || []
+    if (!state.authUsers.some((u) => u.id === testMaintainerId)) {
+      state.authUsers.push({
+        id: testMaintainerId,
+        email: 'test.maintainer@class.com',
+        username: 'test_maintainer',
+        display_name: 'Test Maintainer',
+      })
+    }
+    if (!state.profiles.some((p) => p.id === testMaintainerId)) {
+      state.profiles.push({
+        id: testMaintainerId,
+        username: 'test_maintainer',
+        display_name: 'Test Maintainer',
+        name: 'Test Maintainer',
+        role: 'member',
+        is_admin: false,
+        birthday: '',
+        mbti: '',
+        interests: '',
+        bio: 'Maintainer inbox for private feedback.',
+        links: [],
+        birthday_visibility: 'Private',
+        avatar_url: '',
+      })
+    }
+  }
+  return state
+}
+
 function ensureCommunitySeed(state) {
   if ((state.community_seed_version || 0) >= COMMUNITY_SEED_VERSION) return state
   state.communities = (state.communities || []).filter((c) => !DEMO_COMMUNITY_IDS.has(c.id))
@@ -413,8 +492,9 @@ function ensureClassRoster(state) {
     if (profile) {
       profile.display_name = member.display_name
       profile.name = member.display_name
-      profile.role = member.role
-      profile.is_admin = member.is_admin
+      const auth = resolveRosterMemberRole(member, profile)
+      profile.role = auth.role
+      profile.is_admin = auth.is_admin
       profile.email =
         member.role === 'teacher_admin' ? '' : memberEmail(member.username, member.role)
       if (member.birthday) profile.birthday = member.birthday
@@ -1616,6 +1696,156 @@ export async function saveFocusPrefs(prefs) {
   profile.focus_prefs = prefs
   persist()
   return { data: prefs, error: null }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  FEEDBACK (src/api/feedback.js surface)
+// ═════════════════════════════════════════════════════════════════════
+function rowToFeedbackThread(row) {
+  const profile = findProfile(row.user_id)
+  const preview = [...(_state.feedback_messages || [])]
+    .filter((m) => m.thread_id === row.id)
+    .sort((a, b) => (a.created_at < b.created_at ? 1 : -1))[0]
+  return {
+    id: row.id,
+    userId: row.user_id,
+    userName: profile?.display_name || profile?.name || 'Unknown',
+    status: row.status || 'open',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at || row.created_at,
+    resolvedAt: row.resolved_at || null,
+    resolvedBy: row.resolved_by || null,
+    preview: preview?.body || '',
+    previewAt: preview?.created_at || row.created_at,
+  }
+}
+
+function rowToFeedbackMessage(row) {
+  const profile = findProfile(row.sender_id)
+  return {
+    id: row.id,
+    threadId: row.thread_id,
+    senderId: row.sender_id,
+    senderName: profile?.display_name || profile?.name || 'Unknown',
+    body: row.body,
+    createdAt: row.created_at,
+  }
+}
+
+export async function fetchFeedbackThreads() {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: [], error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  const maintainer = isTestMaintainer(profile)
+  const rows = [...(_state.feedback_threads || [])]
+    .filter((t) => maintainer || t.user_id === userId)
+    .sort((a, b) => (a.updated_at < b.updated_at ? 1 : -1))
+  return { data: rows.map(rowToFeedbackThread), error: null }
+}
+
+export async function fetchFeedbackMessages(threadId) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: [], error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  const thread = (_state.feedback_threads || []).find((t) => t.id === threadId)
+  if (!thread) return { data: [], error: new Error('Thread not found') }
+  if (thread.user_id !== userId && !isTestMaintainer(profile)) {
+    return { data: [], error: new Error('Not allowed') }
+  }
+  const rows = (_state.feedback_messages || [])
+    .filter((m) => m.thread_id === threadId)
+    .sort((a, b) => (a.created_at > b.created_at ? 1 : -1))
+  return { data: rows.map(rowToFeedbackMessage), error: null }
+}
+
+export async function createFeedbackThread(body) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const text = String(body || '').trim()
+  if (!text) return { data: null, error: new Error('Message required') }
+  const now = nowIso()
+  const thread = {
+    id: uid('fdb'),
+    user_id: userId,
+    status: 'open',
+    created_at: now,
+    updated_at: now,
+    resolved_at: null,
+    resolved_by: null,
+  }
+  const message = {
+    id: uid('fdm'),
+    thread_id: thread.id,
+    sender_id: userId,
+    body: text,
+    created_at: now,
+  }
+  _state.feedback_threads.unshift(thread)
+  _state.feedback_messages.push(message)
+  persist()
+  return { data: rowToFeedbackThread(thread), error: null }
+}
+
+export async function addFeedbackMessage(threadId, body) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const text = String(body || '').trim()
+  if (!text) return { data: null, error: new Error('Message required') }
+  const profile = findProfile(userId)
+  const thread = (_state.feedback_threads || []).find((t) => t.id === threadId)
+  if (!thread) return { data: null, error: new Error('Thread not found') }
+  if (thread.user_id !== userId && !isTestMaintainer(profile)) {
+    return { data: null, error: new Error('Not allowed') }
+  }
+  const now = nowIso()
+  const row = {
+    id: uid('fdm'),
+    thread_id: threadId,
+    sender_id: userId,
+    body: text,
+    created_at: now,
+  }
+  _state.feedback_messages.push(row)
+  thread.updated_at = now
+  persist()
+  return { data: rowToFeedbackMessage(row), error: null }
+}
+
+export async function resolveFeedbackThread(threadId) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { data: null, error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  if (!isTestMaintainer(profile)) return { data: null, error: new Error('Maintainers only') }
+  const thread = (_state.feedback_threads || []).find((t) => t.id === threadId)
+  if (!thread) return { data: null, error: new Error('Thread not found') }
+  const now = nowIso()
+  thread.status = 'resolved'
+  thread.resolved_at = now
+  thread.resolved_by = userId
+  thread.updated_at = now
+  persist()
+  return { data: rowToFeedbackThread(thread), error: null }
+}
+
+export async function deleteFeedbackThread(threadId) {
+  await tick()
+  const userId = currentUserId()
+  if (!userId) return { error: new Error('Not signed in') }
+  const profile = findProfile(userId)
+  const thread = (_state.feedback_threads || []).find((t) => t.id === threadId)
+  if (!thread) return { error: new Error('Thread not found') }
+  if (thread.user_id !== userId && !isTestMaintainer(profile)) {
+    return { error: new Error('Not allowed') }
+  }
+  _state.feedback_threads = (_state.feedback_threads || []).filter((t) => t.id !== threadId)
+  _state.feedback_messages = (_state.feedback_messages || []).filter((m) => m.thread_id !== threadId)
+  persist()
+  return { error: null }
 }
 
 // ═════════════════════════════════════════════════════════════════════

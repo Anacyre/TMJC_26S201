@@ -15,10 +15,11 @@
             <text class="appTitle">Focus</text>
             <text class="appDesc">Pomodoro timer</text>
           </view>
-          <view class="appStat">
+          <view v-if="showFocusTime" class="appStat">
             <text class="appStatNum">{{ focusHoursLabel }}</text>
             <text class="appStatLabel">this week</text>
           </view>
+          <text v-else class="appChev">&gt;</text>
         </view>
 
         <view class="appEntry" role="button" @tap="openCalculator">
@@ -58,10 +59,12 @@ import TabPageContent from '@/components/TabPageContent.vue'
 import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useAppearancePrefs } from '@/composables/useAppearancePrefs'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { navSibling } from '@/lib/navigation'
 
 const { themeClass } = useTheme()
+const { showFocusTime } = useAppearancePrefs()
 const { weekMinutesLabel } = useFocusStore()
 const focusHoursLabel = computed(() => weekMinutesLabel.value || '0m')
 
@@ -194,4 +197,6 @@ function openGraph() { navSibling('/pages/apps/graph') }
 .t-dark .appStatNum { color: rgba(170, 200, 255, 0.96); }
 .appStatLabel { font-size: 17rpx; color: rgba(16, 24, 40, 0.48); }
 .t-dark .appStatLabel { color: rgba(245, 247, 255, 0.45); }
+.appChev { font-size: 24rpx; color: rgba(16, 24, 40, 0.28); font-weight: 300; flex-shrink: 0; }
+.t-dark .appChev { color: rgba(245, 247, 255, 0.28); }
 </style>

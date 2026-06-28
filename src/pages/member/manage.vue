@@ -189,7 +189,11 @@ async function promote(m) {
     toast.show('Admins only')
     return
   }
-  await adminSetRole(m.id, 'admin')
+  const { error } = await adminSetRole(m.id, 'admin')
+  if (error) {
+    toast.show(error.message || 'Could not promote member')
+    return
+  }
   await fetchMembers()
   toast.memberUpdated()
 }

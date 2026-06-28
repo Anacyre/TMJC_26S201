@@ -180,6 +180,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useAppearancePrefs } from '@/composables/useAppearancePrefs'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { useUserStore } from '@/composables/useUserStore'
 import { useFocusStore } from '@/composables/useFocusStore'
@@ -194,6 +195,7 @@ import { navSibling } from '@/lib/navigation'
 import { personInitials } from '@/lib/personDisplay'
 
 const { themeClass } = useTheme()
+const { showFocusTime } = useAppearancePrefs()
 const { getMemberById, fetchMemberProfile } = useCommunityStore()
 const { currentUser, updateProfile, fetchCurrentUser } = useUserStore()
 const {
@@ -282,6 +284,7 @@ async function refreshSignedIn() {
 const alias = computed(() => getQuickLoginAlias(currentUser.value.id))
 
 const showFocusSection = computed(() => {
+  if (!showFocusTime.value) return false
   if (isMe.value) return true
   return viewedFocusPrefs.value.visibility !== 'private'
 })

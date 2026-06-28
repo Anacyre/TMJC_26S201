@@ -3,14 +3,10 @@ import { members, fetchMembers, addCommunity } from '@/composables/useCommunityS
 import { adminModeEnabled } from '@/composables/adminModeState'
 import { currentUser } from '@/composables/useUserStore'
 import { isAdminMember } from '@/lib/classMembers'
+import { isTestAccount } from '@/lib/testAccount'
 import { resolveAccountToEmail } from '@/api/auth'
 
 const ALIAS_KEY = 'login_alias_v1'
-
-function isTestAccount(name) {
-  if (!name) return false
-  return String(name).trim().toLowerCase().startsWith('test')
-}
 
 function getAliasMap() {
   try {

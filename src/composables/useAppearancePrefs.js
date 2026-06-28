@@ -4,6 +4,8 @@ const STORAGE_KEY = 'ui_appearance_prefs_v1'
 
 const DEFAULT_PREFS = {
   showHomeTodayFocus: false,
+  /** Show focus duration stats across home, apps, focus page, and profile */
+  showFocusTime: false,
   /** true = 左藏右删; false = 左删右藏 */
   swipeLeftHideRightDelete: true,
   /** 页面进入时的内容层转换动画 */
@@ -44,6 +46,22 @@ const showHomeTodayFocus = computed({
 
 function setShowHomeTodayFocus(value) {
   showHomeTodayFocus.value = !!value
+}
+
+const showFocusTime = computed({
+  get() {
+    hydrateOnce()
+    return !!prefs.value.showFocusTime
+  },
+  set(value) {
+    hydrateOnce()
+    prefs.value = { ...prefs.value, showFocusTime: !!value }
+    persist()
+  },
+})
+
+function setShowFocusTime(value) {
+  showFocusTime.value = !!value
 }
 
 const swipeLeftHideRightDelete = computed({
@@ -89,6 +107,8 @@ export function useAppearancePrefs() {
     prefs,
     showHomeTodayFocus,
     setShowHomeTodayFocus,
+    showFocusTime,
+    setShowFocusTime,
     swipeLeftHideRightDelete,
     setSwipeLeftHideRightDelete,
     enablePageTransitions,

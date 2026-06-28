@@ -54,6 +54,12 @@ export const deleteConfirm = {
       confirmLabel: 'Remove',
       ...options,
     }),
+  feedback: (options = {}) =>
+    confirmDelete({
+      title: 'Delete feedback?',
+      message: 'This thread and all messages will be removed.',
+      ...options,
+    }),
 }
 
 function settle(confirmed) {

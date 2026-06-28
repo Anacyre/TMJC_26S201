@@ -125,10 +125,10 @@
             </view>
             <text class="noisePillLabel">{{ activeNoise?.name || 'No noise' }}</text>
           </view>
-          <text class="weekStat">{{ weekMinutesLabel }} this week</text>
+          <text v-if="showFocusTime" class="weekStat">{{ weekMinutesLabel }} this week</text>
         </view>
 
-        <view class="weekStrip focusChrome" :class="chromeClass">
+        <view v-if="showFocusTime" class="weekStrip focusChrome" :class="chromeClass">
           <view v-for="d in weekTotals" :key="d.key" class="wBar">
             <view class="wFill" :style="{ height: barHeight(d.minutes) + '%' }" />
           </view>
@@ -170,6 +170,7 @@ import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import FocusNoiseSheet from '@/components/FocusNoiseSheet.vue'
 import { useTheme } from '@/composables/useTheme'
+import { useAppearancePrefs } from '@/composables/useAppearancePrefs'
 import { useFocusStore } from '@/composables/useFocusStore'
 import { playFocusAudio, pauseFocusAudio, stopFocusAudio } from '@/composables/useFocusAudio'
 import { useUserStore } from '@/composables/useUserStore'
@@ -177,6 +178,7 @@ import { useAdminMode } from '@/composables/useAdminMode'
 import { toast } from '@/composables/useToast'
 
 const { themeClass } = useTheme()
+const { showFocusTime } = useAppearancePrefs()
 const { currentUser } = useUserStore()
 const { isAdminActive: isAdmin } = useAdminMode()
 

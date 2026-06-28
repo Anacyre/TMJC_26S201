@@ -21,8 +21,11 @@ export const TAB_PATHS = {
   community: '/pages/community/index',
   home: '/pages/index/index',
   apps: '/pages/apps/index',
-  other: '/pages/other/other',
+  other: '/pages/other/feedback',
 }
+
+/** Original Other hub — admin long-press entry only */
+export const OTHER_GRID_PATH = '/pages/other/other'
 
 /** Native stack motion — short; volatile content uses PageContent crossfade */
 export const pageAnim = {
@@ -58,6 +61,26 @@ function tabDirection(fromTabId, toTabId) {
   const to = TAB_ORDER.indexOf(toTabId)
   if (from < 0 || to < 0 || from === to) return 'neutral'
   return to > from ? 'forward' : 'back'
+}
+
+/** Admin-only Other hub (Saved, Hidden, Appearance, …) */
+export function navOtherGrid(fromTabId = currentTabId) {
+  currentTabId = 'other'
+  markPageEnterPending({
+    kind: 'tab',
+    direction: tabDirection(fromTabId, 'other'),
+    from: fromTabId,
+    to: 'other',
+  })
+
+  return new Promise((resolve, reject) => {
+    uni.reLaunch({
+      url: OTHER_GRID_PATH,
+      ...pageAnim.none,
+      success: resolve,
+      fail: reject,
+    })
+  })
 }
 
 /** Tab switch — keep shell instant; animate only data layer via TabPageContent */

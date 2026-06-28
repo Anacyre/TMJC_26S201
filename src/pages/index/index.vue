@@ -38,7 +38,7 @@
                 <text v-if="hasUnreadNotices" class="metricNewTag">NEW</text>
               </view>
             </view>
-            <view class="metric tap" role="button" @tap="openFocus">
+            <view v-if="showFocusTime" class="metric tap" role="button" @tap="openFocus">
               <view class="metricNumRow">
                 <text class="metricNum">{{ focusMinutesDisplay }}</text>
                 <text class="metricChev">&gt;</text>
@@ -155,7 +155,7 @@ const { tasks, toggleTaskDone, loading: tasksLoading, fetchTasks } = useTasksSto
 const { visibleNotifications, loading: noticesLoading, fetchNotifications, unreadRelevantCount, noticeShowsUnread, touchInboxSeen } = useNotificationStore()
 const { currentUser, fetchCurrentUser } = useUserStore()
 const { weekMinutesLabel, fetchFocusSessions } = useFocusStore()
-const { showHomeTodayFocus } = useAppearancePrefs()
+const { showHomeTodayFocus, showFocusTime } = useAppearancePrefs()
 const userName = computed(() => currentUser.value.name || 'Guest')
 
 const pressedKey = ref('')

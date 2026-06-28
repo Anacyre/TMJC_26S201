@@ -43,6 +43,20 @@
 			}
 		},
 		{
+			"path": "pages/other/feedback",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Feedback"
+			}
+		},
+		{
+			"path": "pages/other/feedback-detail",
+			"style": {
+				"navigationStyle": "custom",
+				"navigationBarTitleText": "Feedback"
+			}
+		},
+		{
 			"path": "pages/community/index",
 			"style": {
 				"navigationStyle": "custom",

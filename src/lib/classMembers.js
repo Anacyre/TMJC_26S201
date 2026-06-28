@@ -75,6 +75,21 @@ export function findClassMember(username) {
   return CLASS_MEMBERS.find((m) => m.username === key) || null
 }
 
+/**
+ * Roster teachers / designated admins are canonical; roster students may be
+ * promoted to admin in the database and that promotion must win over defaults.
+ */
+export function resolveRosterMemberRole(member, storedProfile) {
+  if (member.is_admin || member.role === 'teacher_admin') {
+    return { role: member.role, is_admin: member.is_admin }
+  }
+  const storedRole = storedProfile?.role
+  if (storedRole === 'admin' || storedProfile?.is_admin) {
+    return { role: 'admin', is_admin: true }
+  }
+  return { role: member.role, is_admin: member.is_admin }
+}
+
 /** Admin check: roster wins for class members; ignores stale is_admin on students. */
 export function isAdminMember(profileOrRole) {
   if (!profileOrRole) return false
@@ -167,14 +182,16 @@ export function mergeProfilesWithClassRoster(dbProfiles = []) {
           avatar_url: '',
         }
 
+    const auth = resolveRosterMemberRole(member, row)
+
     out.push({
       ...base,
       id: base.id,
       username: member.username,
       display_name: member.display_name,
       name: member.display_name,
-      role: member.role,
-      is_admin: member.is_admin,
+      role: auth.role,
+      is_admin: auth.is_admin,
       email:
         member.role === 'teacher_admin'
           ? ''

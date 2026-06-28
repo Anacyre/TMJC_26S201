@@ -57,6 +57,22 @@
 
           <view class="row">
             <view class="rowText">
+              <text class="rowTitle">Show focus time</text>
+              <text class="rowHint">Weekly totals on home, apps, focus, and profile</text>
+            </view>
+            <view
+              class="toggle"
+              :class="{ on: showFocusTime }"
+              role="switch"
+              :aria-checked="showFocusTime"
+              @tap="onFocusTimeToggle"
+            >
+              <view class="toggleKnob" />
+            </view>
+          </view>
+
+          <view class="row">
+            <view class="rowText">
               <text class="rowTitle">Today's focus on home</text>
               <text class="rowHint">Show task list under Recent notices</text>
             </view>
@@ -92,6 +108,8 @@ const { themeClass, isDark, toggleTheme } = useTheme()
 const {
   showHomeTodayFocus,
   setShowHomeTodayFocus,
+  showFocusTime,
+  setShowFocusTime,
   swipeLeftHideRightDelete,
   setSwipeLeftHideRightDelete,
   enablePageTransitions,
@@ -130,6 +148,10 @@ function onThemeToggle() {
 
 function onTodayFocusToggle() {
   setShowHomeTodayFocus(!showHomeTodayFocus.value)
+}
+
+function onFocusTimeToggle() {
+  setShowFocusTime(!showFocusTime.value)
 }
 
 function onSwipeLayoutToggle() {

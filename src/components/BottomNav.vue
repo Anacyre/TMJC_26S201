@@ -8,10 +8,10 @@
         :class="{ active: active === tab.id, pressed: pressed === tab.id }"
         role="button"
         :aria-label="tab.label"
-        @touchstart="pressed = tab.id"
-        @touchend="pressed = ''"
-        @touchcancel="pressed = ''"
-        @tap="go(tab.id)"
+        @touchstart="onTouchStart(tab)"
+        @touchend="onTouchEnd(tab)"
+        @touchcancel="onTouchEnd(tab)"
+        @tap="onTap(tab)"
       >
         <view class="glyph" :class="'g-' + tab.id">
           <template v-if="tab.id === 'tasks'">
@@ -49,11 +49,17 @@
 <script setup>
 import { ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
-import { navTab } from '@/lib/navigation'
+import { useAdminMode } from '@/composables/useAdminMode'
+import { navTab, navOtherGrid } from '@/lib/navigation'
 
 const props = defineProps({ active: { type: String, default: 'home' } })
 const { themeClass } = useTheme()
+const { isAdminActive } = useAdminMode()
 const pressed = ref('')
+
+const OTHER_LONG_PRESS_MS = 5000
+let otherPressTimer = null
+let otherLongPressHandled = false
 
 const tabs = [
   { id: 'tasks', label: 'Tasks' },
@@ -63,9 +69,37 @@ const tabs = [
   { id: 'other', label: 'Other' },
 ]
 
-function go(key) {
-  if (key === props.active) return
-  navTab(key, props.active)
+function clearOtherTimer() {
+  if (otherPressTimer) {
+    clearTimeout(otherPressTimer)
+    otherPressTimer = null
+  }
+}
+
+function onTouchStart(tab) {
+  pressed.value = tab.id
+  if (tab.id !== 'other' || !isAdminActive.value) return
+  otherLongPressHandled = false
+  clearOtherTimer()
+  otherPressTimer = setTimeout(() => {
+    otherLongPressHandled = true
+    try { uni.vibrateShort?.({ type: 'medium' }) } catch (e) {}
+    navOtherGrid(props.active)
+  }, OTHER_LONG_PRESS_MS)
+}
+
+function onTouchEnd(tab) {
+  pressed.value = ''
+  if (tab.id === 'other') clearOtherTimer()
+}
+
+function onTap(tab) {
+  if (tab.id === 'other' && otherLongPressHandled) {
+    otherLongPressHandled = false
+    return
+  }
+  if (tab.id === props.active) return
+  navTab(tab.id, props.active)
 }
 </script>
 
