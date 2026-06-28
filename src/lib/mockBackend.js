@@ -492,18 +492,18 @@ function ensureClassRoster(state) {
     if (profile) {
       profile.display_name = member.display_name
       profile.name = member.display_name
-      const auth = resolveRosterMemberRole(member, profile)
-      profile.role = auth.role
-      profile.is_admin = auth.is_admin
+      const roleAuth = resolveRosterMemberRole(member, profile)
+      profile.role = roleAuth.role
+      profile.is_admin = roleAuth.is_admin
       profile.email =
         member.role === 'teacher_admin' ? '' : memberEmail(member.username, member.role)
       if (member.birthday) profile.birthday = member.birthday
 
-      const auth = state.authUsers.find((u) => u.id === profile.id)
-      if (auth) {
-        auth.username = member.username
-        auth.display_name = member.display_name
-        auth.email = authLoginEmail(member.username, member.role)
+      const authUser = state.authUsers.find((u) => u.id === profile.id)
+      if (authUser) {
+        authUser.username = member.username
+        authUser.display_name = member.display_name
+        authUser.email = authLoginEmail(member.username, member.role)
       }
       continue
     }
