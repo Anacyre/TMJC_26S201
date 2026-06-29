@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import * as mock from '@/lib/mockBackend'
+import { normalizeChecklist } from '@/lib/checklist'
 import { isAdminMember } from '@/lib/classMembers'
 import { adminModeEnabled } from '@/composables/adminModeState'
 import { canEditNotice } from '@/lib/noticePermissions'
@@ -22,6 +23,7 @@ function rowToNotification(row, state) {
     description: row.description || '',
     attachment: row.attachment || '',
     attachmentUrl: row.attachment_url || '',
+    checklist: normalizeChecklist(row.checklist),
     by: row.by || 'Admin',
     createdBy: row.created_by || '',
     createdAt: row.created_at,
@@ -134,6 +136,7 @@ export async function createNotification(payload) {
       description: payload.description || '',
       attachment: payload.attachment || '',
       attachment_url: payload.attachmentUrl || '',
+      checklist: payload.checklist || [],
       important: payload.important || false,
       by: payload.by || 'Admin',
       created_by: user.id,
@@ -236,6 +239,7 @@ export async function updateNotification(notificationId, payload) {
   if (payload.description !== undefined) patch.description = String(payload.description || '').trim()
   if (payload.attachment !== undefined) patch.attachment = String(payload.attachment || '').trim()
   if (payload.attachmentUrl !== undefined) patch.attachment_url = String(payload.attachmentUrl || '').trim()
+  if (payload.checklist !== undefined) patch.checklist = payload.checklist || []
   if (payload.important !== undefined) patch.important = !!payload.important
 
   const { data, error } = await supabase

@@ -631,6 +631,7 @@ function rowToNotification(row, state = null) {
     description: row.description || '',
     attachment: row.attachment || '',
     attachmentUrl: row.attachment_url || '',
+    checklist: normalizeChecklist(row.checklist),
     by: row.by || 'Admin',
     createdBy: row.created_by || '',
     createdAt: row.created_at,
@@ -1159,6 +1160,7 @@ export async function createNotification(payload) {
     description: payload.description || '',
     attachment: payload.attachment || '',
     attachment_url: payload.attachmentUrl || '',
+    checklist: payload.checklist || [],
     important: !!payload.important,
     by: payload.by || 'Admin',
     created_by: userId || '',
@@ -1261,6 +1263,7 @@ export async function updateNotification(notificationId, payload) {
   if (payload.description !== undefined) next.description = payload.description
   if (payload.attachment !== undefined) next.attachment = payload.attachment
   if (payload.attachmentUrl !== undefined) next.attachment_url = payload.attachmentUrl
+  if (payload.checklist !== undefined) next.checklist = payload.checklist
   if (payload.important !== undefined) next.important = payload.important
   _state.notifications[idx] = next
   persist()

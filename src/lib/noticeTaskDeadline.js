@@ -1,4 +1,5 @@
-import { parseDueDateKey } from '@/lib/taskDueDate'
+import { normalizeChecklist } from '@/lib/checklist'
+import { getEffectiveDueDateKey, parseDueDateKey } from '@/lib/taskDueDate'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -13,10 +14,17 @@ export function formatDueDateLabel(isoKey) {
   return `${WEEKDAYS[date.getDay()]} ${MONTHS[date.getMonth()]} ${date.getDate()} · ${isoKey}`
 }
 
-/** Resolve YYYY-MM-DD from notice `deadlineAt` or embedded ISO in `deadline`. */
+/** Resolve YYYY-MM-DD from notice `deadlineAt`, step deadlines, or embedded ISO in `deadline`. */
 export function resolveNoticeDeadlineIso(notice) {
   const at = String(notice?.deadlineAt || notice?.deadline_at || '').trim()
   if (/^\d{4}-\d{2}-\d{2}$/.test(at)) return at
+
+  const checklist = normalizeChecklist(notice?.checklist)
+  if (checklist.length) {
+    const fromSteps = getEffectiveDueDateKey({ checklist, deadline: '' })
+    if (fromSteps) return fromSteps
+  }
+
   return parseDueDateKey(notice?.deadline)
 }
 
@@ -32,9 +40,10 @@ export function taskDeadlineFromNotice(notice) {
 
 /** Normalize notice fields for deadline sync (store row or planner payload). */
 export function noticeDeadlineSource(notice) {
-  if (!notice) return { deadline: '', deadlineAt: '' }
+  if (!notice) return { deadline: '', deadlineAt: '', checklist: [] }
   return {
     deadline: notice.deadline ?? '',
     deadlineAt: notice.deadlineAt ?? notice.deadline_at ?? '',
+    checklist: normalizeChecklist(notice.checklist),
   }
 }

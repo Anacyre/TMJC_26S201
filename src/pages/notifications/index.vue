@@ -196,6 +196,31 @@
               </view>
             </view>
 
+            <view class="field stepsField">
+              <text v-if="draft.checklist.length" class="stepsHint">Each step can have its own deadline</text>
+              <view v-for="(item, idx) in draft.checklist" :key="item.id" class="checkRow">
+                <view class="checkMain">
+                  <input class="input checkInput" v-model="item.text" :placeholder="`Step ${idx + 1}`" placeholder-class="placeholder" />
+                  <view class="stepDateWrap" @tap.stop @click.stop @touchstart.stop @touchend.stop>
+                    <DateField
+                      :model-value="item.deadline"
+                      mode="date"
+                      placeholder="Step deadline"
+                      :compact="false"
+                      :clearable="true"
+                      @update:model-value="(v) => setDraftStepDeadline(idx, v)"
+                    />
+                  </view>
+                </view>
+                <view class="del" role="button" @tap="removeDraftChecklist(idx)">
+                  <text class="delText">−</text>
+                </view>
+              </view>
+              <view class="addCheck tap" role="button" @tap="addDraftChecklist">
+                <text class="addCheckText">＋</text>
+              </view>
+            </view>
+
             <view class="sheetGap" />
           </scroll-view>
 
@@ -495,6 +520,7 @@ function openCreate() {
   const userId = currentUser.value?.id
   const saved = userId ? loadNoticeDraft(userId) : null
   draft.value = saved || emptyDraft()
+  if (!Array.isArray(draft.value.checklist)) draft.value.checklist = []
   descExpanded.value = !!(draft.value.description || '').trim()
   subjectExpanded.value = !!(draft.value.subject || '').trim()
   draftSavedAt.value = 0
@@ -504,6 +530,20 @@ function openCreate() {
 
 function onCreateTag(name) {
   addTag(name)
+}
+
+function addDraftChecklist() {
+  if (!Array.isArray(draft.value.checklist)) draft.value.checklist = []
+  draft.value.checklist.push({ id: `new-${Date.now().toString(36)}`, text: '', done: false, deadline: '' })
+}
+
+function removeDraftChecklist(idx) {
+  draft.value.checklist.splice(idx, 1)
+}
+
+function setDraftStepDeadline(idx, value) {
+  const row = draft.value.checklist[idx]
+  if (row) row.deadline = value || ''
 }
 
 async function publish() {
@@ -811,6 +851,34 @@ watch([typeFilter, subjectFilter], () => {
 .t-dark .typeChip.on .typeText { color: rgba(170, 200, 255, 0.96); }
 
 .sheetGap { height: 32rpx; }
+.stepsField { gap: 0; }
+.stepsHint {
+  display: block;
+  margin-bottom: 8rpx;
+  font-size: 20rpx;
+  font-weight: 660;
+  color: rgba(16, 24, 40, 0.48);
+}
+.t-dark .stepsHint { color: rgba(245, 247, 255, 0.48); }
+.checkRow { display: flex; gap: 10rpx; margin-top: 10rpx; align-items: flex-start; }
+.checkMain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8rpx; }
+.checkInput { flex: 1; }
+.stepDateWrap { width: 100%; position: relative; z-index: 2; }
+.del {
+  width: 84rpx; min-height: 96rpx; border-radius: 24rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(220, 80, 80, 0.08); border: 1rpx solid rgba(220, 80, 80, 0.16);
+  flex-shrink: 0;
+}
+.delText { font-size: 34rpx; color: rgba(220, 80, 80, 0.9); line-height: 1; font-weight: 300; }
+.addCheck {
+  margin-top: 12rpx; height: 76rpx; border-radius: 20rpx;
+  border: 1rpx dashed rgba(16, 24, 40, 0.18);
+  display: flex; align-items: center; justify-content: center;
+}
+.t-dark .addCheck { border-color: rgba(255, 255, 255, 0.14); }
+.addCheckText { font-size: 32rpx; color: rgba(46, 99, 255, 0.92); font-weight: 500; line-height: 1; }
+.t-dark .addCheckText { color: rgba(170, 200, 255, 0.94); }
 .footer { padding: 20rpx 28rpx 28rpx; flex-shrink: 0; }
 .save {
   height: 104rpx;

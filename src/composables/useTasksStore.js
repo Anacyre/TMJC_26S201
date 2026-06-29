@@ -1,6 +1,7 @@
 import { computed, ref, shallowRef } from 'vue'
 import * as tasksApi from '@/api/tasks'
 import { noticeTaskFieldsDiffer, taskPatchFromNotice } from '@/lib/noticeTaskSync'
+import { sanitizeChecklistForSave } from '@/lib/checklist'
 import {
   resolveTaskStatusFromForm,
   taskDueBucket,
@@ -188,20 +189,20 @@ async function addTaskFromNotice({
   const existing = tasks.value.find((t) => t.sourceNoticeId === id)
 
   if (existing) {
-    const noticeRow = noticeInput || { deadline, deadlineAt, title, subject, description, id }
+    const noticeRow = noticeInput || { deadline, deadlineAt, title, subject, description, id, checklist: noticeInput?.checklist }
     if (noticeTaskFieldsDiffer(noticeRow, existing)) {
       const patch = taskPatchFromNotice(noticeRow, existing)
       await updateTask(existing.id, {
         ...patch,
         priority: existing.priority,
         reminder: existing.reminder,
-        checklist: existing.checklist ?? [],
         done: existing.done,
       })
     }
     return getTaskById(existing.id) || existing
   }
 
+  const noticeChecklist = sanitizeChecklistForSave(noticeInput?.checklist)
   const { data } = await addTask({
     title: title?.trim() || noticeInput?.title?.trim() || 'From notice',
     subject: subject?.trim() || noticeInput?.subject?.trim() || 'General',
@@ -209,6 +210,7 @@ async function addTaskFromNotice({
     status: resolveTaskStatusFromForm({ deadlineDate }),
     description: description?.trim() || noticeInput?.description?.trim() || '',
     priority: 'P2',
+    checklist: noticeChecklist,
     relatedNotice: { id, title: noticeTitle || title || noticeInput?.title },
     sourceNoticeId: id,
   })
@@ -269,7 +271,6 @@ export async function syncTasksFromNotice(notice) {
       ...patch,
       priority: task.priority,
       reminder: task.reminder,
-      checklist: task.checklist ?? [],
       done: task.done,
     })
   }

@@ -1,4 +1,10 @@
 import { resolveNoticeDeadlineIso } from '@/lib/noticeTaskDeadline'
+import {
+  normalizeChecklist,
+  parseStoredStepDeadline,
+  resolveDeadlineIsoFromSteps,
+  sanitizeChecklistForSave,
+} from '@/lib/checklist'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -19,6 +25,7 @@ export function emptyNoticeEditorForm() {
     subject: '',
     deadlineDate: '',
     description: '',
+    checklist: [],
   }
 }
 
@@ -29,17 +36,26 @@ export function noticeToEditorForm(notice = {}) {
     subject: notice.subject || '',
     deadlineDate: resolveNoticeDeadlineIso(notice) || '',
     description: notice.description || '',
+    checklist: normalizeChecklist(notice.checklist).map((x, idx) => ({
+      id: x.id || `c-${idx}`,
+      text: x.text || '',
+      done: false,
+      deadline: parseStoredStepDeadline(x.deadline) || '',
+    })),
   }
 }
 
 export function editorFormToNoticePayload(form) {
   const type = String(form.type || '').trim()
+  const checklist = sanitizeChecklistForSave(form.checklist)
+  const deadlineDate = resolveDeadlineIsoFromSteps(checklist, form.deadlineDate || '')
   return {
     type,
     title: String(form.title || '').trim(),
     subject: type === 'Homework' ? String(form.subject || '').trim() : '',
-    deadline: formatNoticeDeadlineLabel(form.deadlineDate),
-    deadlineAt: form.deadlineDate || null,
+    deadline: deadlineDate ? formatNoticeDeadlineLabel(deadlineDate) : '',
+    deadlineAt: deadlineDate || null,
     description: String(form.description || '').trim(),
+    checklist,
   }
 }

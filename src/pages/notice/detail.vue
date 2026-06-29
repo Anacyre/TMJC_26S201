@@ -18,6 +18,17 @@
           <text v-if="notice.attachment" class="p attach">{{ notice.attachment }}</text>
         </view>
 
+        <view v-if="noticeSteps.length" class="stepsSection">
+          <text class="stepsTitle">Steps</text>
+          <view v-for="(step, idx) in noticeSteps" :key="step.id" class="stepRow">
+            <text class="stepIndex">{{ idx + 1 }}</text>
+            <view class="stepMain">
+              <text class="stepText">{{ step.text }}</text>
+              <text v-if="stepDueLabel(step)" class="stepDue">{{ stepDueLabel(step) }}</text>
+            </view>
+          </view>
+        </view>
+
         <view class="actions">
           <view v-if="canEdit" class="btn ghost tap" @tap="editOpen = true">
             <text class="btnText">Edit</text>
@@ -64,6 +75,8 @@ import { deleteConfirm } from '@/composables/useConfirmDelete'
 import { canAddNoticeToTasks } from '@/lib/noticeRules'
 import { addNoticeToPlanner } from '@/lib/noticePlanner'
 import { shortTimeLabel } from '@/lib/timeLabel'
+import { normalizeChecklist } from '@/lib/checklist'
+import { formatTaskDueChipLabel, parseChecklistItemDeadline } from '@/lib/taskDueDate'
 
 import { communitySubjectNames } from '@/lib/communitySubjectLinks'
 
@@ -94,12 +107,14 @@ const fallback = {
   deadline: '',
   description: 'This notice may have been removed.',
   attachment: '',
+  checklist: [],
   important: false,
   inPlanner: false,
   read: false,
   createdAt: '',
 }
 const notice = computed(() => getNotificationById(id.value) || fallback)
+const noticeSteps = computed(() => normalizeChecklist(notice.value.checklist))
 const canAddToTasks = computed(() => canAddNoticeToTasks(notice.value))
 const timeLabel = computed(() => shortTimeLabel(notice.value.createdAt))
 const subjectOptions = computed(() => communitySubjectNames(sortedCommunities.value))
@@ -109,6 +124,12 @@ const canDelete = computed(() => isNoticeDeletable(notice.value, currentUser.val
 function markAsRead() {
   if (!notice.value?.id) return
   markRead(notice.value.id)
+}
+
+function stepDueLabel(step) {
+  const key = parseChecklistItemDeadline(step)
+  if (!key) return ''
+  return formatTaskDueChipLabel({ deadline: key, done: false })
 }
 
 function togglePinned() {
@@ -288,6 +309,76 @@ onLoad((query) => {
 .p.attach {
   color: rgba(46, 99, 255, 0.88);
   font-size: 20rpx;
+}
+
+.stepsSection {
+  margin-top: 18rpx;
+  padding-top: 16rpx;
+  border-top: 1rpx solid rgba(16, 24, 40, 0.06);
+}
+
+.t-dark .stepsSection {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.stepsTitle {
+  display: block;
+  margin-bottom: 12rpx;
+  font-size: 20rpx;
+  font-weight: 700;
+  color: rgba(16, 24, 40, 0.56);
+}
+
+.t-dark .stepsTitle {
+  color: #9aa4b2;
+}
+
+.stepRow {
+  display: flex;
+  gap: 12rpx;
+  align-items: flex-start;
+  margin-bottom: 12rpx;
+}
+
+.stepIndex {
+  width: 36rpx;
+  height: 36rpx;
+  border-radius: 999rpx;
+  background: rgba(46, 99, 255, 0.12);
+  color: rgba(46, 99, 255, 0.92);
+  font-size: 18rpx;
+  font-weight: 740;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stepMain {
+  flex: 1;
+  min-width: 0;
+}
+
+.stepText {
+  display: block;
+  font-size: 22rpx;
+  color: rgba(16, 24, 40, 0.82);
+  line-height: 1.45;
+}
+
+.t-dark .stepText {
+  color: rgba(245, 247, 255, 0.82);
+}
+
+.stepDue {
+  display: block;
+  margin-top: 4rpx;
+  font-size: 18rpx;
+  color: rgba(46, 99, 255, 0.88);
+}
+
+.t-dark .stepDue {
+  color: rgba(170, 200, 255, 0.9);
 }
 
 .actions {

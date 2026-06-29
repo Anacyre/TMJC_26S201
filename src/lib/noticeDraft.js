@@ -1,4 +1,5 @@
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
+import { normalizeChecklist, parseStoredStepDeadline, sanitizeChecklistForSave } from '@/lib/checklist'
 
 const DRAFT_KEY_PREFIX = 'notice_compose_draft_v1'
 const NOTICE_TYPES = new Set(['Homework', 'General', 'VIA', 'Event'])
@@ -9,12 +10,23 @@ function storageKey(userId) {
 
 export function noticeDraftHasContent(draft) {
   if (!draft) return false
+  const hasSteps = sanitizeChecklistForSave(draft.checklist).length > 0
   return !!(
     String(draft.title || '').trim()
     || String(draft.description || '').trim()
     || String(draft.subject || '').trim()
     || String(draft.deadlineDate || '').trim()
+    || hasSteps
   )
+}
+
+function normalizeChecklistDraft(raw) {
+  return normalizeChecklist(raw).map((x, idx) => ({
+    id: x.id || `c-${idx}`,
+    text: String(x.text || ''),
+    done: false,
+    deadline: parseStoredStepDeadline(x.deadline) || '',
+  }))
 }
 
 function normalizeDraft(raw) {
@@ -26,6 +38,7 @@ function normalizeDraft(raw) {
     subject: type === 'Homework' ? String(raw.subject || '') : '',
     deadlineDate: String(raw.deadlineDate || ''),
     description: String(raw.description || '').slice(0, TEXT_AREA_MAX_LENGTH),
+    checklist: normalizeChecklistDraft(raw.checklist),
   }
 }
 
