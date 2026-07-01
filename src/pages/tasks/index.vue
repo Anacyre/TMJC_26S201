@@ -195,14 +195,17 @@ import {
   resolveDoneAfterChecklistToggle,
   taskInDonePool,
   taskIsActiveForTab,
+  isNoticeSourcedP3Task,
 } from '@/lib/taskDueDate'
 import { TASK_COMPLETE_STRIKE_MS, TASK_COMPLETE_FADE_MS, TASK_COMPLETE_TOTAL_MS, DONE_LIST_REFLOW_MS } from '@/lib/taskCompleteAnim'
 import { navChild } from '@/lib/navigation'
 import { toast } from '@/composables/useToast'
 import { pushUndoable } from '@/composables/useUndo'
 import { deleteConfirm } from '@/composables/useConfirmDelete'
+import { useAppearancePrefs } from '@/composables/useAppearancePrefs'
 
 const { themeClass } = useTheme()
+const { hideNoticeP3Tasks } = useAppearancePrefs()
 const {
   tasks,
   loading,
@@ -300,6 +303,7 @@ const tabTasks = computed(() => {
 
   for (const x of tasks.value) {
     if (hidden.has(x.id)) continue
+    if (hideNoticeP3Tasks.value && isNoticeSourcedP3Task(x)) continue
 
     let include
     if (isDone) {

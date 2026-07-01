@@ -35,9 +35,6 @@
             <view class="task-chip" :class="'state-' + statusBucket">
               <text class="task-chip-text">{{ displayStatus }}</text>
             </view>
-            <view v-if="hasSteps" class="task-chip sub-slate">
-              <text class="task-chip-text">{{ stepProgress }}</text>
-            </view>
           </view>
           <view
             v-if="hasSteps"
@@ -52,6 +49,7 @@
             <text class="expandChev">›</text>
           </view>
         </view>
+        <StepProgressBar v-if="hasSteps" class="stepProgressRow" :checklist="task.checklist" compact />
       </view>
     </view>
 
@@ -82,6 +80,7 @@
 
 <script setup>
 import { computed } from 'vue'
+import StepProgressBar from '@/components/StepProgressBar.vue'
 import { subjectChipClass } from '@/lib/subjectChip'
 import {
   taskDisplayStatus,
@@ -106,12 +105,6 @@ const emit = defineEmits(['open', 'toggle', 'press-start', 'press-end', 'toggle-
 const hasSteps = computed(() => {
   const list = props.task?.checklist
   return Array.isArray(list) && list.length > 0
-})
-
-const stepProgress = computed(() => {
-  const list = props.task?.checklist || []
-  const done = list.filter((x) => x?.done).length
-  return `${done}/${list.length}`
 })
 
 const showDueDate = computed(() => props.sortMode === 'priority')
@@ -308,6 +301,11 @@ const stepDueLabels = computed(() => {
   align-items: center;
   gap: 10rpx;
   flex-wrap: wrap;
+}
+
+.stepProgressRow {
+  margin-top: 2rpx;
+  padding-right: 56rpx;
 }
 
 .stepsPanel {

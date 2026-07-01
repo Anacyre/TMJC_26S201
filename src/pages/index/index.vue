@@ -15,12 +15,17 @@
           </view>
 
           <view class="metrics">
-            <view class="metric tap" role="button" @tap="openPlanner">
+            <view
+              class="metric tap"
+              role="button"
+              @tap="openPlanner"
+              @longpress="onTasksMetricLongPress"
+            >
               <view class="metricNumRow">
                 <text class="metricNum">{{ todayTasksCount }}</text>
                 <text class="metricChev">&gt;</text>
               </view>
-              <text class="metricLabel">tasks today</text>
+              <text class="metricLabel">{{ tasksMetricLabel }}</text>
             </view>
             <view
               class="metric tap metricNotices"
@@ -129,6 +134,15 @@
 
     <BottomNav active="home" />
     <GlobalSearchOverlay />
+
+    <SelectPickerSheet
+      :open="tasksCountModePickerOpen"
+      :options="tasksCountModeOptions"
+      :selected="tasksCountModeLabel"
+      kind="filter"
+      @close="tasksCountModePickerOpen = false"
+      @pick="onTasksCountModePick"
+    />
   </view>
 </template>
 
@@ -141,8 +155,15 @@ import AppHeader from '@/components/AppHeader.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonList from '@/components/SkeletonList.vue'
+import SelectPickerSheet from '@/components/SelectPickerSheet.vue'
 import { useTheme } from '@/composables/useTheme'
-import { isHomeTodayTask } from '@/lib/taskDueDate'
+import {
+  isHomeTodayTask,
+  isHomeFocusTodayTask,
+  isHomeUpcomingTask,
+  resolveHomeTasksAutoMode,
+  resolveHomeTasksMetricForMode,
+} from '@/lib/taskDueDate'
 import { useAppearancePrefs } from '@/composables/useAppearancePrefs'
 import { navChild, navSibling } from '@/lib/navigation'
 import { useTasksStore } from '@/composables/useTasksStore'
@@ -155,10 +176,15 @@ const { tasks, toggleTaskDone, loading: tasksLoading, fetchTasks } = useTasksSto
 const { visibleNotifications, loading: noticesLoading, fetchNotifications, unreadRelevantCount, noticeShowsUnread, touchInboxSeen } = useNotificationStore()
 const { currentUser, fetchCurrentUser } = useUserStore()
 const { weekMinutesLabel, fetchFocusSessions } = useFocusStore()
-const { showHomeTodayFocus, showFocusTime } = useAppearancePrefs()
+const { showHomeTodayFocus, showFocusTime, homeTasksCountMode, setHomeTasksCountMode, homeTasksCountModeUserSet, markHomeTasksCountModeUserSet } = useAppearancePrefs()
 const userName = computed(() => currentUser.value.name || 'Guest')
 
 const pressedKey = ref('')
+const tasksCountModePickerOpen = ref(false)
+const tasksCountModeOptions = ['Precise mode', 'Focus mode']
+const tasksCountModeLabelById = { precise: 'Precise mode', focus: 'Focus mode' }
+const tasksCountModeIdByLabel = { 'Precise mode': 'precise', 'Focus mode': 'focus' }
+let tasksMetricLongPressHandled = false
 let _lastHomeRefresh = 0
 const HOME_REFRESH_TTL = 30_000
 
@@ -181,8 +207,23 @@ function noticeTypeClass(type) {
   return 'sub-slate'
 }
 
-const homeTodayTasks = computed(() => tasks.value.filter(isHomeTodayTask))
+const homeTasksMetric = computed(() => resolveHomeTasksMetricForMode(tasks.value, homeTasksCountMode.value))
+const tasksCountModeLabel = computed(() => tasksCountModeLabelById[homeTasksCountMode.value] || 'Precise mode')
+
+const homeTaskFilter = computed(() => {
+  if (homeTasksCountMode.value === 'focus') return isHomeFocusTodayTask
+  const { scope } = homeTasksMetric.value
+  if (scope === 'upcoming') return isHomeUpcomingTask
+  return isHomeTodayTask
+})
+
+const homeTodayTasks = computed(() => tasks.value.filter(homeTaskFilter.value))
 const todayTasks = computed(() => homeTodayTasks.value.slice(0, 4))
+
+function applyAutoHomeTasksCountMode() {
+  if (homeTasksCountModeUserSet.value) return
+  setHomeTasksCountMode(resolveHomeTasksAutoMode(tasks.value))
+}
 
 const greeting = computed(() => {
   const h = new Date().getHours()
@@ -198,7 +239,8 @@ const todayText = computed(() => {
   return `${wk}, ${m} ${d.getDate()}`
 })
 
-const todayTasksCount = computed(() => homeTodayTasks.value.length)
+const todayTasksCount = computed(() => homeTasksMetric.value.count)
+const tasksMetricLabel = computed(() => homeTasksMetric.value.label)
 const unreadNoticesCount = unreadRelevantCount
 const hasUnreadNotices = computed(() => unreadRelevantCount.value > 0)
 const focusMinutesDisplay = computed(() => weekMinutesLabel.value || '0m')
@@ -221,7 +263,25 @@ function toggleTask(t) {
 }
 
 function openPlanner() {
+  if (tasksMetricLongPressHandled) {
+    tasksMetricLongPressHandled = false
+    return
+  }
   navSibling('/pages/tasks/index')
+}
+
+function onTasksMetricLongPress() {
+  tasksMetricLongPressHandled = true
+  try { uni.vibrateShort?.({ type: 'light' }) } catch (e) {}
+  tasksCountModePickerOpen.value = true
+}
+
+function onTasksCountModePick(label) {
+  const next = tasksCountModeIdByLabel[label]
+  if (next) {
+    setHomeTasksCountMode(next)
+    markHomeTasksCountModeUserSet()
+  }
 }
 
 function openFocus() {
@@ -242,7 +302,10 @@ async function refreshHome({ force = false } = {}) {
 }
 
 onLoad(() => { refreshHome({ force: true }) })
-onShow(() => { refreshHome() })
+onShow(async () => {
+  await refreshHome()
+  applyAutoHomeTasksCountMode()
+})
 </script>
 
 <style scoped>

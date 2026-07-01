@@ -35,8 +35,12 @@
             <text class="p text-word-wrap">{{ task.description }}</text>
           </view>
 
-          <view class="section">
-            <text class="sectionTitle">Checklist</text>
+          <view v-if="task.checklist.length" class="section">
+            <view class="sectionHead">
+              <text class="sectionTitle">Checklist</text>
+              <text class="sectionProgress">{{ checklistProgress.label }}</text>
+            </view>
+            <StepProgressBar class="checklistProgress" :checklist="task.checklist" :show-label="false" />
             <view class="checklist">
               <view v-for="c in task.checklist" :key="c.id" class="checkRow" @tap="toggleCheck(c)" role="button">
                 <view class="check" :class="{ on: c.done }"><view class="checkDot" /></view>
@@ -78,11 +82,13 @@ import { onLoad } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import TaskEditorSheet from '@/components/TaskEditorSheet.vue'
+import StepProgressBar from '@/components/StepProgressBar.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useTasksStore } from '@/composables/useTasksStore'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { taskDisplayStatus, taskBucketLabel, formatTaskDueChipLabel, parseChecklistItemDeadline } from '@/lib/taskDueDate'
+import { checklistProgress as getChecklistProgress } from '@/lib/checklist'
 import { toast } from '@/composables/useToast'
 import { navSibling } from '@/lib/navigation'
 
@@ -113,6 +119,8 @@ const task = computed(() => {
 })
 
 const isMissingTask = computed(() => taskReady.value && id.value && task.value.id === 'fallback')
+
+const checklistProgress = computed(() => getChecklistProgress(task.value.checklist))
 
 const statusBucket = computed(() => taskDisplayStatus(task.value))
 const statusLabel = computed(() => taskBucketLabel(statusBucket.value))
@@ -339,6 +347,28 @@ onLoad(async (query) => {
 
 .section {
   margin-top: 26rpx;
+}
+
+.sectionHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12rpx;
+}
+
+.sectionProgress {
+  font-size: 20rpx;
+  font-weight: 700;
+  color: rgba(46, 99, 255, 0.78);
+  font-variant-numeric: tabular-nums;
+}
+
+.t-dark .sectionProgress {
+  color: rgba(170, 200, 255, 0.78);
+}
+
+.checklistProgress {
+  margin-top: 12rpx;
 }
 
 .sectionTitle {

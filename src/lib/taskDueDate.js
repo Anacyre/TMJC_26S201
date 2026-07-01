@@ -138,6 +138,62 @@ export function isHomeTodayTask(task) {
   return bucket === 'recent' || bucket === 'overdue'
 }
 
+/** Home focus mode — active tasks due exactly today */
+export function isHomeFocusTodayTask(task) {
+  if (!task || task.done) return false
+  const key = getEffectiveDueDateKey(task)
+  return !!key && key === todayDateKey()
+}
+
+/** Home precision mode — upcoming window (after recent) */
+export function isHomeUpcomingTask(task) {
+  if (!task || task.done) return false
+  return taskDueBucket(task) === 'upcoming'
+}
+
+/**
+ * Auto-detect focus vs precise from task data (home entry default only).
+ * @returns {'focus'|'precise'}
+ */
+export function resolveHomeTasksAutoMode(tasks) {
+  const list = Array.isArray(tasks) ? tasks : []
+  return list.some(isHomeFocusTodayTask) ? 'focus' : 'precise'
+}
+
+/**
+ * Home hero tasks metric for a chosen display mode.
+ * @returns {{ mode: 'focus'|'precise', scope: 'today'|'recent'|'upcoming', count: number, label: string }}
+ */
+export function resolveHomeTasksMetricForMode(tasks, mode) {
+  const list = Array.isArray(tasks) ? tasks : []
+  if (mode === 'focus') {
+    const focusToday = list.filter(isHomeFocusTodayTask)
+    return { mode: 'focus', scope: 'today', count: focusToday.length, label: 'tasks today' }
+  }
+
+  const recent = list.filter(isHomeTodayTask)
+  if (recent.length > 0) {
+    return { mode: 'precise', scope: 'recent', count: recent.length, label: 'recent tasks' }
+  }
+
+  const upcoming = list.filter(isHomeUpcomingTask)
+  return { mode: 'precise', scope: 'upcoming', count: upcoming.length, label: 'tasks upcoming' }
+}
+
+/**
+ * Home hero tasks metric: auto focus when due today, else precise (recent → upcoming).
+ * @returns {{ mode: 'focus'|'precise', scope: 'today'|'recent'|'upcoming', count: number, label: string }}
+ */
+export function resolveHomeTasksMetric(tasks) {
+  return resolveHomeTasksMetricForMode(tasks, resolveHomeTasksAutoMode(tasks))
+}
+
+/** Task added from a notice with low (P3) priority */
+export function isNoticeSourcedP3Task(task) {
+  if (!task?.sourceNoticeId) return false
+  return String(task.priority || 'P3').trim().toUpperCase() === 'P3'
+}
+
 export function taskDueBucket(task) {
   if (task?.status === 'archived') return 'archived'
   if (task?.done || task?.status === 'completed') return 'completed'

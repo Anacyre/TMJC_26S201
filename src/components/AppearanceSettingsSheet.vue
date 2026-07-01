@@ -86,6 +86,22 @@
               <view class="toggleKnob" />
             </view>
           </view>
+
+          <view class="row">
+            <view class="rowText">
+              <text class="rowTitle">Hide low-priority notice tasks</text>
+              <text class="rowHint">Hide P3 tasks added from notices in the tasks list</text>
+            </view>
+            <view
+              class="toggle"
+              :class="{ on: hideNoticeP3Tasks }"
+              role="switch"
+              :aria-checked="hideNoticeP3Tasks"
+              @tap="onHideNoticeP3Toggle"
+            >
+              <view class="toggleKnob" />
+            </view>
+          </view>
         </view>
       </view>
     </view>
@@ -114,6 +130,8 @@ const {
   setSwipeLeftHideRightDelete,
   enablePageTransitions,
   setEnablePageTransitions,
+  hideNoticeP3Tasks,
+  setHideNoticeP3Tasks,
 } = useAppearancePrefs()
 const { swipeLayoutToggleHint } = useSwipeLayout()
 const visible = ref(false)
@@ -160,6 +178,10 @@ function onSwipeLayoutToggle() {
 
 function onPageTransitionsToggle() {
   setEnablePageTransitions(!enablePageTransitions.value)
+}
+
+function onHideNoticeP3Toggle() {
+  setHideNoticeP3Tasks(!hideNoticeP3Tasks.value)
 }
 </script>
 

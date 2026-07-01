@@ -55,6 +55,14 @@ export function noticeChecklistsDiffer(a, b) {
   return noticeChecklistContentKey(a) !== noticeChecklistContentKey(b)
 }
 
+export function checklistProgress(checklist) {
+  const list = normalizeChecklist(checklist)
+  const total = list.length
+  const done = list.filter((x) => x?.done).length
+  const percent = total ? Math.round((done / total) * 100) : 0
+  return { done, total, percent, label: `${done}/${total}` }
+}
+
 export function resolveDeadlineIsoFromSteps(checklist, taskLevelDate = '') {
   if (taskLevelDate) return taskLevelDate
   const pending = sanitizeChecklistForSave(checklist).filter((x) => !x.done && x.deadline)

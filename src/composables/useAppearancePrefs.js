@@ -10,6 +10,12 @@ const DEFAULT_PREFS = {
   swipeLeftHideRightDelete: true,
   /** 页面进入时的内容层转换动画 */
   enablePageTransitions: false,
+  /** Home "tasks today" metric: precise (recent + overdue) or focus (due today only) */
+  homeTasksCountMode: 'precise',
+  /** User chose home tasks count mode via long-press; skip auto on home entry */
+  homeTasksCountModeUserSet: false,
+  /** Hide notice-sourced P3 tasks in the tasks planner list */
+  hideNoticeP3Tasks: false,
 }
 
 const prefs = ref({ ...DEFAULT_PREFS })
@@ -101,6 +107,55 @@ function setEnablePageTransitions(value) {
   enablePageTransitions.value = !!value
 }
 
+const homeTasksCountMode = computed({
+  get() {
+    hydrateOnce()
+    const mode = prefs.value.homeTasksCountMode
+    return mode === 'focus' ? 'focus' : 'precise'
+  },
+  set(value) {
+    hydrateOnce()
+    prefs.value = { ...prefs.value, homeTasksCountMode: value === 'focus' ? 'focus' : 'precise' }
+    persist()
+  },
+})
+
+function setHomeTasksCountMode(value) {
+  homeTasksCountMode.value = value === 'focus' ? 'focus' : 'precise'
+}
+
+const homeTasksCountModeUserSet = computed({
+  get() {
+    hydrateOnce()
+    return !!prefs.value.homeTasksCountModeUserSet
+  },
+  set(value) {
+    hydrateOnce()
+    prefs.value = { ...prefs.value, homeTasksCountModeUserSet: !!value }
+    persist()
+  },
+})
+
+function markHomeTasksCountModeUserSet() {
+  homeTasksCountModeUserSet.value = true
+}
+
+const hideNoticeP3Tasks = computed({
+  get() {
+    hydrateOnce()
+    return !!prefs.value.hideNoticeP3Tasks
+  },
+  set(value) {
+    hydrateOnce()
+    prefs.value = { ...prefs.value, hideNoticeP3Tasks: !!value }
+    persist()
+  },
+})
+
+function setHideNoticeP3Tasks(value) {
+  hideNoticeP3Tasks.value = !!value
+}
+
 export function useAppearancePrefs() {
   hydrateOnce()
   return {
@@ -114,6 +169,12 @@ export function useAppearancePrefs() {
     enablePageTransitions,
     setEnablePageTransitions,
     isPageTransitionsEnabled,
+    homeTasksCountMode,
+    setHomeTasksCountMode,
+    homeTasksCountModeUserSet,
+    markHomeTasksCountModeUserSet,
+    hideNoticeP3Tasks,
+    setHideNoticeP3Tasks,
   }
 }
 
