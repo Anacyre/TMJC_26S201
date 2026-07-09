@@ -206,7 +206,30 @@ async function setHidden(id, hidden) {
 }
 
 async function unhide(id) {
-  return setHidden(id, false)
+  return restoreNotice(id)
+}
+
+/** Restore a hidden notice back to the main feed (clears hidden + planner flags). */
+async function restoreNotice(id) {
+  const item = getNotificationById(id)
+  const prevHidden = item?.hidden ?? true
+  const prevInPlanner = item?.inPlanner ?? false
+  invalidateNotificationFetches()
+  _patchLocal(id, { hidden: false, inPlanner: false })
+  const cacheUserId = resolveCacheUserId()
+  _rememberHidden(id, false, cacheUserId)
+  const { error } = await notificationsApi.patchNotificationState(id, {
+    hidden: false,
+    inPlanner: false,
+  })
+  if (error) {
+    invalidateNotificationFetches()
+    _patchLocal(id, { hidden: prevHidden, inPlanner: prevInPlanner })
+    _rememberHidden(id, prevHidden, cacheUserId)
+    console.error('[useNotificationStore] restoreNotice:', error.message)
+    return { error }
+  }
+  return { error: null }
 }
 
 async function patchNotificationState(id, patch) {
@@ -400,7 +423,7 @@ export function resetNotificationSession() {
   inboxSeenVersion.value = 0
 }
 
-export { setInPlanner, patchNotificationState, unhide, setHidden, isNoticeRelevantToUser, isNoticeUnreadForUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable, isNoticeEditable }
+export { setInPlanner, patchNotificationState, unhide, restoreNotice, setHidden, isNoticeRelevantToUser, isNoticeUnreadForUser, countUnreadRelevantNotices, buildDeletableNoticeIds, isNoticeDeletable, isNoticeEditable }
 
 export function useNotificationStore() {
   return {
@@ -426,6 +449,7 @@ export function useNotificationStore() {
     toggleHidden,
     setHidden,
     unhide,
+    restoreNotice,
     removeNotification,
     updateNotification,
     addNotification,

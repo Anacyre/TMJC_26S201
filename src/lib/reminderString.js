@@ -97,3 +97,84 @@ export function computeReminderAtIso({ reminderOn, reminderDate, reminderTime } 
   const time = /^\d{2}:\d{2}$/.test(String(reminderTime || '')) ? reminderTime : DEFAULT_REMINDER_TIME
   return `${reminderDate}T${time}:00${CLASS_TZ_OFFSET}`
 }
+
+function formatDateKeyLocal(date) {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+/** Advance a YYYY-MM-DD key by exactly one repeat cycle. Returns '' for 'none'/invalid. */
+export function addCycleToDateKey(dateKey, repeat) {
+  const key = String(dateKey || '')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return ''
+  const cadence = normalizeReminderRepeat(repeat)
+  if (cadence === 'none') return ''
+  const [y, m, d] = key.split('-').map(Number)
+  const date = new Date(y, m - 1, d)
+  if (Number.isNaN(date.getTime())) return ''
+  switch (cadence) {
+    case 'daily': date.setDate(date.getDate() + 1); break
+    case 'weekly': date.setDate(date.getDate() + 7); break
+    case 'monthly': date.setMonth(date.getMonth() + 1); break
+    case 'yearly': date.setFullYear(date.getFullYear() + 1); break
+    default: return ''
+  }
+  return formatDateKeyLocal(date)
+}
+
+/** Build the stored task deadline string ("Due <label>") from a date key. */
+export function buildTaskDeadlineString(dateKey) {
+  const key = String(dateKey || '')
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key)) return 'Anytime'
+  return `Due ${formatReminderDateLabel(key)}`
+}
+
+/** Extract a task's reminder date key from reminderAt (preferred) or the display string. */
+export function reminderDateKeyFromTask(task) {
+  const at = String(task?.reminderAt || '')
+  const atMatch = at.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (atMatch) return atMatch[1]
+  return parseStoredReminder(task?.reminder).date || ''
+}
+
+/** Extract a task's reminder time (HH:mm) from reminderAt or the display string. */
+function reminderTimeFromTask(task) {
+  const at = String(task?.reminderAt || '')
+  const atMatch = at.match(/T(\d{2}:\d{2})/)
+  if (atMatch) return atMatch[1]
+  return parseStoredReminder(task?.reminder).time || ''
+}
+
+/**
+ * Advance a task's reminder fields forward by one repeat cycle.
+ * Returns unchanged fields when there is no repeating reminder.
+ */
+export function rollTaskRemindersForward(task) {
+  const repeat = normalizeReminderRepeat(task?.reminderRepeat)
+  const current = {
+    reminder: normalizeReminderValue(task?.reminder),
+    reminderAt: task?.reminderAt || '',
+    reminderRepeat: repeat,
+  }
+  if (repeat === 'none') return current
+
+  const dateKey = reminderDateKeyFromTask(task)
+  if (!dateKey) return current
+  const nextDate = addCycleToDateKey(dateKey, repeat)
+  if (!nextDate) return current
+
+  const time = reminderTimeFromTask(task)
+  const fields = {
+    reminderOn: true,
+    reminderDate: nextDate,
+    reminderTime: time,
+    reminderRepeat: repeat,
+  }
+  return {
+    reminder: buildReminderString(fields),
+    reminderAt: computeReminderAtIso(fields) || '',
+    reminderRepeat: repeat,
+  }
+}

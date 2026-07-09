@@ -6,7 +6,13 @@ import {
   resolveTaskStatusFromForm,
   taskDueBucket,
   resolveDoneAfterChecklistToggle,
+  isRecurringDeadlineTask,
 } from '@/lib/taskDueDate'
+import {
+  addCycleToDateKey,
+  buildTaskDeadlineString,
+  rollTaskRemindersForward,
+} from '@/lib/reminderString'
 import {
   noticeDeadlineSource,
   resolveNoticeDeadlineIso,
@@ -86,11 +92,58 @@ function patchTask(id, partial) {
 
 // ─── Writes (local first, then sync) ───────────────────────────────────
 
+/**
+ * Roll a recurring-with-deadline task forward by one cycle instead of completing:
+ * advance the deadline and reminder, reset checklist steps, keep it active.
+ */
+async function rollForwardTask(target) {
+  const repeat = target.reminderRepeat
+  const nextDeadlineKey = addCycleToDateKey(parseDeadlineDate(target.deadline), repeat)
+  const nextDeadline = nextDeadlineKey ? buildTaskDeadlineString(nextDeadlineKey) : target.deadline
+  const rolledReminder = rollTaskRemindersForward(target)
+  const resetChecklist = (target.checklist || []).map((item) => ({ ...item, done: false }))
+
+  const optimistic = {
+    ...target,
+    deadline: nextDeadline,
+    reminder: rolledReminder.reminder,
+    reminderAt: rolledReminder.reminderAt,
+    reminderRepeat: rolledReminder.reminderRepeat,
+    checklist: resetChecklist,
+    done: false,
+    status: resolveTaskStatusFromForm({ deadlineDate: nextDeadlineKey, done: false }),
+    completedAt: '',
+  }
+  upsertTask(optimistic)
+
+  const { data, error } = await tasksApi.updateTask(target.id, {
+    title: target.title,
+    description: target.description,
+    deadline: nextDeadline,
+    subject: target.subject,
+    priority: target.priority,
+    reminder: rolledReminder.reminder,
+    reminderAt: rolledReminder.reminderAt,
+    reminderRepeat: rolledReminder.reminderRepeat,
+    done: false,
+    checklist: resetChecklist,
+  })
+  if (error) {
+    upsertTask(target)
+    return { data: null, error }
+  }
+  if (data) upsertTask(data)
+  return { data: data || optimistic, error: null, rolled: true }
+}
+
 async function toggleTaskDone(id) {
   const target = getTaskById(id)
   if (!target) return { data: null, error: new Error('Task not found') }
 
   const prevDone = target.done
+  if (!prevDone && isRecurringDeadlineTask(target)) {
+    return rollForwardTask(target)
+  }
   const deadlineDate = parseDeadlineDate(target.deadline)
   const optimisticDone = !prevDone
   upsertTask({
@@ -117,6 +170,9 @@ async function toggleChecklist(taskId, checklistId) {
     item.id === checklistId ? { ...item, done: !item.done } : item
   )
   const { done: nextDone } = resolveDoneAfterChecklistToggle(checklist, !!target.done)
+  if (nextDone && !target.done && isRecurringDeadlineTask(target)) {
+    return rollForwardTask({ ...target, checklist })
+  }
   const deadlineDate = parseDeadlineDate(target.deadline)
   upsertTask({
     ...target,
@@ -148,6 +204,8 @@ async function updateTask(taskId, payload) {
     priority: payload.priority || target?.priority || 'P3',
     status: resolveTaskStatusFromForm({ deadlineDate, done }),
     reminder: payload.reminder?.trim() || target?.reminder || 'None',
+    reminderAt: payload.reminderAt ?? target?.reminderAt ?? '',
+    reminderRepeat: payload.reminderRepeat ?? target?.reminderRepeat ?? 'none',
     done,
     checklist: payload.checklist ?? target?.checklist ?? [],
     completedAt: done ? payload.completedAt || target?.completedAt || new Date().toISOString() : null,

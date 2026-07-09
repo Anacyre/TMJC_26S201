@@ -54,16 +54,15 @@ import NoticeSwipeRow from '@/components/NoticeSwipeRow.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { toast } from '@/composables/useToast'
-import { deleteConfirm } from '@/composables/useConfirmDelete'
+import { deleteConfirm, restoreConfirm } from '@/composables/useConfirmDelete'
 import { navChild } from '@/lib/navigation'
 
 const SWIPE_LEAVE_MS = 220
 
 const { themeClass } = useTheme()
 const {
-  notifications,
   hiddenNotifications,
-  unhide,
+  restoreNotice,
   removeNotification,
   fetchNotifications,
   buildDeletableNoticeIds,
@@ -74,7 +73,7 @@ const deletableNoticeIds = computed(() => buildDeletableNoticeIds(list.value))
 const leavingId = ref('')
 
 onShow(() => {
-  if (!notifications.value.length) fetchNotifications()
+  fetchNotifications({ force: true })
 })
 
 function openNotice(n) {
@@ -83,12 +82,13 @@ function openNotice(n) {
 }
 
 async function restore(id) {
-  const { error } = await unhide(id)
+  const { error } = await restoreNotice(id)
   if (error) {
     toast.show('Could not restore')
-    return
+    return false
   }
   toast.show('Notice restored')
+  return true
 }
 
 async function remove(n) {
@@ -117,10 +117,13 @@ async function onLongPressDelete(n) {
 
 async function onSwipe(n, actionId) {
   if (actionId === 'restore') {
+    const ok = await restoreConfirm.notice()
+    if (!ok) return
     leavingId.value = n.id
     setTimeout(async () => {
-      await restore(n.id)
+      const success = await restore(n.id)
       leavingId.value = ''
+      if (!success) leavingId.value = ''
     }, SWIPE_LEAVE_MS)
     return
   }

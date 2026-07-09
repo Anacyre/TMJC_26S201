@@ -196,6 +196,8 @@ import {
   taskInDonePool,
   taskIsActiveForTab,
   isNoticeSourcedP3Task,
+  isRecurringDeadlineTask,
+  formatTaskDueChipLabel,
 } from '@/lib/taskDueDate'
 import { TASK_COMPLETE_STRIKE_MS, TASK_COMPLETE_FADE_MS, TASK_COMPLETE_TOTAL_MS, DONE_LIST_REFLOW_MS } from '@/lib/taskCompleteAnim'
 import { navChild } from '@/lib/navigation'
@@ -385,18 +387,23 @@ function toggleSection(key) {
 async function toggleStep(taskId, stepId) {
   const before = getTaskById(taskId)
   const wasDone = !!before?.done
+  const willRoll = before ? isRecurringDeadlineTask(before) : false
   let willComplete = false
-  if (before && !wasDone) {
+  if (before && !wasDone && !willRoll) {
     const nextChecklist = (before.checklist || []).map((item) =>
       item.id === stepId ? { ...item, done: !item.done } : item
     )
     willComplete = resolveDoneAfterChecklistToggle(nextChecklist, wasDone).done
     if (willComplete) prepareTaskCompleteAnimation(before)
   }
-  const { data, error } = await toggleChecklist(taskId, stepId)
+  const { data, error, rolled } = await toggleChecklist(taskId, stepId)
   if (error) {
     if (willComplete) endCompleteHide(taskId)
     toast.show(error.message || 'Could not update step')
+    return
+  }
+  if (rolled) {
+    toast.show(`Repeats — next due ${formatTaskDueChipLabel(data)}`)
     return
   }
   if (!data?.done && willComplete) {
@@ -479,11 +486,16 @@ function endCompleteHide(id) {
 
 async function toggleDone(t) {
   const wasDone = !!t.done
-  if (!wasDone) prepareTaskCompleteAnimation(t)
-  const { error } = await toggleTaskDone(t.id)
+  const willRoll = !wasDone && isRecurringDeadlineTask(t)
+  if (!wasDone && !willRoll) prepareTaskCompleteAnimation(t)
+  const { data, error, rolled } = await toggleTaskDone(t.id)
   if (error) {
-    if (!wasDone) endCompleteHide(t.id)
+    if (!wasDone && !willRoll) endCompleteHide(t.id)
     toast.show(error.message || 'Could not update task')
+    return
+  }
+  if (rolled) {
+    toast.show(`Repeats — next due ${formatTaskDueChipLabel(data)}`)
     return
   }
   if (!wasDone && !getTaskById(t.id)?.done) {

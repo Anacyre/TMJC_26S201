@@ -62,6 +62,16 @@ export const deleteConfirm = {
     }),
 }
 
+export const restoreConfirm = {
+  notice: (options = {}) =>
+    confirmDelete({
+      title: 'Restore notice?',
+      message: 'This notice will reappear in your feed.',
+      confirmLabel: 'Restore',
+      ...options,
+    }),
+}
+
 function settle(confirmed) {
   const resolve = dialog.value.resolve
   dialog.value.open = false

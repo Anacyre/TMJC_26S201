@@ -410,6 +410,11 @@ function onPointerEnd(e) {
 }
 
 function onTap(actionId) {
+  if (actionId === 'delete' || actionId === 'restore') {
+    emit('action', actionId)
+    resetSwipeState()
+    return
+  }
   if (!shouldVanishBeforeAction(actionId)) {
     emit('action', actionId)
     resetSwipeState()

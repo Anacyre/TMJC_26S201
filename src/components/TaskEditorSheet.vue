@@ -162,9 +162,9 @@ import { resolveTaskStatusFromForm } from '@/lib/taskDueDate'
 import {
   REMINDER_REPEAT_OPTIONS,
   buildReminderString,
+  buildTaskDeadlineString,
   computeReminderAtIso,
   emptyReminderFormFields,
-  formatReminderDateLabel,
   normalizeReminderRepeat,
   reminderFormFieldsFromStored,
 } from '@/lib/reminderString'
@@ -283,8 +283,7 @@ function resetSaving() {
 defineExpose({ resetSaving })
 
 function buildDeadlineString() {
-  if (!form.deadlineDate) return 'Anytime'
-  return `Due ${formatReminderDateLabel(form.deadlineDate)}`
+  return buildTaskDeadlineString(form.deadlineDate)
 }
 
 function resolveFormDeadlineDate() {

@@ -60,7 +60,31 @@ export function parseChecklistItemDeadline(item) {
   return parseDueDateKey(item.deadline)
 }
 
-/** First incomplete step deadline, else task-level deadline. */
+/** Reminder date key (YYYY-MM-DD) from reminderAt (preferred) or the display string. */
+export function parseTaskReminderDateKey(task) {
+  const at = String(task?.reminderAt || '')
+  const atMatch = at.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (atMatch) return atMatch[1]
+  const rem = String(task?.reminder || '')
+  if (!rem || rem === 'None') return ''
+  const m = rem.match(/(\d{4}-\d{2}-\d{2})/)
+  return m ? m[1] : ''
+}
+
+/**
+ * A reminder-only task (no deadline) counts as due on its reminder day, but only
+ * for today or tomorrow — so today's/tomorrow's reminders surface in the list
+ * while later reminders stay out of the dated sections.
+ */
+function reminderDueDateKey(task) {
+  const key = parseTaskReminderDateKey(task)
+  if (!key) return ''
+  const today = todayDateKey()
+  if (key === today || key === addDaysToDateKey(today, 1)) return key
+  return ''
+}
+
+/** First incomplete step deadline, else task-level deadline, else a near reminder day. */
 export function getEffectiveDueDateKey(task) {
   const checklist = task?.checklist || []
   if (checklist.length) {
@@ -71,7 +95,9 @@ export function getEffectiveDueDateKey(task) {
       }
     }
   }
-  return parseDueDateKey(task?.deadline)
+  const deadlineKey = parseDueDateKey(task?.deadline)
+  if (deadlineKey) return deadlineKey
+  return reminderDueDateKey(task)
 }
 
 export function taskHasChecklistSteps(task) {
@@ -276,6 +302,17 @@ export function resolveTaskStatusFromTask(task) {
 
 export function taskHasDueDate(task) {
   return !!getEffectiveDueDateKey(task)
+}
+
+/**
+ * A recurring task with a real deadline: completing it rolls the deadline
+ * forward by one reminder-repeat cycle instead of marking it done.
+ */
+export function isRecurringDeadlineTask(task) {
+  if (!task) return false
+  const repeat = String(task.reminderRepeat || 'none').toLowerCase()
+  if (repeat === 'none' || !['daily', 'weekly', 'monthly', 'yearly'].includes(repeat)) return false
+  return !!parseDueDateKey(task.deadline)
 }
 
 export function taskHasNoDueDate(task) {
