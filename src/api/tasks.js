@@ -9,6 +9,7 @@ import {
   shouldRetainCompletedTask,
   toDbTaskStatus,
 } from '@/lib/taskDueDate'
+import { normalizeReminderRepeat } from '@/lib/reminderString'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -41,6 +42,8 @@ function rowToTask(row) {
     priority: row.priority || 'P3',
     status: normalizeTaskStatus(row.status),
     reminder: row.reminder || 'None',
+    reminderAt: row.reminder_at || '',
+    reminderRepeat: row.reminder_repeat || 'none',
     done: row.done || false,
     checklist: normalizeChecklist(row.checklist),
     relatedNotice: row.related_notice || null,
@@ -128,6 +131,8 @@ export async function createTask(payload) {
       priority: payload.priority || 'P3',
       status,
       reminder: payload.reminder?.trim() || 'None',
+      reminder_at: payload.reminderAt || null,
+      reminder_repeat: normalizeReminderRepeat(payload.reminderRepeat),
       done: false,
       checklist: payload.checklist || [],
       related_notice: payload.relatedNotice || null,
@@ -150,21 +155,25 @@ export async function updateTask(taskId, payload) {
     done: payload.done,
   })
 
+  const patch = {
+    title: payload.title?.trim(),
+    description: payload.description?.trim() ?? '',
+    deadline: payload.deadline?.trim() ?? 'Anytime',
+    subject: payload.subject?.trim() ?? 'General',
+    priority: payload.priority,
+    status,
+    reminder: payload.reminder?.trim() ?? 'None',
+    done: payload.done,
+    checklist: payload.checklist,
+    completed_at: payload.done ? payload.completedAt || new Date().toISOString() : null,
+    updated_at: new Date().toISOString(),
+  }
+  if (payload.reminderAt !== undefined) patch.reminder_at = payload.reminderAt || null
+  if (payload.reminderRepeat !== undefined) patch.reminder_repeat = normalizeReminderRepeat(payload.reminderRepeat)
+
   const { data, error } = await supabase
     .from('tasks')
-    .update({
-      title: payload.title?.trim(),
-      description: payload.description?.trim() ?? '',
-      deadline: payload.deadline?.trim() ?? 'Anytime',
-      subject: payload.subject?.trim() ?? 'General',
-      priority: payload.priority,
-      status,
-      reminder: payload.reminder?.trim() ?? 'None',
-      done: payload.done,
-      checklist: payload.checklist,
-      completed_at: payload.done ? payload.completedAt || new Date().toISOString() : null,
-      updated_at: new Date().toISOString(),
-    })
+    .update(patch)
     .eq('id', taskId)
     .select()
     .single()

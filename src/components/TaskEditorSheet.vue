@@ -159,6 +159,15 @@ import { useTagStore } from '@/composables/useTagStore'
 import { useCommunityStore } from '@/composables/useCommunityStore'
 import { communitySubjectNames } from '@/lib/communitySubjectLinks'
 import { resolveTaskStatusFromForm } from '@/lib/taskDueDate'
+import {
+  REMINDER_REPEAT_OPTIONS,
+  buildReminderString,
+  computeReminderAtIso,
+  emptyReminderFormFields,
+  formatReminderDateLabel,
+  normalizeReminderRepeat,
+  reminderFormFieldsFromStored,
+} from '@/lib/reminderString'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { toast } from '@/composables/useToast'
 
@@ -191,13 +200,7 @@ const subjectOptions = computed(() => {
 })
 
 const priorities = ['P1', 'P2', 'P3']
-const repeatOptions = [
-  { id: 'none', label: 'Never' },
-  { id: 'daily', label: 'Daily' },
-  { id: 'weekly', label: 'Weekly' },
-  { id: 'monthly', label: 'Monthly' },
-  { id: 'yearly', label: 'Yearly' },
-]
+const repeatOptions = REMINDER_REPEAT_OPTIONS
 const saving = ref(false)
 const descExpanded = ref(false)
 
@@ -207,10 +210,7 @@ const form = reactive({
   deadlineDate: '',
   subject: '',
   priority: 'P3',
-  reminderOn: false,
-  reminderDate: '',
-  reminderTime: '',
-  reminderRepeat: 'none',
+  ...emptyReminderFormFields(),
   checklist: [],
 })
 
@@ -221,42 +221,13 @@ function parseStoredDeadline(raw) {
   return ''
 }
 
-function parseStoredReminder(raw) {
-  if (!raw || raw === 'None') return { on: false, date: '', time: '', repeat: 'none' }
-  const datePart = String(raw).match(/(\d{4}-\d{2}-\d{2})/)
-  const timePart = String(raw).match(/(\d{2}:\d{2})/)
-  const repeatMatch = String(raw).match(/repeat:(\w+)/i)
-  const repeat = repeatMatch ? repeatMatch[1].toLowerCase() : 'none'
-  return {
-    on: !!datePart || !!timePart,
-    date: datePart ? datePart[1] : '',
-    time: timePart ? timePart[1] : '',
-    repeat: ['daily', 'weekly', 'monthly', 'yearly'].includes(repeat) ? repeat : 'none',
-  }
-}
-
-function formatDateLabel(value) {
-  if (!value) return ''
-  const [y, m, d] = value.split('-')
-  if (!y) return value
-  const date = new Date(Number(y), Number(m) - 1, Number(d))
-  if (Number.isNaN(date.getTime())) return value
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-  const weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-  return `${weekdays[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()} · ${value}`
-}
-
 function syncFromTask() {
   form.title = props.task?.title || ''
   form.description = props.task?.description || ''
   form.deadlineDate = parseStoredDeadline(props.task?.deadline)
   form.subject = props.task?.subject || ''
   form.priority = props.task?.priority || 'P3'
-  const r = parseStoredReminder(props.task?.reminder)
-  form.reminderOn = r.on
-  form.reminderDate = r.date
-  form.reminderTime = r.time
-  form.reminderRepeat = r.repeat
+  Object.assign(form, reminderFormFieldsFromStored(props.task?.reminder))
   form.checklist = (props.task?.checklist || []).map((x, idx) => ({
     id: x.id || `c-${idx}`,
     text: x.text || '',
@@ -313,21 +284,7 @@ defineExpose({ resetSaving })
 
 function buildDeadlineString() {
   if (!form.deadlineDate) return 'Anytime'
-  return `Due ${formatDateLabel(form.deadlineDate)}`
-}
-
-function buildReminderString() {
-  if (!form.reminderOn) return 'None'
-  if (!form.reminderDate && !form.reminderTime) return 'None'
-  const parts = []
-  if (form.reminderDate) parts.push(formatDateLabel(form.reminderDate))
-  if (form.reminderTime) parts.push(`at ${form.reminderTime}`)
-  if (form.reminderRepeat && form.reminderRepeat !== 'none') {
-    const repeatLabel = repeatOptions.find((x) => x.id === form.reminderRepeat)?.label || form.reminderRepeat
-    parts.push(`· repeat:${form.reminderRepeat}`)
-    parts.push(`(${repeatLabel})`)
-  }
-  return parts.join(' ')
+  return `Due ${formatReminderDateLabel(form.deadlineDate)}`
 }
 
 function resolveFormDeadlineDate() {
@@ -356,7 +313,9 @@ function submit() {
     subject: form.subject,
     priority: form.priority,
     status: resolveTaskStatusFromForm({ deadlineDate }),
-    reminder: buildReminderString(),
+    reminder: buildReminderString(form),
+    reminderAt: computeReminderAtIso(form),
+    reminderRepeat: form.reminderOn ? normalizeReminderRepeat(form.reminderRepeat) : 'none',
     checklist: form.checklist.filter((x) => x.text.trim()).map((x) => ({
       id: x.id,
       text: x.text.trim(),

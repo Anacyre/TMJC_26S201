@@ -33,8 +33,8 @@ export function useSwipeLayout() {
 
   const swipeLayoutToggleHint = computed(() =>
     leftHideRightDelete.value
-      ? 'Left hides · right deletes (tasks archive on the left)'
-      : 'Left deletes · right hides or archives'
+      ? 'Left hides/restores · right deletes (tasks archive on the left)'
+      : 'Left deletes · right hides, restores, or archives'
   )
 
   return {

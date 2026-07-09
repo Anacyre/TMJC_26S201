@@ -8,6 +8,7 @@ import { useTagStore } from '@/composables/useTagStore'
 import { resetCommunityPostsCache } from '@/composables/useCommunityStore'
 import { resetNotificationSession } from '@/composables/useNotificationStore'
 import { useFeedbackStore, resetFeedbackSession } from '@/composables/useFeedbackStore'
+import { checkDueReminders, resetRemindersSession } from '@/composables/useReminders'
 
 let _booting = null
 let _booted = false
@@ -50,6 +51,7 @@ export function bootstrapData({ force = false } = {}) {
     ])
     useTagStore().syncFromCommunities(communityStore.communities.value)
     _booted = true
+    checkDueReminders({ force: true })
   })().finally(() => {
     _booting = null
   })
@@ -65,4 +67,5 @@ export function resetBootstrap() {
   resetTasksSession()
   resetStudySession()
   resetFeedbackSession()
+  resetRemindersSession()
 }

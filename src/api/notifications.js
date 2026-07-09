@@ -4,6 +4,7 @@ import { normalizeChecklist } from '@/lib/checklist'
 import { isAdminMember } from '@/lib/classMembers'
 import { adminModeEnabled } from '@/composables/adminModeState'
 import { canEditNotice } from '@/lib/noticePermissions'
+import { normalizeReminderValue, normalizeReminderRepeat } from '@/lib/reminderString'
 
 const USE_MOCK = mock.USE_MOCK
 
@@ -24,6 +25,9 @@ function rowToNotification(row, state) {
     attachment: row.attachment || '',
     attachmentUrl: row.attachment_url || '',
     checklist: normalizeChecklist(row.checklist),
+    reminder: normalizeReminderValue(row.reminder),
+    reminderAt: row.reminder_at || '',
+    reminderRepeat: row.reminder_repeat || 'none',
     by: row.by || 'Admin',
     createdBy: row.created_by || '',
     createdAt: row.created_at,
@@ -137,6 +141,9 @@ export async function createNotification(payload) {
       attachment: payload.attachment || '',
       attachment_url: payload.attachmentUrl || '',
       checklist: payload.checklist || [],
+      reminder: normalizeReminderValue(payload.reminder),
+      reminder_at: payload.reminderAt || null,
+      reminder_repeat: normalizeReminderRepeat(payload.reminderRepeat),
       important: payload.important || false,
       by: payload.by || 'Admin',
       created_by: user.id,
@@ -240,6 +247,9 @@ export async function updateNotification(notificationId, payload) {
   if (payload.attachment !== undefined) patch.attachment = String(payload.attachment || '').trim()
   if (payload.attachmentUrl !== undefined) patch.attachment_url = String(payload.attachmentUrl || '').trim()
   if (payload.checklist !== undefined) patch.checklist = payload.checklist || []
+  if (payload.reminder !== undefined) patch.reminder = normalizeReminderValue(payload.reminder)
+  if (payload.reminderAt !== undefined) patch.reminder_at = payload.reminderAt || null
+  if (payload.reminderRepeat !== undefined) patch.reminder_repeat = normalizeReminderRepeat(payload.reminderRepeat)
   if (payload.important !== undefined) patch.important = !!payload.important
 
   const { data, error } = await supabase

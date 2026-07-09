@@ -203,6 +203,8 @@ async function addTaskFromNotice({
   }
 
   const noticeChecklist = sanitizeChecklistForSave(noticeInput?.checklist)
+  const noticeReminder = String(noticeInput?.reminder || '').trim()
+  const hasReminder = noticeReminder && noticeReminder !== 'None'
   const { data } = await addTask({
     title: title?.trim() || noticeInput?.title?.trim() || 'From notice',
     subject: subject?.trim() || noticeInput?.subject?.trim() || 'General',
@@ -210,6 +212,9 @@ async function addTaskFromNotice({
     status: resolveTaskStatusFromForm({ deadlineDate }),
     description: description?.trim() || noticeInput?.description?.trim() || '',
     priority: 'P2',
+    reminder: hasReminder ? noticeReminder : 'None',
+    reminderAt: hasReminder ? (noticeInput?.reminderAt || null) : null,
+    reminderRepeat: hasReminder ? (noticeInput?.reminderRepeat || 'none') : 'none',
     checklist: noticeChecklist,
     relatedNotice: { id, title: noticeTitle || title || noticeInput?.title },
     sourceNoticeId: id,

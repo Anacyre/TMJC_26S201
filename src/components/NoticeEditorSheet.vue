@@ -62,8 +62,41 @@
             </view>
 
             <view class="metaRow">
-              <view class="metaItem full">
+              <view class="metaItem">
                 <DateField v-model="form.deadlineDate" mode="date" placeholder="Deadline" />
+              </view>
+              <view class="metaItem">
+                <view class="reminderHead inline" role="button" @tap="toggleReminder">
+                  <text class="reminderLabel">Reminder</text>
+                  <view class="toggle" :class="{ on: form.reminderOn }" @tap.stop="toggleReminder">
+                    <view class="toggleKnob" />
+                  </view>
+                </view>
+              </view>
+            </view>
+
+            <view v-if="form.reminderOn" class="metaRow reminderBody">
+              <view class="metaItem">
+                <DateField v-model="form.reminderDate" mode="date" placeholder="Date" />
+              </view>
+              <view class="metaItem">
+                <DateField v-model="form.reminderTime" mode="time" placeholder="Time" />
+              </view>
+            </view>
+
+            <view v-if="form.reminderOn" class="repeatBlock">
+              <text class="repeatLabel">Repeat</text>
+              <view class="repeatRow">
+                <view
+                  v-for="opt in repeatOptions"
+                  :key="opt.id"
+                  class="repeatChip"
+                  :class="{ on: form.reminderRepeat === opt.id }"
+                  role="button"
+                  @tap="form.reminderRepeat = opt.id"
+                >
+                  <text class="repeatChipText">{{ opt.label }}</text>
+                </view>
               </view>
             </view>
           </view>
@@ -113,6 +146,7 @@ import TagSelect from '@/components/TagSelect.vue'
 import { useTheme } from '@/composables/useTheme'
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { toast } from '@/composables/useToast'
+import { REMINDER_REPEAT_OPTIONS } from '@/lib/reminderString'
 import {
   editorFormToNoticePayload,
   emptyNoticeEditorForm,
@@ -139,6 +173,7 @@ const noticeTypes = [
   { id: 'via', label: 'VIA' },
   { id: 'events', label: 'Event' },
 ]
+const repeatOptions = REMINDER_REPEAT_OPTIONS
 
 const form = reactive(emptyNoticeEditorForm())
 
@@ -171,6 +206,15 @@ function setStepDeadline(idx, value) {
   if (row) row.deadline = value || ''
 }
 
+function toggleReminder() {
+  form.reminderOn = !form.reminderOn
+  if (!form.reminderOn) {
+    form.reminderDate = ''
+    form.reminderTime = ''
+    form.reminderRepeat = 'none'
+  }
+}
+
 watch(
   () => [props.modelValue, props.notice?.id, props.mode],
   ([open]) => {
@@ -200,6 +244,10 @@ async function submit() {
   }
   if (!form.type) {
     toast.show('Pick a type')
+    return
+  }
+  if (form.reminderOn && !form.reminderDate) {
+    toast.show('Pick reminder date')
     return
   }
   saving.value = true
@@ -254,8 +302,50 @@ defineExpose({ setSaving: (v) => { saving.value = !!v } })
 .area { min-height: 220rpx; padding-top: 22rpx; }
 .placeholder { color: rgba(16, 24, 40, 0.34); }
 .metaGrid { gap: 10rpx; }
-.metaRow { display: flex; gap: 10rpx; width: 100%; }
-.metaItem.full { flex: 1; }
+.metaRow { display: flex; gap: 10rpx; width: 100%; align-items: stretch; }
+.metaItem { flex: 1; min-width: 0; }
+.metaItem.full { flex: 1; width: 100%; }
+.reminderHead {
+  display: flex; align-items: center; justify-content: space-between; gap: 14rpx;
+  min-height: 96rpx; padding: 0 20rpx; border-radius: 24rpx;
+  border: 1rpx solid rgba(16, 24, 40, 0.08); background: rgba(255, 255, 255, 0.78);
+  box-sizing: border-box;
+}
+.reminderHead.inline { height: 100%; }
+.t-dark .reminderHead { border-color: rgba(255, 255, 255, 0.06); background: #23272d; }
+.reminderLabel { font-size: 26rpx; color: rgba(16, 24, 40, 0.62); font-weight: 660; white-space: nowrap; }
+.t-dark .reminderLabel { color: rgba(245, 247, 255, 0.62); }
+.toggle {
+  width: 78rpx; height: 42rpx; border-radius: 999rpx;
+  background: rgba(16, 24, 40, 0.12); border: 1rpx solid rgba(16, 24, 40, 0.06);
+  position: relative; transition: background 200ms ease, border-color 200ms ease; flex-shrink: 0;
+}
+.t-dark .toggle { background: rgba(245, 247, 255, 0.1); border-color: rgba(255, 255, 255, 0.08); }
+.toggle.on { background: rgba(46, 99, 255, 0.42); border-color: rgba(46, 99, 255, 0.32); }
+.toggleKnob {
+  position: absolute; top: 4rpx; left: 4rpx; width: 32rpx; height: 32rpx;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.95); transition: transform 200ms ease;
+}
+.toggle.on .toggleKnob { transform: translateX(34rpx); }
+.reminderBody { margin-top: 0; }
+.repeatBlock { margin-top: 4rpx; }
+.repeatLabel {
+  display: block; font-size: 20rpx; font-weight: 660;
+  color: rgba(16, 24, 40, 0.52); margin-bottom: 8rpx;
+}
+.t-dark .repeatLabel { color: rgba(245, 247, 255, 0.52); }
+.repeatRow { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.repeatChip {
+  min-height: 56rpx; padding: 0 18rpx; border-radius: 999rpx;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(16, 24, 40, 0.04); border: 1rpx solid rgba(16, 24, 40, 0.08);
+  transition: background 200ms ease, border-color 200ms ease, transform 180ms ease;
+}
+.t-dark .repeatChip { background: rgba(255, 255, 255, 0.04); border-color: rgba(255, 255, 255, 0.08); }
+.repeatChip.on { background: rgba(46, 99, 255, 0.12); border-color: rgba(46, 99, 255, 0.28); }
+.repeatChipText { font-size: 22rpx; font-weight: 700; color: rgba(16, 24, 40, 0.62); }
+.t-dark .repeatChipText { color: rgba(245, 247, 255, 0.62); }
+.repeatChip.on .repeatChipText { color: rgba(46, 99, 255, 0.96); }
 .typeRow.inline {
   min-height: 96rpx; padding: 8rpx; border-radius: 24rpx;
   border: 1rpx solid rgba(16, 24, 40, 0.08); background: rgba(255, 255, 255, 0.78);

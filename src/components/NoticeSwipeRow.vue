@@ -1,5 +1,5 @@
 <template>
-  <view class="noticeSwipe" :class="[themeClass, { dragging, snapBack }]">
+  <view class="noticeSwipe" :class="[themeClass, 'mode-' + mode, { dragging, snapBack }]">
     <view
       v-if="showPositiveTrack"
       class="trackLeft"
@@ -12,9 +12,10 @@
           :class="[positiveBtnClass, { pulse: positivePulse }]"
           :style="positiveBtnStyle"
           role="button"
-          @tap.stop="onTap(positiveAction)"
+          @tap.stop="onTap(positiveCommitId)"
+          @click.stop="onTap(positiveCommitId)"
         >
-          <view class="actionIcon" :class="positiveAction === 'delete' ? 'ic-trash' : 'ic-hide'" />
+          <view class="actionIcon" :class="iconClassFor(positiveCommitId)" />
         </view>
       </view>
     </view>
@@ -31,9 +32,10 @@
           :class="[negativeBtnClass, { pulse: negativePulse }]"
           :style="negativeBtnStyle"
           role="button"
-          @tap.stop="onTap(negativeAction)"
+          @tap.stop="onTap(negativeCommitId)"
+          @click.stop="onTap(negativeCommitId)"
         >
-          <view class="actionIcon" :class="negativeAction === 'delete' ? 'ic-trash' : 'ic-hide'" />
+          <view class="actionIcon" :class="iconClassFor(negativeCommitId)" />
         </view>
       </view>
     </view>
@@ -42,10 +44,14 @@
       class="surface"
       :class="surfaceClass"
       :style="surfaceStyle"
-      @touchstart="onTouchStart"
-      @touchmove.stop="onTouchMove"
-      @touchend="onTouchEnd"
-      @touchcancel="onTouchEnd"
+      @touchstart="onPointerStart"
+      @touchmove.stop="onPointerMove"
+      @touchend="onPointerEnd"
+      @touchcancel="onPointerEnd"
+      @mousedown.stop="onPointerStart"
+      @mousemove.stop="onPointerMove"
+      @mouseup.stop="onPointerEnd"
+      @mouseleave.stop="onPointerEnd"
       @longpress="onLongPress"
     >
       <slot />
@@ -56,51 +62,87 @@
 <script setup>
 import { computed, ref } from 'vue'
 import { useTheme } from '@/composables/useTheme'
-import { useDevice } from '@/composables/useDevice'
 import { useSwipeLayout } from '@/composables/useSwipeLayout'
+import { pointerXY } from '@/lib/swipePointer'
 import {
   SWIPE_REVEAL,
   SWIPE_COMMIT_EXTRA,
   SWIPE_VISUAL_REVEAL,
+  SWIPE_ARCHIVED_REVEAL,
+  SWIPE_ARCHIVED_COMMIT_EXTRA,
   SWIPE_VANISH_MS,
   SWIPE_ACTION_MS,
   swipeEaseIn,
   swipeDampedPositive,
   swipeDampedNegative,
-  meetsPositiveSwipeCommit,
-  meetsNegativeSwipeCommit,
+  swipeRubberBand,
+  meetsPositiveSwipeCommitFor,
+  meetsNegativeSwipeCommitFor,
 } from '@/lib/swipeMotion'
 import { shouldVanishBeforeAction } from '@/lib/swipeCommit'
 
 const props = defineProps({
   canDelete: { type: Boolean, default: false },
+  /** feed = hide/delete; hidden = restore/delete (like archived tasks) */
+  mode: { type: String, default: 'feed' },
 })
 
 const emit = defineEmits(['action', 'commit', 'longpress-delete'])
 
 const { themeClass } = useTheme()
-const { isDesktop } = useDevice()
 const { noticePositiveAction, noticeNegativeAction } = useSwipeLayout()
 
-const positiveAction = noticePositiveAction
-const negativeAction = noticeNegativeAction
+const isHiddenMode = computed(() => props.mode === 'hidden')
+const secondaryId = computed(() => (isHiddenMode.value ? 'restore' : 'hide'))
+
+const positiveCommitId = computed(() =>
+  noticePositiveAction.value === 'delete' ? 'delete' : secondaryId.value
+)
+const negativeCommitId = computed(() =>
+  noticeNegativeAction.value === 'delete' ? 'delete' : secondaryId.value
+)
 
 const showPositiveTrack = computed(
-  () => positiveAction.value !== 'delete' || props.canDelete
+  () => positiveCommitId.value !== 'delete' || props.canDelete
 )
 const showNegativeTrack = computed(
-  () => negativeAction.value !== 'delete' || props.canDelete
+  () => negativeCommitId.value !== 'delete' || props.canDelete
 )
 
-const openThresholdPos = computed(() => Math.round(SWIPE_REVEAL * 0.64))
-const openThresholdNeg = computed(() => Math.round(SWIPE_REVEAL * 0.58))
-const commitAtPos = computed(() => SWIPE_REVEAL + SWIPE_COMMIT_EXTRA * 0.64)
-const commitAtNeg = computed(() => -(SWIPE_REVEAL + SWIPE_COMMIT_EXTRA * 0.64))
+function revealFor(actionId) {
+  if (isHiddenMode.value) {
+    return actionId === 'delete' ? SWIPE_ARCHIVED_REVEAL : SWIPE_ARCHIVED_REVEAL
+  }
+  return SWIPE_REVEAL
+}
+
+function commitExtraFor(actionId) {
+  if (isHiddenMode.value) {
+    return actionId === 'delete' ? SWIPE_ARCHIVED_COMMIT_EXTRA : SWIPE_ARCHIVED_COMMIT_EXTRA
+  }
+  return SWIPE_COMMIT_EXTRA
+}
+
+function visualRevealFor(actionId) {
+  if (!isHiddenMode.value && actionId === 'delete') return SWIPE_VISUAL_REVEAL
+  return revealFor(actionId) * 1.25
+}
+
+const positiveReveal = computed(() => revealFor(positiveCommitId.value))
+const negativeReveal = computed(() => revealFor(negativeCommitId.value))
+const positiveExtra = computed(() => commitExtraFor(positiveCommitId.value))
+const negativeExtra = computed(() => commitExtraFor(negativeCommitId.value))
+const positiveVisual = computed(() => visualRevealFor(positiveCommitId.value))
+const negativeVisual = computed(() => visualRevealFor(negativeCommitId.value))
+
+const openThresholdPos = computed(() => Math.round(positiveReveal.value * 0.64))
+const openThresholdNeg = computed(() => Math.round(negativeReveal.value * 0.58))
 
 const startX = ref(0)
 const startY = ref(0)
 const startBaseOffset = ref(0)
 const lastDx = ref(0)
+const pointerDown = ref(false)
 const dragging = ref(false)
 const lockedAxis = ref('')
 const baseOffset = ref(0)
@@ -108,66 +150,79 @@ const dragOffset = ref(0)
 const snapBack = ref(false)
 const vanish = ref(false)
 const vanishDirection = ref('right')
+let lastTouchStartAt = 0
 
 const displayOffset = computed(() => baseOffset.value + dragOffset.value)
 
 const positiveProgress = computed(() => {
   const o = displayOffset.value
   if (o <= 0) return 0
-  return Math.min(1, o / SWIPE_VISUAL_REVEAL)
+  return Math.min(1, o / positiveVisual.value)
 })
 
 const negativeProgress = computed(() => {
   const o = displayOffset.value
   if (o >= 0) return 0
-  return Math.min(1, -o / SWIPE_VISUAL_REVEAL)
+  return Math.min(1, -o / negativeVisual.value)
 })
 
 const positiveCommitProgress = computed(() => {
   const o = displayOffset.value
-  if (o <= SWIPE_REVEAL || SWIPE_COMMIT_EXTRA <= 0) return 0
-  return Math.min(1, (o - SWIPE_REVEAL) / SWIPE_COMMIT_EXTRA)
+  if (o <= positiveReveal.value || positiveExtra.value <= 0) return 0
+  return Math.min(1, (o - positiveReveal.value) / positiveExtra.value)
 })
 
 const negativeCommitProgress = computed(() => {
   const o = displayOffset.value
   const abs = -o
-  if (abs <= SWIPE_REVEAL || SWIPE_COMMIT_EXTRA <= 0) return 0
-  return Math.min(1, (abs - SWIPE_REVEAL) / SWIPE_COMMIT_EXTRA)
+  if (abs <= negativeReveal.value || negativeExtra.value <= 0) return 0
+  return Math.min(1, (abs - negativeReveal.value) / negativeExtra.value)
 })
 
 const positiveVisible = computed(() => positiveProgress.value > 0.06 || baseOffset.value > 0)
 const negativeVisible = computed(() => negativeProgress.value > 0.06 || baseOffset.value < 0)
 
 const positivePulse = computed(
-  () => positiveAction.value === 'delete' && positiveCommitProgress.value > 0.5
+  () => positiveCommitId.value === 'delete' && positiveCommitProgress.value > 0.5
 )
 const negativePulse = computed(
-  () => negativeAction.value === 'delete' && negativeCommitProgress.value > 0.5
+  () => negativeCommitId.value === 'delete' && negativeCommitProgress.value > 0.5
 )
 
-const positiveBtnClass = computed(() =>
-  positiveAction.value === 'delete' ? 'act-delete' : 'act-hide'
-)
-const negativeBtnClass = computed(() =>
-  negativeAction.value === 'delete' ? 'act-delete' : 'act-hide'
-)
+function btnClassFor(actionId) {
+  if (actionId === 'delete') return 'act-delete'
+  if (actionId === 'restore') return 'act-restore'
+  return 'act-hide'
+}
+
+const positiveBtnClass = computed(() => btnClassFor(positiveCommitId.value))
+const negativeBtnClass = computed(() => btnClassFor(negativeCommitId.value))
+
+function iconClassFor(actionId) {
+  if (actionId === 'delete') return 'ic-trash'
+  if (actionId === 'restore') return 'ic-restore'
+  return 'ic-hide'
+}
 
 const positiveBtnStyle = computed(() => {
-  if (positiveAction.value !== 'delete') return {}
   const cp = positiveCommitProgress.value
-  return { transform: `scale(${1 + cp * 0.62}, ${1 + cp * 0.18})`, opacity: 1 }
+  if (positiveCommitId.value === 'delete') {
+    return { transform: `scale(${1 + cp * 0.62}, ${1 + cp * 0.18})`, opacity: 1 }
+  }
+  return { transform: `scale(${1 + cp * 0.35})`, opacity: 1 }
 })
 
 const negativeBtnStyle = computed(() => {
-  if (negativeAction.value !== 'delete') return {}
   const cp = negativeCommitProgress.value
-  return { transform: `scale(${1 + cp * 0.62}, ${1 + cp * 0.18})`, opacity: 1 }
+  if (negativeCommitId.value === 'delete') {
+    return { transform: `scale(${1 + cp * 0.62}, ${1 + cp * 0.18})`, opacity: 1 }
+  }
+  return { transform: `scale(${1 + cp * 0.38})`, opacity: 1 }
 })
 
 const surfaceTransform = computed(() => {
   if (vanish.value) {
-    const slide = Math.round(SWIPE_REVEAL * 1.15)
+    const slide = Math.round(positiveReveal.value * 1.15)
     if (vanishDirection.value === 'left') return `translateX(${-slide}px) scale(0.98)`
     return `translateX(${slide}px) scale(0.98)`
   }
@@ -209,18 +264,31 @@ const negativeTrackStyle = computed(() => {
   }
 })
 
+function dampedPositiveForAction(raw, actionId) {
+  const reveal = revealFor(actionId)
+  const extra = commitExtraFor(actionId)
+  if (isHiddenMode.value && actionId === 'delete' && raw > 0) {
+    if (raw <= reveal) {
+      const ratio = raw / reveal
+      return raw * (0.14 + ratio * 0.08)
+    }
+    return reveal + swipeRubberBand(raw - reveal, extra)
+  }
+  return swipeDampedPositive(raw, reveal, extra)
+}
+
 function clampOffset(raw) {
-  let out = swipeDampedPositive(raw)
-  const negAllowed =
-    negativeAction.value !== 'delete' || props.canDelete
-  if (negAllowed && raw < 0) {
-    out = swipeDampedNegative(raw)
+  const posAllowed = positiveCommitId.value !== 'delete' || props.canDelete
+  const negAllowed = negativeCommitId.value !== 'delete' || props.canDelete
+  if (raw > 0) {
+    if (!posAllowed) return swipeDampedPositive(raw, SWIPE_REVEAL, 0) * 0.15
+    return dampedPositiveForAction(raw, positiveCommitId.value)
   }
-  const posAllowed = positiveAction.value !== 'delete' || props.canDelete
-  if (!posAllowed && raw > 0) {
-    out = swipeDampedPositive(raw, SWIPE_REVEAL, 0) * 0.15
+  if (raw < 0) {
+    if (!negAllowed) return 0
+    return swipeDampedNegative(raw, negativeReveal.value, negativeExtra.value)
   }
-  return out
+  return 0
 }
 
 function isSwipeIgnoredTarget(target) {
@@ -228,13 +296,21 @@ function isSwipeIgnoredTarget(target) {
   return !!target.closest('[data-swipe-ignore]')
 }
 
-function onTouchStart(e) {
-  if (isDesktop.value) return
+function isSyntheticMouseEvent(e) {
+  const t = e?.type || ''
+  return t === 'mousedown' || t === 'mouseup' || t === 'mousemove' || t === 'mouseleave'
+}
+
+const TOUCH_MOUSE_GUARD_MS = 700
+
+function onPointerStart(e) {
   if (isSwipeIgnoredTarget(e.target)) return
-  const t = e.touches?.[0]
-  if (!t) return
-  startX.value = t.clientX
-  startY.value = t.clientY
+  if (isSyntheticMouseEvent(e) && Date.now() - lastTouchStartAt < TOUCH_MOUSE_GUARD_MS) return
+  if (e.type === 'touchstart') lastTouchStartAt = Date.now()
+  const { x, y } = pointerXY(e)
+  pointerDown.value = true
+  startX.value = x
+  startY.value = y
   startBaseOffset.value = baseOffset.value
   lastDx.value = 0
   dragging.value = true
@@ -244,12 +320,11 @@ function onTouchStart(e) {
   dragOffset.value = 0
 }
 
-function onTouchMove(e) {
-  if (!dragging.value || isDesktop.value) return
-  const t = e.touches?.[0]
-  if (!t) return
-  const dx = t.clientX - startX.value
-  const dy = t.clientY - startY.value
+function onPointerMove(e) {
+  if (!dragging.value || !pointerDown.value) return
+  const { x, y } = pointerXY(e)
+  const dx = x - startX.value
+  const dy = y - startY.value
 
   if (!lockedAxis.value) {
     if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
@@ -290,15 +365,20 @@ function triggerVanish(direction, actionId) {
   setTimeout(() => emit('commit', actionId), SWIPE_VANISH_MS)
 }
 
-function onTouchEnd() {
+function onPointerEnd(e) {
+  if (isSyntheticMouseEvent(e) && Date.now() - lastTouchStartAt < TOUCH_MOUSE_GUARD_MS) return
   if (!dragging.value) return
+  pointerDown.value = false
   dragging.value = false
   const total = displayOffset.value
   const rawGesture = startBaseOffset.value + lastDx.value
   finishSnap()
 
-  if (showPositiveTrack.value && meetsPositiveSwipeCommit(total, rawGesture)) {
-    const action = positiveAction.value
+  if (
+    showPositiveTrack.value &&
+    meetsPositiveSwipeCommitFor(total, rawGesture, positiveReveal.value, positiveExtra.value)
+  ) {
+    const action = positiveCommitId.value
     if (!shouldVanishBeforeAction(action)) {
       emitDeleteIntent(action)
       return
@@ -307,8 +387,11 @@ function onTouchEnd() {
     return
   }
 
-  if (showNegativeTrack.value && meetsNegativeSwipeCommit(total, rawGesture)) {
-    const action = negativeAction.value
+  if (
+    showNegativeTrack.value &&
+    meetsNegativeSwipeCommitFor(total, rawGesture, negativeReveal.value, negativeExtra.value)
+  ) {
+    const action = negativeCommitId.value
     if (!shouldVanishBeforeAction(action)) {
       emitDeleteIntent(action)
       return
@@ -318,9 +401,9 @@ function onTouchEnd() {
   }
 
   if (showPositiveTrack.value && total >= openThresholdPos.value) {
-    baseOffset.value = SWIPE_REVEAL
+    baseOffset.value = positiveReveal.value
   } else if (showNegativeTrack.value && total <= -openThresholdNeg.value) {
-    baseOffset.value = -SWIPE_REVEAL
+    baseOffset.value = -negativeReveal.value
   } else {
     baseOffset.value = 0
   }
@@ -428,6 +511,9 @@ function onLongPress() {
 .act-hide {
   background: rgba(120, 130, 150, 0.92);
 }
+.act-restore {
+  background: linear-gradient(165deg, rgba(72, 168, 120, 0.94), rgba(42, 138, 92, 0.92));
+}
 .act-delete {
   background: linear-gradient(165deg, rgba(255, 98, 98, 0.98), rgba(218, 58, 58, 0.96));
 }
@@ -484,6 +570,28 @@ function onLongPress() {
   height: 2rpx;
   background: #fff;
   transform: rotate(-35deg);
+}
+
+.ic-restore {
+  border: 2rpx solid #fff;
+  border-right: none;
+  border-radius: 999rpx 0 0 999rpx;
+  width: 18rpx;
+  height: 18rpx;
+  margin-left: 6rpx;
+  transform: rotate(-45deg);
+}
+.ic-restore::after {
+  content: '';
+  position: absolute;
+  left: -2rpx;
+  top: 50%;
+  width: 14rpx;
+  height: 2rpx;
+  margin-top: -1rpx;
+  background: #fff;
+  border-radius: 999rpx;
+  box-shadow: -6rpx -6rpx 0 0 #fff;
 }
 
 .surface {

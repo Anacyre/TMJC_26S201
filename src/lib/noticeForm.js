@@ -5,6 +5,13 @@ import {
   resolveDeadlineIsoFromSteps,
   sanitizeChecklistForSave,
 } from '@/lib/checklist'
+import {
+  buildReminderString,
+  computeReminderAtIso,
+  emptyReminderFormFields,
+  normalizeReminderRepeat,
+  reminderFormFieldsFromStored,
+} from '@/lib/reminderString'
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -26,6 +33,7 @@ export function emptyNoticeEditorForm() {
     deadlineDate: '',
     description: '',
     checklist: [],
+    ...emptyReminderFormFields(),
   }
 }
 
@@ -42,6 +50,7 @@ export function noticeToEditorForm(notice = {}) {
       done: false,
       deadline: parseStoredStepDeadline(x.deadline) || '',
     })),
+    ...reminderFormFieldsFromStored(notice.reminder),
   }
 }
 
@@ -57,5 +66,8 @@ export function editorFormToNoticePayload(form) {
     deadlineAt: deadlineDate || null,
     description: String(form.description || '').trim(),
     checklist,
+    reminder: buildReminderString(form),
+    reminderAt: computeReminderAtIso(form),
+    reminderRepeat: form.reminderOn ? normalizeReminderRepeat(form.reminderRepeat) : 'none',
   }
 }

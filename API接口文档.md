@@ -234,7 +234,9 @@
     "subject": "Math",
     "priority": "P1",              // P1 / P2 / P3
     "status": "today",             // today / upcoming / overdue / completed
-    "reminder": "18:30",           // HH:mm 或 null
+    "reminder": "Fri May 30 · 2026-05-30 at 07:30 · repeat:daily (Daily)",  // 展示字符串；无提醒为 "None"
+    "reminderAt": "2026-05-30T07:30:00+08:00",  // 调度时间戳（timestamptz）；无提醒为 ""
+    "reminderRepeat": "daily",     // none / daily / weekly / monthly / yearly
     "done": false,
     "checklist": [
       { "id": "t1-c1", "text": "Review notes", "done": false },
@@ -262,7 +264,9 @@
   "subject": "Math",
   "priority": "P2",
   "status": "today",
-  "reminder": "18:00",
+  "reminder": "Fri May 30 · 2026-05-30 at 07:30 · repeat:daily (Daily)",  // 可选，展示字符串
+  "reminderAt": "2026-05-30T07:30:00+08:00",  // 可选，调度时间戳；到点由服务端 pg_cron 派发提醒
+  "reminderRepeat": "daily",       // 可选，none / daily / weekly / monthly / yearly
   "checklist": [
     { "text": "Step 1", "done": false }
   ],
@@ -360,6 +364,9 @@
     "description": "Submit before 23:59 tonight.",
     "attachment": "worksheet.pdf",   // 附件文件名，无附件为 ""
     "attachmentUrl": "https://cdn.xxx/worksheet.pdf",  // 附件下载链接
+    "reminder": "Fri May 30 · 2026-05-30 at 07:30 · repeat:daily (Daily)",  // 同 tasks.reminder；无提醒为 "None"
+    "reminderAt": "2026-05-30T07:30:00+08:00",  // 调度时间戳；无提醒为 ""
+    "reminderRepeat": "daily",     // none / daily / weekly / monthly / yearly
     "hidden": false,
     "read": false,
     "important": true,
@@ -393,9 +400,14 @@
   "deadline": "2026-05-24",
   "description": "Submit before 23:59 tonight.",
   "attachment": "n1-worksheet.pdf",   // 先用 /api/v1/upload 上传，传返回的 fileName
+  "reminder": "Fri May 30 · 2026-05-30 at 07:30 · repeat:daily (Daily)",  // 可选，格式同 tasks.reminder
+  "reminderAt": "2026-05-30T07:30:00+08:00",  // 可选，调度时间戳；到点向全班派发提醒
+  "reminderRepeat": "daily",       // 可选，none / daily / weekly / monthly / yearly
   "important": true
 }
 ```
+
+> 提醒调度：`reminderAt` 由客户端按班级时区（+08:00）从日期 + 时间推导。服务端 `pg_cron` 每分钟运行 `dispatch_due_reminders()`，将到期的 task / notice 提醒写入每个用户的 `reminder_events` 收件箱；重复提醒会自动推进到下次时间，一次性提醒推送后 `reminderAt` 置空。
 
 - **响应 data**：创建的通知完整对象
 
@@ -436,6 +448,37 @@
 
 - **接口**：`DELETE /api/v1/notifications/:id`
 - **权限**：role = admin
+- **响应 data**：`null`
+
+---
+
+### 4.9 获取到期提醒（提醒收件箱）
+
+- **接口**：`GET /api/v1/reminders`
+- **描述**：获取当前用户未读的到期提醒事件。由服务端 `pg_cron` 每分钟运行 `dispatch_due_reminders()` 生成，客户端在启动 / 前台恢复时拉取并弹出提示。
+- **响应 data**：
+
+```json
+[
+  {
+    "id": "re1",
+    "sourceType": "notice",        // notice / task
+    "sourceId": "n1",
+    "title": "Chapter 5 Q1-4 submission reminder",
+    "body": "Notice reminder",
+    "dueAt": "2026-05-30T07:30:00+08:00",
+    "seenAt": "",
+    "createdAt": "2026-05-30T07:30:03Z"
+  }
+]
+```
+
+---
+
+### 4.10 标记提醒为已读
+
+- **接口**：`PATCH /api/v1/reminders/seen`
+- **请求 Body**：`{ "ids": ["re1", "re2"] }`
 - **响应 data**：`null`
 
 ---

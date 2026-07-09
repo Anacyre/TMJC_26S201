@@ -1,8 +1,10 @@
 import { TEXT_AREA_MAX_LENGTH } from '@/lib/textInput'
 import { normalizeChecklist, parseStoredStepDeadline, sanitizeChecklistForSave } from '@/lib/checklist'
+import { emptyReminderFormFields, reminderFormFieldsFromStored } from '@/lib/reminderString'
 
 const DRAFT_KEY_PREFIX = 'notice_compose_draft_v1'
 const NOTICE_TYPES = new Set(['Homework', 'General', 'VIA', 'Event'])
+const REPEAT_IDS = new Set(['none', 'daily', 'weekly', 'monthly', 'yearly'])
 
 function storageKey(userId) {
   return `${DRAFT_KEY_PREFIX}:${userId || 'anon'}`
@@ -16,6 +18,9 @@ export function noticeDraftHasContent(draft) {
     || String(draft.description || '').trim()
     || String(draft.subject || '').trim()
     || String(draft.deadlineDate || '').trim()
+    || draft.reminderOn
+    || String(draft.reminderDate || '').trim()
+    || String(draft.reminderTime || '').trim()
     || hasSteps
   )
 }
@@ -29,6 +34,20 @@ function normalizeChecklistDraft(raw) {
   }))
 }
 
+function normalizeReminderDraft(raw) {
+  if (raw.reminderOn != null || raw.reminderDate || raw.reminderTime || raw.reminderRepeat) {
+    const repeat = String(raw.reminderRepeat || 'none').toLowerCase()
+    return {
+      reminderOn: !!raw.reminderOn,
+      reminderDate: String(raw.reminderDate || ''),
+      reminderTime: String(raw.reminderTime || ''),
+      reminderRepeat: REPEAT_IDS.has(repeat) ? repeat : 'none',
+    }
+  }
+  if (raw.reminder) return reminderFormFieldsFromStored(raw.reminder)
+  return emptyReminderFormFields()
+}
+
 function normalizeDraft(raw) {
   if (!raw || typeof raw !== 'object') return null
   const type = NOTICE_TYPES.has(raw.type) ? raw.type : 'Homework'
@@ -39,6 +58,7 @@ function normalizeDraft(raw) {
     deadlineDate: String(raw.deadlineDate || ''),
     description: String(raw.description || '').slice(0, TEXT_AREA_MAX_LENGTH),
     checklist: normalizeChecklistDraft(raw.checklist),
+    ...normalizeReminderDraft(raw),
   }
 }
 

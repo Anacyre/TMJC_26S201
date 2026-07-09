@@ -12,6 +12,7 @@
         </view>
         <text class="title">{{ notice.title }}</text>
         <text class="meta">{{ notice.subject || 'General' }}<text v-if="notice.deadline"> · {{ notice.deadline }}</text></text>
+        <text v-if="hasReminder" class="meta reminderMeta">Reminder · {{ notice.reminder }}</text>
 
         <view class="body">
           <text class="p text-word-wrap">{{ notice.description || 'No description.' }}</text>
@@ -37,7 +38,9 @@
             <text class="btnText">{{ notice.important ? 'Unpin' : 'Pin' }}</text>
           </view>
           <view v-if="canAddToTasks" class="btn primary tap" @tap="addToPlanner"><text class="btnTextPrimary">Add task</text></view>
-          <view class="btn ghost tap" @tap="hideNotice"><text class="btnText">Hide</text></view>
+          <view class="btn ghost tap" @tap="toggleHidden">
+            <text class="btnText">{{ notice.hidden ? 'Restore' : 'Hide' }}</text>
+          </view>
           <view v-if="canDelete" class="btn ghost danger tap" @tap="deleteNotice">
             <text class="btnTextDanger">Delete</text>
           </view>
@@ -108,6 +111,7 @@ const fallback = {
   description: 'This notice may have been removed.',
   attachment: '',
   checklist: [],
+  reminder: 'None',
   important: false,
   inPlanner: false,
   read: false,
@@ -120,6 +124,10 @@ const timeLabel = computed(() => shortTimeLabel(notice.value.createdAt))
 const subjectOptions = computed(() => communitySubjectNames(sortedCommunities.value))
 const canEdit = computed(() => isNoticeEditable(notice.value, currentUser.value?.id))
 const canDelete = computed(() => isNoticeDeletable(notice.value, currentUser.value?.id))
+const hasReminder = computed(() => {
+  const value = String(notice.value?.reminder || '').trim()
+  return !!value && value !== 'None'
+})
 
 function markAsRead() {
   if (!notice.value?.id) return
@@ -138,11 +146,20 @@ function togglePinned() {
   toast.noticeUpdated()
 }
 
-function hideNotice() {
+async function toggleHidden() {
   if (!notice.value?.id) return
-  setHidden(notice.value.id, true)
-  toast.hidden()
-  setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
+  const nextHidden = !notice.value.hidden
+  const { error } = await setHidden(notice.value.id, nextHidden)
+  if (error) {
+    toast.show(nextHidden ? 'Could not hide' : 'Could not restore')
+    return
+  }
+  if (nextHidden) {
+    toast.hidden()
+    setTimeout(() => uni.navigateBack({ delta: 1 }), 180)
+    return
+  }
+  toast.show('Notice restored')
 }
 
 async function deleteNotice() {
@@ -282,6 +299,15 @@ onLoad((query) => {
 
 .t-dark .meta {
   color: #9aa4b2;
+}
+
+.reminderMeta {
+  margin-top: 6rpx;
+  color: rgba(46, 99, 255, 0.82);
+}
+
+.t-dark .reminderMeta {
+  color: rgba(170, 200, 255, 0.86);
 }
 
 .body {

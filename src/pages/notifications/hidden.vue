@@ -12,25 +12,29 @@
         />
       </view>
 
-      <view
+      <NoticeSwipeRow
         v-for="n in list"
         :key="n.id"
-        v-memo="[n.id, n.title, n.subject, deletableNoticeIds.has(n.id)]"
-        class="row"
+        v-memo="[n.id, n.title, n.subject, n.type, leavingId === n.id, deletableNoticeIds.has(n.id)]"
+        class="swipeRow"
+        mode="hidden"
+        :can-delete="deletableNoticeIds.has(n.id)"
+        @commit="onSwipe(n, $event)"
+        @action="onSwipe(n, $event)"
+        @longpress-delete="onLongPressDelete(n)"
       >
-        <view class="main">
-          <text class="title" :number-of-lines="2">{{ n.title }}</text>
-          <text class="meta">{{ n.subject }} · {{ n.type }}</text>
-        </view>
-        <view class="acts">
-          <view class="iconBtn" role="button" @tap="restore(n.id)">
-            <text class="glyph">↺</text>
+        <view
+          class="row"
+          :class="{ leaving: leavingId === n.id }"
+          role="button"
+          @tap="openNotice(n)"
+        >
+          <view class="main">
+            <text class="title" :number-of-lines="2">{{ n.title }}</text>
+            <text class="meta">{{ n.subject }} · {{ n.type }}</text>
           </view>
-          <view v-if="deletableNoticeIds.has(n.id)" class="iconBtn danger" role="button" @tap="remove(n.id)">
-            <text class="glyph">×</text>
-          </view>
         </view>
-      </view>
+      </NoticeSwipeRow>
       <view class="gap" />
     </scroll-view>
     </PageContent>
@@ -40,16 +44,20 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import AppHeader from '@/components/AppHeader.vue'
 import PageContent from '@/components/PageContent.vue'
 import GlobalSearchOverlay from '@/components/GlobalSearchOverlay.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import NoticeSwipeRow from '@/components/NoticeSwipeRow.vue'
 import { useTheme } from '@/composables/useTheme'
 import { useNotificationStore } from '@/composables/useNotificationStore'
 import { toast } from '@/composables/useToast'
 import { deleteConfirm } from '@/composables/useConfirmDelete'
+import { navChild } from '@/lib/navigation'
+
+const SWIPE_LEAVE_MS = 220
 
 const { themeClass } = useTheme()
 const {
@@ -63,10 +71,16 @@ const {
 
 const list = computed(() => hiddenNotifications.value)
 const deletableNoticeIds = computed(() => buildDeletableNoticeIds(list.value))
+const leavingId = ref('')
 
 onShow(() => {
   if (!notifications.value.length) fetchNotifications()
 })
+
+function openNotice(n) {
+  if (!n?.id) return
+  navChild(`/pages/notice/detail?id=${encodeURIComponent(n.id)}`)
+}
 
 async function restore(id) {
   const { error } = await unhide(id)
@@ -77,21 +91,42 @@ async function restore(id) {
   toast.show('Notice restored')
 }
 
-async function remove(id) {
-  const notice = list.value.find((n) => n.id === id)
-  if (!notice || !deletableNoticeIds.value.has(id)) return
+async function remove(n) {
+  if (!n || !deletableNoticeIds.value.has(n.id)) return
   const ok = await deleteConfirm.notice({
-    message: notice.inPlanner
+    message: n.inPlanner
       ? 'This notice is in your planner. The linked task will be removed too.'
       : 'This cannot be undone.',
   })
   if (!ok) return
-  const { error } = await removeNotification(id)
-  if (error) {
-    toast.show(error.message || 'Could not delete')
+  leavingId.value = n.id
+  setTimeout(async () => {
+    const { error } = await removeNotification(n.id)
+    leavingId.value = ''
+    if (error) {
+      toast.show(error.message || 'Could not delete')
+      return
+    }
+    toast.noticeDeleted()
+  }, 280)
+}
+
+async function onLongPressDelete(n) {
+  await remove(n)
+}
+
+async function onSwipe(n, actionId) {
+  if (actionId === 'restore') {
+    leavingId.value = n.id
+    setTimeout(async () => {
+      await restore(n.id)
+      leavingId.value = ''
+    }, SWIPE_LEAVE_MS)
     return
   }
-  toast.noticeDeleted()
+  if (actionId === 'delete') {
+    await remove(n)
+  }
 }
 </script>
 
@@ -116,36 +151,27 @@ async function remove(id) {
   height: calc(100vh - var(--shell-header-offset));
   padding: 12rpx 24rpx 40rpx;
 }
-.hint {
-  display: block;
-  font-size: 20rpx;
-  color: rgba(16, 24, 40, 0.42);
-  padding: 0 4rpx 16rpx;
-}
-.t-dark .hint {
-  color: rgba(245, 247, 255, 0.38);
-}
 .empty {
   padding: 80rpx 20rpx;
   text-align: center;
 }
-.emptyText {
-  font-size: 22rpx;
-  color: rgba(16, 24, 40, 0.4);
-}
-.t-dark .emptyText {
-  color: rgba(245, 247, 255, 0.36);
+.swipeRow {
+  margin-top: var(--list-stack-gap);
 }
 .row {
   display: flex;
   align-items: center;
   gap: var(--list-card-gap);
-  margin-top: var(--list-stack-gap);
   padding: var(--list-card-pad-y) var(--list-card-pad-x);
   border-radius: var(--list-card-radius);
   background: rgba(255, 255, 255, 0.7);
   border: 1rpx solid rgba(16, 24, 40, 0.04);
   opacity: 0.92;
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+.row.leaving {
+  opacity: 0;
+  transform: scale(0.98);
 }
 .t-dark .row {
   background: rgba(255, 255, 255, 0.04);
@@ -171,39 +197,6 @@ async function remove(id) {
 }
 .t-dark .meta {
   color: rgba(245, 247, 255, 0.38);
-}
-.acts {
-  display: flex;
-  gap: 8rpx;
-  flex-shrink: 0;
-}
-.iconBtn {
-  width: var(--list-action-size);
-  height: var(--list-action-size);
-  border-radius: var(--list-check-radius);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(16, 24, 40, 0.05);
-  border: 1rpx solid rgba(16, 24, 40, 0.08);
-}
-.t-dark .iconBtn {
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.1);
-}
-.iconBtn.danger {
-  border-color: rgba(220, 80, 80, 0.2);
-}
-.glyph {
-  font-size: var(--list-meta-size);
-  color: rgba(16, 24, 40, 0.55);
-  font-weight: 500;
-}
-.t-dark .glyph {
-  color: rgba(245, 247, 255, 0.5);
-}
-.iconBtn.danger .glyph {
-  color: rgba(200, 90, 90, 0.95);
 }
 .gap {
   height: 32rpx;

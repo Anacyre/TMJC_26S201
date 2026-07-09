@@ -310,6 +310,9 @@ function seedState() {
       { user_id: userId, notification_id: noticeEventOut, hidden: false, read: false, important: false, in_planner: false },
     ],
 
+    // —— Reminder delivery inbox (per user) ——
+    reminderEvents: [],
+
     // —— Communities ——
     communities: [],
 
@@ -607,6 +610,8 @@ function rowToTask(row) {
     priority: row.priority || 'P3',
     status: normalizeTaskStatus(row.status),
     reminder: row.reminder || 'None',
+    reminderAt: row.reminder_at || '',
+    reminderRepeat: row.reminder_repeat || 'none',
     done: !!row.done,
     checklist: normalizeChecklist(row.checklist),
     relatedNotice: row.related_notice || null,
@@ -632,6 +637,9 @@ function rowToNotification(row, state = null) {
     attachment: row.attachment || '',
     attachmentUrl: row.attachment_url || '',
     checklist: normalizeChecklist(row.checklist),
+    reminder: row.reminder || 'None',
+    reminderAt: row.reminder_at || '',
+    reminderRepeat: row.reminder_repeat || 'none',
     by: row.by || 'Admin',
     createdBy: row.created_by || '',
     createdAt: row.created_at,
@@ -1008,6 +1016,8 @@ export async function createTask(payload) {
     priority: payload.priority || 'P3',
     status: payload.status || resolveTaskStatusFromForm({ deadlineDate }),
     reminder: payload.reminder?.trim() || 'None',
+    reminder_at: payload.reminderAt || null,
+    reminder_repeat: payload.reminderRepeat || 'none',
     done: false,
     checklist: payload.checklist || [],
     related_notice: payload.relatedNotice || null,
@@ -1031,6 +1041,8 @@ export async function updateTask(taskId, payload) {
   if (payload.priority !== undefined)    row.priority = payload.priority
   if (payload.status !== undefined)      row.status = payload.status
   if (payload.reminder !== undefined)    row.reminder = payload.reminder?.trim() ?? 'None'
+  if (payload.reminderAt !== undefined)  row.reminder_at = payload.reminderAt || null
+  if (payload.reminderRepeat !== undefined) row.reminder_repeat = payload.reminderRepeat || 'none'
   if (payload.done !== undefined)        row.done = !!payload.done
   if (payload.checklist !== undefined)   row.checklist = payload.checklist
   if (payload.done === true) row.completed_at = payload.completedAt || nowIso()
@@ -1161,6 +1173,9 @@ export async function createNotification(payload) {
     attachment: payload.attachment || '',
     attachment_url: payload.attachmentUrl || '',
     checklist: payload.checklist || [],
+    reminder: payload.reminder?.trim() || 'None',
+    reminder_at: payload.reminderAt || null,
+    reminder_repeat: payload.reminderRepeat || 'none',
     important: !!payload.important,
     by: payload.by || 'Admin',
     created_by: userId || '',
@@ -1264,6 +1279,9 @@ export async function updateNotification(notificationId, payload) {
   if (payload.attachment !== undefined) next.attachment = payload.attachment
   if (payload.attachmentUrl !== undefined) next.attachment_url = payload.attachmentUrl
   if (payload.checklist !== undefined) next.checklist = payload.checklist
+  if (payload.reminder !== undefined) next.reminder = payload.reminder?.trim() || 'None'
+  if (payload.reminderAt !== undefined) next.reminder_at = payload.reminderAt || null
+  if (payload.reminderRepeat !== undefined) next.reminder_repeat = payload.reminderRepeat || 'none'
   if (payload.important !== undefined) next.important = payload.important
   _state.notifications[idx] = next
   persist()
@@ -1278,6 +1296,91 @@ export async function deleteTasksBySourceNotice(noticeId) {
   _state.tasks = _state.tasks.filter(
     (t) => !(t.user_id === userId && t.source_notice_id === noticeId),
   )
+  persist()
+  return { error: null }
+}
+
+// ═════════════════════════════════════════════════════════════════════
+//  REMINDERS (src/api/reminders.js surface)
+//  Mirrors the server-side pg_cron dispatcher: fan due reminders into a
+//  per-user inbox, advancing/clearing the schedule cursor.
+// ═════════════════════════════════════════════════════════════════════
+function mockNextReminderAt(base, repeat) {
+  if (!base) return null
+  const stepDays = { daily: 1, weekly: 7 }
+  const r = String(repeat || 'none').toLowerCase()
+  if (r === 'none' || (!stepDays[r] && r !== 'monthly' && r !== 'yearly')) return null
+  let next = new Date(base)
+  const now = Date.now()
+  let guard = 0
+  while (next.getTime() <= now && guard < 1000) {
+    if (r === 'monthly') next.setMonth(next.getMonth() + 1)
+    else if (r === 'yearly') next.setFullYear(next.getFullYear() + 1)
+    else next.setDate(next.getDate() + stepDays[r])
+    guard += 1
+  }
+  return next.toISOString()
+}
+
+function dispatchDueRemindersMock() {
+  if (!Array.isArray(_state.reminderEvents)) _state.reminderEvents = []
+  const now = Date.now()
+  let changed = false
+  const pushEvent = (userId, sourceType, sourceId, title, body, dueAt) => {
+    const exists = _state.reminderEvents.some(
+      (e) => e.user_id === userId && e.source_type === sourceType
+        && e.source_id === String(sourceId) && e.due_at === dueAt,
+    )
+    if (exists) return
+    _state.reminderEvents.unshift({
+      id: uid('rmd'), user_id: userId, source_type: sourceType,
+      source_id: String(sourceId), title: title || '', body: body || '',
+      due_at: dueAt, seen_at: null, created_at: nowIso(),
+    })
+    changed = true
+  }
+
+  for (const t of _state.tasks) {
+    if (!t.reminder_at || t.done) continue
+    if (new Date(t.reminder_at).getTime() > now) continue
+    pushEvent(t.user_id, 'task', t.id, t.title || 'Task', 'Task reminder', t.reminder_at)
+    t.reminder_at = mockNextReminderAt(t.reminder_at, t.reminder_repeat)
+    changed = true
+  }
+
+  const memberIds = _state.profiles.map((p) => p.id)
+  for (const n of _state.notifications) {
+    if (!n.reminder_at) continue
+    if (new Date(n.reminder_at).getTime() > now) continue
+    for (const uidValue of memberIds) {
+      pushEvent(uidValue, 'notice', n.id, n.title || 'Notice', 'Notice reminder', n.reminder_at)
+    }
+    n.reminder_at = mockNextReminderAt(n.reminder_at, n.reminder_repeat)
+    changed = true
+  }
+
+  if (changed) persist()
+}
+
+export async function fetchDueReminders() {
+  await tick(20)
+  const userId = currentUserId()
+  if (!userId) return { data: [], error: null }
+  dispatchDueRemindersMock()
+  const data = (_state.reminderEvents || [])
+    .filter((e) => e.user_id === userId && !e.seen_at)
+    .sort((a, b) => (a.due_at < b.due_at ? -1 : 1))
+  return { data, error: null }
+}
+
+export async function markRemindersSeen(ids) {
+  await tick(20)
+  const set = new Set(ids || [])
+  if (!set.size) return { error: null }
+  const seenAt = nowIso()
+  for (const e of _state.reminderEvents || []) {
+    if (set.has(e.id)) e.seen_at = seenAt
+  }
   persist()
   return { error: null }
 }

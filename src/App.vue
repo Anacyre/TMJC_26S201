@@ -2,6 +2,7 @@
 import { useTheme } from '@/composables/useTheme'
 import { useFocusTheme } from '@/composables/useFocusTheme'
 import { bootstrapData } from '@/composables/useBootstrap'
+import { checkDueReminders } from '@/composables/useReminders'
 import { ensureAuthOnLaunch, resumeAuthSession } from '@/composables/useAuthSession'
 import { USE_MOCK, resetMockBackend } from '@/lib/mockBackend'
 import { scheduleMountGlobalOverlays } from '@/lib/mountGlobalOverlays'
@@ -19,6 +20,7 @@ export default {
     tryMountOverlays()
     await resumeAuthSession()
     bootstrapData()
+    checkDueReminders()
   },
   onHide: function () {},
 }
